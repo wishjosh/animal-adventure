@@ -414,7 +414,7 @@ function updateHlMesh() {
 const raycaster=new THREE.Raycaster(), mouse2D=new THREE.Vector2(-9999,-9999);
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  TERRAIN CALCULATION 
+//  TERRAIN CALCULATION
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 function vn(x,z){
   const h=n=>{let v=Math.sin(n*127.1+311.7)*43758.5453;return v-Math.floor(v);};
@@ -426,16 +426,45 @@ function vn(x,z){
 
 function getH(wx,wz){
   const nx=wx*0.03, nz=wz*0.03;
-  let base=vn(nx,nz)*4.0 + 36.0; 
-  const mountains=Math.pow(vn(nx*0.5+100,nz*0.5+100),2.0)*(vn(nx*2.0,nz*2.0)*16.0);
-  const riverNoise=Math.abs(vn(nx*0.6+50,nz*0.6+50)*2-1);
-  const riverCarve=Math.max(0,1.0-riverNoise*3.5);
   
-  let h=base+mountains;
-  if(riverCarve>0) h=h-(riverCarve*18.0); 
+  // ✨ 1. 대륙과 해양의 빈도를 조절 (육지와 바다가 더 골고루 나타나게 함)
+  const macroNoise = vn(wx * 0.012 + 100, wz * 0.012 + 100); 
   
-  if(h>50.0) h=50.0+Math.sqrt(h-50.0)*1.5;
-  return Math.min(GH,Math.max(10,Math.round(h))); 
+  let base = 0;
+  if (macroNoise > 0.45) {
+      // 넓은 평야와 대륙
+      base = 36.0 + (macroNoise - 0.45) * 12.0; 
+  } else if (macroNoise < 0.35) {
+      // 깊은 바다와 거대한 호수
+      base = 18.0 + (macroNoise * 20.0); 
+  } else {
+      // 완만한 해변가 (자연스러운 연결)
+      const t = (macroNoise - 0.35) * 10.0; 
+      base = 24.0 + t * 12.0; 
+  }
+
+  // ✨ 2. 무인도 탈출! 시작 지점 주변을 듬직한 '거대 대륙'으로 보장 (반경 50칸)
+  const distFromCenter = Math.sqrt(wx*wx + wz*wz);
+  if (distFromCenter < 50) {
+      const boost = (50 - distFromCenter) / 50; // 중심일수록 강력한 육지 보정
+      if (base < 36.0) {
+          base = base + (36.0 - base) * boost;
+      }
+  }
+
+  // 3. 산맥 노이즈 (육지 위에서만 솟아오름)
+  const mountains = Math.pow(vn(nx*0.5+100, nz*0.5+100), 2.0) * (vn(nx*2.0, nz*2.0) * 18.0);
+  
+  // 4. 강줄기 노이즈 (육지를 가로지르는 계곡)
+  const riverNoise = Math.abs(vn(nx*0.6+50, nz*0.6+50)*2 - 1);
+  const riverCarve = Math.max(0, 1.0 - riverNoise*3.5);
+  
+  let h = base;
+  if(h >= 34.0) h += mountains; // 육지에서만 산맥 적용
+  if(riverCarve > 0) h = h - (riverCarve * 16.0); // 강줄기 파내기
+  
+  if(h > 50.0) h = 50.0 + Math.sqrt(h-50.0)*1.5;
+  return Math.min(GH, Math.max(10, Math.round(h))); 
 }
 
 function terrainType(y,sh){
