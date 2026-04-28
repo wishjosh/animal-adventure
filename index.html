@@ -19,9 +19,9 @@ body { overflow:hidden; background:#87CEEB; font-family:'Malgun Gothic','Apple S
 .mc { font-size:12px; color:rgba(255,255,255,0.6); }
 .mc.done { color:#5CFF5C; font-weight:bold; }
 
-/* 🌟 마인크래프트 스타일 핫바 (하단 중앙) */
+/* 🌟 마인크래프트 스타일 핫바 */
 #hotbar-wrapper { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:20; display:flex; flex-direction:column; align-items:center; gap:6px; pointer-events:none; }
-#hotbar-label { color:#FFD700; font-size:14px; font-weight:900; text-shadow:1px 1px 2px #000; background:rgba(0,0,0,0.6); padding:4px 16px; border-radius:12px; pointer-events:none; border:1px solid rgba(255,215,0,0.5); transition:transform 0.1s, opacity 0.2s; }
+#hotbar-label { position:absolute; bottom:105px; left:50%; transform:translateX(-50%); color:#FFD700; font-size:14px; font-weight:900; text-shadow:1px 1px 2px #000; background:rgba(0,0,0,0.6); padding:4px 16px; border-radius:12px; pointer-events:none; border:1px solid rgba(255,215,0,0.5); transition:transform 0.1s, opacity 0.2s; white-space:nowrap; }
 #hotbar-container { display:flex; gap:4px; background:rgba(0,0,0,0.55); padding:6px; border-radius:8px; border:2px solid rgba(255,255,255,0.2); backdrop-filter:blur(4px); pointer-events:auto; }
 .hotbar-slot { width:44px; height:44px; background:rgba(255,255,255,0.1); border:2px solid rgba(255,255,255,0.3); border-radius:6px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; position:relative; transition:transform 0.1s; }
 .hotbar-slot:hover { background:rgba(255,255,255,0.2); }
@@ -30,7 +30,7 @@ body { overflow:hidden; background:#87CEEB; font-family:'Malgun Gothic','Apple S
 .slot-icon { font-size:20px; text-shadow:1px 1px 2px #000; }
 .slot-swatch { width:20px; height:20px; border-radius:4px; border:1px solid rgba(255,255,255,0.5); box-shadow:1px 1px 3px rgba(0,0,0,0.5); }
 
-/* 🌟 마인크래프트 스타일 인벤토리 (가방) */
+/* 🌟 가방 (인벤토리) */
 #inventory-overlay { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:50; background:rgba(20,30,20,0.95); border:3px solid #4caf50; border-radius:12px; padding:20px; display:none; flex-direction:column; gap:15px; width:90%; max-width:500px; box-shadow:0 10px 40px rgba(0,0,0,0.8); max-height:85vh; overflow-y:auto; }
 .inv-header { display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.2); padding-bottom:10px; }
 .inv-header h2 { color:#FFD700; font-size:18px; }
@@ -45,7 +45,7 @@ body { overflow:hidden; background:#87CEEB; font-family:'Malgun Gothic','Apple S
 .inv-item:hover { background:rgba(255,215,0,0.2); border-color:#FFD700; }
 .btn-clear-slot { margin-top:8px; background:#C0392B; color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer; }
 
-/* 우측 상단 버튼들 (회전, 지도, 저장, 가방) */
+/* 우측 상단 버튼들 */
 #side-buttons { position:fixed; top:80px; right:14px; z-index:10; display:flex; flex-direction:column; gap:8px; }
 .side-btn { padding:10px; background:rgba(0,0,0,0.6); border:2px solid rgba(255,255,255,0.2); border-radius:8px; color:#fff; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:6px; transition:0.1s; font-size:12px; }
 .side-btn:hover { background:rgba(255,255,255,0.2); border-color:#FFD700; color:#FFD700;}
@@ -54,6 +54,7 @@ body { overflow:hidden; background:#87CEEB; font-family:'Malgun Gothic','Apple S
 #toast { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:30; background:rgba(0,0,0,0.88); color:#fff; padding:14px 28px; border-radius:14px; font-size:16px; font-weight:800; display:none; pointer-events:none; border:2px solid rgba(255,215,0,0.4); text-align: center; }
 #carry-indicator { position:fixed; top:90px; left:50%; transform:translateX(-50%); z-index:20; background:rgba(255,215,0,0.22); border:2px solid #FFD700; border-radius:20px; padding:6px 18px; color:#FFD700; font-size:13px; font-weight:800; display:none; backdrop-filter:blur(4px); animation:pulse 1s ease-in-out infinite; white-space: nowrap;}
 @keyframes pulse { 0%,100%{box-shadow:0 0 8px rgba(255,215,0,0.4);} 50%{box-shadow:0 0 20px rgba(255,215,0,0.8);} }
+
 #map-overlay { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:50; background:rgba(8,18,8,0.96); border:2px solid #FFD700; border-radius:18px; padding:22px; display:none; backdrop-filter:blur(10px); box-shadow:0 0 40px rgba(0,0,0,0.8); max-width: 90vw; max-height: 90vh; overflow: auto;}
 #map-overlay h3 { color:#FFD700; font-size:15px; text-align:center; margin-bottom:4px; }
 #map-overlay p  { color:rgba(255,255,255,0.55); font-size:11px; text-align:center; margin-bottom:12px; }
@@ -64,6 +65,7 @@ body { overflow:hidden; background:#87CEEB; font-family:'Malgun Gothic','Apple S
 .mc-cell.visible:hover { transform:scale(1.12); filter:brightness(1.2); }
 .mc-cell.hidden  { background:#1a2a1a; cursor:default; }
 #map-close { display:block; margin:14px auto 0; padding:8px 28px; background:#FFD700; color:#000; border:none; border-radius:8px; font-size:14px; font-weight:800; cursor:pointer; }
+
 #mission-clear { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:40; background:linear-gradient(135deg,#0d2b12,#1a5c28); border:3px solid #FFD700; border-radius:24px; padding:36px 44px; text-align:center; color:#fff; display:none; box-shadow:0 0 60px rgba(255,215,0,0.3); animation:popIn 0.4s cubic-bezier(0.34,1.56,0.64,1); width: 90%; max-width: 400px;}
 @keyframes popIn { from{transform:translate(-50%,-50%) scale(0.5);opacity:0;} to{transform:translate(-50%,-50%) scale(1);opacity:1;} }
 #mission-clear .mc-star { font-size:48px; margin-bottom:8px; }
@@ -71,10 +73,34 @@ body { overflow:hidden; background:#87CEEB; font-family:'Malgun Gothic','Apple S
 #mission-clear p  { font-size:15px; opacity:0.9; line-height:1.6; margin-bottom:22px; }
 #mission-clear button { padding:12px 30px; background:#FFD700; color:#000; border:none; border-radius:10px; font-size:16px; font-weight:900; cursor:pointer; }
 
+/* 🌟 오프닝 스토리 오버레이 */
+#opening-overlay { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:100; background:linear-gradient(135deg,#0d2b12,#1a5c28); border:3px solid #FFD700; border-radius:24px; padding:40px 30px; text-align:center; color:#fff; box-shadow:0 0 60px rgba(255,215,0,0.3); width: 90%; max-width: 400px; display:flex; flex-direction:column; gap:20px; transition: opacity 0.5s; }
+#opening-emoji { font-size:60px; margin-bottom:10px; animation: float 2s infinite ease-in-out; }
+#opening-text { font-size:16px; line-height:1.6; min-height:80px; word-break: keep-all; }
+#opening-btn { padding:12px 30px; background:#FFD700; color:#000; border:none; border-radius:10px; font-size:16px; font-weight:900; cursor:pointer; transition: transform 0.1s; }
+#opening-btn:active { transform: scale(0.95); }
+@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+/* ✨ 생명체 리포트 팝업 */
+#creature-report { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:60; background:linear-gradient(135deg,#1f3b24,#0d1a10); border:3px solid #4caf50; border-radius:20px; padding:24px; color:#fff; box-shadow:0 15px 50px rgba(0,0,0,0.8); display:none; flex-direction:column; gap:12px; width:90%; max-width:420px; animation:popIn 0.3s cubic-bezier(0.34,1.56,0.64,1); cursor:pointer;}
+.cr-title { font-size:22px; color:#FFD700; font-weight:900; text-align:center; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.2); padding-bottom:8px; }
+.cr-row { font-size:13px; line-height:1.5; background:rgba(0,0,0,0.4); padding:10px; border-radius:8px; word-break:keep-all; }
+.cr-row span.lbl { font-weight:bold; color:#a8e6a0; margin-right:6px; }
+.cr-hint { font-size:14px; font-weight:bold; color:#FFD700; text-align:center; margin-top:8px; background:rgba(255,215,0,0.15); padding:12px; border-radius:12px; border:1px solid rgba(255,215,0,0.3); word-break:keep-all;}
+
+/* ✨ 할머니 알림 팝업 */
+#grandma-popup { position:fixed; top:15%; left:50%; transform:translateX(-50%); z-index:70; background:rgba(20,10,0,0.9); border:2px solid #FFD700; border-radius:16px; padding:20px; color:#fff; text-align:center; font-size:16px; line-height:1.6; display:none; animation: slideDown 0.4s ease-out; width:90%; max-width: 450px;}
+@keyframes slideDown { from{transform:translate(-50%,-150%);} to{transform:translate(-50%,-50%);} }
+
+/* ✨ 페이즈 전환 연출 팝업 */
+#phase-transition { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:60; background:linear-gradient(135deg,#0a192f,#203a43); border:3px solid #4caf50; border-radius:24px; padding:40px 30px; text-align:center; color:#fff; box-shadow:0 0 60px rgba(76,175,80,0.4); width:90%; max-width:400px; display:none; flex-direction:column; gap:16px; animation:popIn 0.5s cubic-bezier(0.34,1.56,0.64,1); }
+#pt-emoji { font-size:60px; margin-bottom:10px; animation:float 2s infinite ease-in-out; }
+#pt-text { font-size:18px; font-weight:bold; line-height:1.6; word-break:keep-all; }
+
 @media (max-width: 600px) {
   #topbar { padding: 5px 10px; gap: 8px;}
   #title-text { font-size: 16px; }
-  #hotbar-label { font-size: 12px; padding: 3px 12px; }
+  #hotbar-label { font-size: 12px; padding: 3px 12px; bottom: 85px; }
   .hotbar-slot { width:34px; height:34px; }
   .slot-icon { font-size:16px; }
   #hint { font-size: 9px; bottom: 75px; }
@@ -88,13 +114,9 @@ body { overflow:hidden; background:#87CEEB; font-family:'Malgun Gothic','Apple S
 <div id="topbar">
   <div id="title-text">🐾 생태계 수호자</div>
   <div id="mission-box">
-    <div id="mission-title">🎯 미션: 다친 양을 치료하고 서식지 만들기!</div>
-    <div id="mission-desc">1. 먹이로 유도해서 양들을 볏짚 위로 데려오세요.<br>2. 구급상자로 치료하고, 풀밭 울타리를 만들어주세요!</div>
-    <div id="mission-status">
-      <span class="mc" id="mc-heal">⬜ 다친 양 치료 0/1</span>
-      <span class="mc" id="mc-sheep">⬜ 보호된 양 0/3</span>
-      <span class="mc" id="mc-grass">⬜ 서식지 내 풀밭 0/6</span>
-    </div>
+    <div id="mission-title">🎯 미션 로딩 중...</div>
+    <div id="mission-desc"></div>
+    <div id="mission-status"></div>
   </div>
 </div>
 
@@ -117,30 +139,16 @@ body { overflow:hidden; background:#87CEEB; font-family:'Malgun Gothic','Apple S
     <h2>🎒 내 가방 (인벤토리)</h2>
     <button class="close-btn" onclick="toggleInventory()">✖</button>
   </div>
-  
   <div class="inv-hotbar-preview">
     <h3>👇 단축키(1~9) 슬롯 설정</h3>
     <p>아래에서 아이템을 골라 핫바에 등록하세요.</p>
     <div class="inv-grid" id="inv-hotbar-grid"></div>
     <button class="btn-clear-slot" onclick="clearSelectedSlot()">🆑 현재 슬롯 비우기</button>
   </div>
-
-  <div class="inv-category">
-    <h3>🛠️ 도구</h3>
-    <div class="inv-grid" id="inv-tools"></div>
-  </div>
-  <div class="inv-category">
-    <h3>🧱 건축 재료</h3>
-    <div class="inv-grid" id="inv-materials"></div>
-  </div>
-  <div class="inv-category">
-    <h3>🌳 자연 재료 (복원용)</h3>
-    <div class="inv-grid" id="inv-nature"></div>
-  </div>
-  <div class="inv-category">
-    <h3>💖 구조 키트</h3>
-    <div class="inv-grid" id="inv-kits"></div>
-  </div>
+  <div class="inv-category"><h3>🛠️ 도구</h3><div class="inv-grid" id="inv-tools"></div></div>
+  <div class="inv-category"><h3>🧱 건축 재료</h3><div class="inv-grid" id="inv-materials"></div></div>
+  <div class="inv-category"><h3>🌳 자연 재료 (복원용)</h3><div class="inv-grid" id="inv-nature"></div></div>
+  <div class="inv-category"><h3>💖 구조 키트</h3><div class="inv-grid" id="inv-kits"></div></div>
 </div>
 
 <div id="hint">💡 단축키 1~9: 슬롯 교체 | 파기: 1번 클릭 (연속 파기: 더블클릭 꾹~) | 카메라 이동: 화면 드래그</div>
@@ -154,27 +162,184 @@ body { overflow:hidden; background:#87CEEB; font-family:'Malgun Gothic','Apple S
   <div id="map-grid"></div>
   <button id="map-close" onclick="closeMap()">닫기</button>
 </div>
+
 <div id="mission-clear">
   <div class="mc-star">🌟</div>
-  <h2>동물 구조 성공!</h2>
-  <p>다친 양이 건강을 되찾고,<br>친구들과 푹신한 풀밭에서 뛰놀게 되었어요! 🎉</p>
+  <h2>퀘스트 완료!</h2>
+  <p>동물들이 다시 건강을 되찾고 있어요! 🎉</p>
   <button onclick="document.getElementById('mission-clear').style.display='none'">계속 탐험하기 →</button>
+</div>
+
+<!-- 오프닝 스토리 오버레이 -->
+<div id="opening-overlay">
+  <div id="opening-emoji">🗺️</div>
+  <div id="opening-text">낡은 상자 안에서 이상한 지도를 발견했어요.<br>지도 위로 빨간 경보등이 깜빡이고 있어요.</div>
+  <button id="opening-btn" onclick="nextScene()">다음 →</button>
+</div>
+
+<!-- 생명체 리포트 팝업 -->
+<div id="creature-report" onclick="this.style.display='none'">
+  <div class="cr-title" id="cr-name"></div>
+  <div class="cr-row"><span class="lbl">✨ 특기:</span> <span id="cr-skill"></span></div>
+  <div class="cr-row"><span class="lbl">⚠️ 취약점:</span> <span id="cr-weak"></span></div>
+  <div class="cr-row"><span class="lbl">📖 팩트:</span> <span id="cr-fact"></span></div>
+  <div class="cr-hint">💡 <span id="cr-hint"></span></div>
+  <div style="text-align:center; font-size:10px; color:rgba(255,255,255,0.5); margin-top:5px;">클릭하면 닫힙니다</div>
+</div>
+
+<!-- 할머니 알림 팝업 -->
+<div id="grandma-popup">
+  <div style="font-size:40px; margin-bottom:10px;">👵</div>
+  <div id="grandma-text">맞아. 모든 게 연결되어 있단다.<br>흙이 죽으면 나무가 죽고...<br>뿌리부터 살려야 해.</div>
+</div>
+
+<!-- ✨ 페이즈 전환 연출 -->
+<div id="phase-transition">
+  <div id="pt-emoji">🌱</div>
+  <div id="pt-text">식물과 흙이 살아났어요!</div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  단서 시스템 (Phase 0)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const ClueSystem = {
+  clues: [
+    { id:'tree',  pos:{x:8, z:8},   found:false, emoji:'🌳', msg:'뿌리가 말라있어요. 흙이 딱딱해서 물을 흡수하지 못해요.' },
+    { id:'farm',  pos:{x:4, z:4},   found:false, emoji:'🌱', msg:'흙이 콘크리트처럼 굳어있어요. 씨앗을 심어도 싹이 안 트네요.' },
+    { id:'hive',  pos:{x:12, z:4},  found:false, emoji:'🐝', msg:'벌집이 텅 비어있어요. 꿀벌들이 어디로 갔을까요?' },
+    { id:'river', pos:{x:4, z:12},  found:false, emoji:'🦆', msg:'쓰레기가 쌓여 수위가 낮아졌어요. 오리들이 뭍으로 올라와 있어요.' }
+  ],
+  foundCount: 0,
+  meshes: [],
+
+  init() {
+    this.meshes.forEach(m => scene.remove(m));
+    this.meshes = [];
+    this.foundCount = this.clues.filter(c => c.found).length;
+
+    const clueMat = new THREE.MeshBasicMaterial({color: 0xffe600, transparent:true, opacity:0.8});
+    const clueGeo = new THREE.SphereGeometry(0.4, 16, 16);
+
+    this.clues.forEach(clue => {
+      if(!clue.found) {
+        const mesh = new THREE.Mesh(clueGeo, clueMat);
+        const halo = new THREE.Mesh(new THREE.SphereGeometry(0.6, 16, 16), new THREE.MeshBasicMaterial({color: 0xffffff, transparent:true, opacity:0.3}));
+        mesh.add(halo);
+        
+        const ty = getTopY(clue.pos.x, clue.pos.z);
+        mesh.position.set(clue.pos.x, ty + 1, clue.pos.z);
+        mesh.userData = { isClue: true, clueId: clue.id, baseTopY: ty };
+        
+        scene.add(mesh);
+        this.meshes.push(mesh);
+        clue.mesh = mesh;
+      }
+    });
+  },
+
+  checkClick(clueId) {
+    const clue = this.clues.find(c => c.id === clueId);
+    if(clue && !clue.found) {
+      clue.found = true;
+      this.foundCount++;
+      
+      if(clue.mesh) {
+        scene.remove(clue.mesh);
+        clue.mesh = null;
+      }
+      
+      CreatureReport.show(clue.id);
+      toast(`🔍 ${clue.emoji} 단서를 찾았어요! (${this.foundCount}/4)`);
+      
+      if(this.foundCount >= 4) {
+        setTimeout(() => this.allFound(), 1500); 
+      }
+    }
+  },
+
+  allFound() {
+    const gp = document.getElementById('grandma-popup');
+    gp.style.display = 'block';
+    
+    setTimeout(() => {
+      gp.style.display = 'none';
+      QuestManager.advance(); 
+    }, 4500);
+  },
+
+  updateAnims(t) {
+    this.clues.forEach(clue => {
+      if(!clue.found && clue.mesh) {
+        clue.mesh.position.y = clue.mesh.userData.baseTopY + 1.2 + Math.sin(t * 3 + clue.pos.x) * 0.3;
+      }
+    });
+  }
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  생명체 리포트 팝업
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const CreatureReport = {
+  data: {
+    tree:  { name:'🌳 고목나무', skill:'수백 년을 살며 수십 종의 생명에게 집을 내어줘요', weak:'뿌리가 마르면 주변 생태계 전체가 무너져요', fact:'나무들은 뿌리로 서로 영양분을 나눠요! (숲의 인터넷)', hint:'흙을 먼저 살려야 나무가 회복돼요' },
+    farm:  { name:'🌱 지렁이', skill:'매일 자기 몸무게만큼 낙엽을 먹어요', weak:'농약과 건조한 땅에서는 살 수 없어요', fact:'지렁이가 없으면 아무리 씨앗을 심어도 풀이 안 자라요', hint:'낙엽을 모아 흙 위에 덮어주세요!' },
+    hive:  { name:'🐝 꿀벌', skill:'하루에 꽃 수백 송이를 돌아다니며 꽃가루를 날라요', weak:'겹꽃(장미 등)에는 꽃가루가 없어서 못 먹어요', fact:'꿀벌이 없으면 과일과 채소의 70%가 열매를 못 맺어요', hint:'클로버·해바라기처럼 꽃가루 있는 꽃을 심어주세요!' },
+    river: { name:'🦆 오리', skill:'고개를 물속에 넣어 먹이를 찾아요', weak:'물이 너무 얕으면 먹이를 못 찾아요', fact:'물이 없으면 깃털이 방수력을 잃어 오리가 물에 빠져요!', hint:'강의 쓰레기를 치워 수위를 높여주세요!' }
+  },
+  timer: null,
+  show(id) {
+    const d = this.data[id];
+    if(!d) return;
+    document.getElementById('cr-name').textContent = d.name;
+    document.getElementById('cr-skill').textContent = d.skill;
+    document.getElementById('cr-weak').textContent = d.weak;
+    document.getElementById('cr-fact').textContent = d.fact;
+    document.getElementById('cr-hint').textContent = d.hint;
+    
+    const el = document.getElementById('creature-report');
+    el.style.display = 'flex';
+    
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => { el.style.display = 'none'; }, 6000); 
+  }
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  페이즈 전환 시스템
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function showPhaseTransition(phase) {
+  const messages = {
+    2: { emoji:'🌱', text:'식물과 흙이 살아났어요!<br>이제 곤충과 새가 돌아올 거예요.' },
+    3: { emoji:'🦋', text:'하늘이 활기로 가득해요!<br>이제 동물들의 차례예요.' },
+    4: { emoji:'🌍', text:'생태계의 톱니바퀴가 다시 돌아갑니다!<br>보스 챌린지 준비!' }
+  };
+  const msg = messages[phase];
+  if(!msg) return;
+  
+  document.getElementById('pt-emoji').textContent = msg.emoji;
+  document.getElementById('pt-text').innerHTML = msg.text;
+  
+  const el = document.getElementById('phase-transition');
+  el.style.display = 'flex';
+  
+  setTimeout(() => {
+    el.style.display = 'none';
+  }, 2500);
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  아이템 및 블록 데이터베이스
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const ITEM_DB = {
   pickaxe: { category: 'tool', type: 'pickaxe', label: '곡괭이', icon: '⛏️' },
+  axe:     { category: 'tool', type: 'axe', label: '도끼', icon: '🪓' },
   dirt:  { category: 'material', type: 'block', label: '흙', color: '#7a5c1e', hex: 0x7a5c1e, solid: true },
   grass: { category: 'material', type: 'block', label: '풀', color: '#4caf50', hex: 0x4caf50, solid: true },
   straw: { category: 'material', type: 'block', label: '볏짚', color: '#ddc050', hex: 0xddc050, solid: true },
   fence: { category: 'material', type: 'block', label: '울타리', color: '#8d6e3a', hex: 0x8d6e3a, solid: true },
   stone: { category: 'material', type: 'block', label: '돌', color: '#888888', hex: 0x888888, solid: true },
-  
-  // 자연 복원용 블록들
   t_low:   { category: 'nature', type: 'block', label: '얕은 풀밭', color: '#6aaa5a', hex: 0x6aaa5a, solid: true },
   t_mid:   { category: 'nature', type: 'block', label: '깊은 풀밭', color: '#4a8a3a', hex: 0x4a8a3a, solid: true },
   t_high:  { category: 'nature', type: 'block', label: '고산 풀밭', color: '#7a8e68', hex: 0x7a8e68, solid: true },
@@ -184,7 +349,6 @@ const ITEM_DB = {
   r_sand:  { category: 'nature', type: 'block', label: '강 모래', color: '#c8b47a', hex: 0xc8b47a, solid: true },
   r_gravel:{ category: 'nature', type: 'block', label: '강 자갈', color: '#9a8868', hex: 0x9a8868, solid: true },
   r_sub:   { category: 'nature', type: 'block', label: '강 진흙', color: '#7a6850', hex: 0x7a6850, solid: true },
-
   lure:  { category: 'kit', type: 'action', label: '먹이(유도)', icon: '🌾' },
   heal:  { category: 'kit', type: 'action', label: '구급상자', icon: '🩹' },
   carry: { category: 'kit', type: 'action', label: '안아주기', icon: '👐' }
@@ -198,13 +362,211 @@ const TERRAIN_BLOCKS = {
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  핫바 및 인벤토리 시스템
+//  UI 상태 변수
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-let hotbar = ['pickaxe', 'dirt', 'grass', 'straw', 'fence', 'lure', 'heal', 'carry', null];
+let hotbar = ['pickaxe', 'axe', 'grass', 'straw', 'fence', 'lure', 'heal', 'carry', null];
 let activeSlot = 0; 
 let isInventoryOpen = false;
-let currentRotation = 0; // 0 or 1 (울타리 회전 상태)
+let currentRotation = 0; 
+let toolMode = 'none', selItem = null;
 
+const gridData={}, meshByKey={}, animalData=[];
+const chunkState={}, chunkGroups={};
+const deletedBlocks=new Set();
+let pickedAnimal=null;
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  고목나무 시스템
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const OldTree = {
+  group: null,
+  state: 'withered',
+  chopCount: 0,
+  regrowthDays: 0,
+  branches: [],
+  leaves: [],
+  fruits: [],
+  setState(newState) {
+    this.state = newState;
+    this.updateVisual();
+  },
+  updateVisual() {
+    if (!this.group) return;
+    if (this.state === 'chopped') {
+      scene.remove(this.group);
+      return;
+    } else if (this.group.parent !== scene) {
+      scene.add(this.group);
+    }
+
+    const leafColor = this.state === 'withered' ? 0x888888 : (this.state === 'growing' ? 0x90EE90 : 0x228B22);
+    this.leaves.forEach(l => { if(l.material) l.material.color.setHex(leafColor); });
+
+    this.branches.forEach(b => {
+       if(this.state === 'withered') b.rotation.z = -0.4;
+       else b.rotation.z = 0.2;
+    });
+
+    if (this.state === 'blooming') this.fruits.forEach(f => f.visible = true);
+    else this.fruits.forEach(f => f.visible = false);
+  },
+  chop() {
+    const shakeDuration = 500;
+    const endTime = Date.now() + shakeDuration;
+    const originalY = orbitTarget.y;
+    
+    const shakeInterval = setInterval(() => {
+      if (Date.now() > endTime) {
+        clearInterval(shakeInterval);
+        orbitTarget.y = originalY;
+        syncCam();
+      } else {
+        orbitTarget.y = originalY + (Math.random() - 0.5) * 1.5;
+        syncCam();
+      }
+    }, 50);
+
+    scene.remove(this.group);
+    this.state = 'chopped';
+
+    const tx = 8, tz = 8;
+    for(let x = tx - 10; x <= tx + 10; x++) {
+      for(let z = tz - 10; z <= tz + 10; z++) {
+        if(Math.hypot(x-tx, z-tz) <= 10) {
+          for (let y = 0; y <= GH; y++) {
+            const k = bk(x, y, z);
+            if (gridData[k] && meshByKey[k]) {
+              const type = gridData[k].split('_')[0];
+              if (['grass', 't_low', 't_mid', 't_high', 't_dirt', 'dirt'].includes(type)) {
+                meshByKey[k].material.color.setHex(0x8B7355); 
+              }
+            }
+          }
+        }
+      }
+    }
+    toast('🪓 고목나무가 쓰러졌어요... 생태계가 무너집니다');
+    QuestManager.onTreeChopped();
+  }
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  퀘스트 시스템
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const QuestManager = {
+  currentTheme: 1,
+  currentStep: 1,
+  themeComplete: {},
+  currentPhase: 0, 
+  phaseComplete: {},
+  injuredHealedCount: 0,
+  
+  check() {
+    if(this.currentPhase === 0) this.checkPhase0();
+    else if(this.currentPhase === 1) this.checkPhase1();
+    else if(this.currentPhase === 2) this.checkPhase2();
+    else if(this.currentPhase === 3) this.checkPhase3();
+  },
+  
+  checkPhase0() {},
+  checkPhase1() {},
+  checkPhase2() {},
+  
+  checkPhase3() {
+    if (this.phaseComplete[3]) return;
+    
+    const sheepList = animalData.filter(a => a.type === 'sheep');
+    let enclosedCount = 0, maxGrass = 0;
+    for(const s of sheepList){
+      const r = analyzeHabitat(Math.round(s.x), Math.round(s.z));
+      if(r.enclosed) { enclosedCount++; if(r.grass > maxGrass) maxGrass = r.grass; }
+    }
+    const fg = Math.min(6, maxGrass);
+    
+    this.updateUI(this.injuredHealedCount, enclosedCount, fg);
+    
+    if(this.injuredHealedCount >= 1 && enclosedCount >= 3 && fg >= 6) {
+      this.phaseComplete[3] = true;
+      setTimeout(() => { document.getElementById('mission-clear').style.display='block'; }, 600);
+    }
+  },
+
+  onTreeChopped() {
+    // 나무가 쓰러진 후 페이즈 변경 및 스토리 진행
+  },
+  
+  advance() {
+    this.currentPhase++;
+    toast(`새로운 퀘스트(페이즈 ${this.currentPhase})가 시작되었습니다!`);
+    this.updateUI();
+    showPhaseTransition(this.currentPhase); // ✨ 페이즈 전환 연출
+  },
+  
+  updateUI(healed = 0, enclosed = 0, grass = 0) {
+    const titleEl = document.getElementById('mission-title');
+    const descEl = document.getElementById('mission-desc');
+    const statusEl = document.getElementById('mission-status');
+    
+    if (this.currentPhase === 0) {
+      titleEl.textContent = `🔍 단서 탐색`;
+      descEl.innerHTML = `마 마을을 탐험하며 이상한 점을 찾아보세요!`;
+      statusEl.innerHTML = ''; 
+    } else if (this.currentPhase === 1) {
+      titleEl.textContent = `🌱 페이즈 1: 식물과 토양을 살려라`;
+      descEl.innerHTML = `준비 중인 퀘스트입니다.`;
+      statusEl.innerHTML = '';
+    } else if (this.currentPhase === 2) {
+      titleEl.textContent = `🦋 페이즈 2: 곤충과 새가 돌아오고 있어요`;
+      descEl.innerHTML = `준비 중인 퀘스트입니다.`;
+      statusEl.innerHTML = '';
+    } else if (this.currentPhase === 3) {
+      titleEl.textContent = `🐑 페이즈 3: 동물들의 보금자리를 완성해요`;
+      descEl.innerHTML = `1. 먹이로 유도해서 양들을 볏짚 위로 데려오세요.<br>2. 구급상자로 치료하고, 풀밭 울타리를 만들어주세요!`;
+      
+      const healCheck = `${healed >= 1 ? '✅' : '⬜'} 다친 양 치료 ${healed}/1`;
+      const sheepCheck = `${enclosed >= 3 ? '✅' : '⬜'} 보호된 양 ${enclosed}/3`;
+      const grassCheck = `${grass >= 6 ? '✅' : '⬜'} 서식지 내 풀밭 ${grass}/6`;
+      
+      statusEl.innerHTML = `
+        <span class="mc${healed >= 1 ? ' done' : ''}" id="mc-heal">${healCheck}</span>
+        <span class="mc${enclosed >= 3 ? ' done' : ''}" id="mc-sheep">${sheepCheck}</span>
+        <span class="mc${grass >= 6 ? ' done' : ''}" id="mc-grass">${grassCheck}</span>
+      `;
+    }
+  }
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  오프닝 스토리 설정
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let isOpeningActive = true;
+let openingStep = 0;
+const openingScenes = [
+  { emoji: '🗺️', text: '낡은 상자 안에서 이상한 지도를 발견했어요.<br>지도 위로 빨간 경보등이 깜빡이고 있어요.', btn: '다음 →' },
+  { emoji: '👵', text: '3일 전부터 마을이 이상해졌어.<br>양이 다쳤고, 벌집은 비어있고,<br>텃밭은 말라가고 있단다.', btn: '다음 →' },
+  { emoji: '⭐', text: '지도 뒷면에 한 줄이 적혀 있었어요.<br>"초록별이 아파하고 있어.<br>네가 수호대를 모아야 해."', btn: '다음 →' },
+  { emoji: '🌳', text: '초록 마을 한가운데 오래된 고목나무가<br>잎을 다 떨군 채 시들어가고 있어요.<br>힌트: 모든 생태계의 기초는 생산자와<br>분해자예요. 뿌리부터 살려보세요!', btn: '탐험 시작하기 →' }
+];
+
+function nextScene() {
+  openingStep++;
+  if (openingStep >= openingScenes.length) {
+    document.getElementById('opening-overlay').style.display = 'none';
+    isOpeningActive = false;
+    QuestManager.currentPhase = 0; 
+    QuestManager.updateUI(); 
+    QuestManager.check();
+    return;
+  }
+  const scene = openingScenes[openingStep];
+  document.getElementById('opening-emoji').textContent = scene.emoji;
+  document.getElementById('opening-text').innerHTML = scene.text;
+  document.getElementById('opening-btn').textContent = scene.btn;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  인벤토리 UI 로직
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 function initInventoryUI() {
   const hotbarEl = document.getElementById('hotbar-container');
   hotbarEl.innerHTML = '';
@@ -265,7 +627,6 @@ function initInventoryUI() {
 function selectHotbarSlot(idx) { activeSlot = idx; initInventoryUI(); applyCurrentTool(); }
 function clearSelectedSlot() { hotbar[activeSlot] = null; initInventoryUI(); applyCurrentTool(); toast(`슬롯 ${activeSlot+1} 비웠습니다.`); }
 
-let toolMode = 'none', selItem = null;
 function applyCurrentTool() {
   const itemId = hotbar[activeSlot];
   const labelEl = document.getElementById('hotbar-label');
@@ -308,25 +669,14 @@ window.addEventListener('keydown', e => {
   if(e.key.toLowerCase() === 'r') toggleRotation();
 });
 
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  CONSTANTS & TERRAIN SCALE
+//  THREE.JS 환경 및 지형 생성
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const CHUNK=8, GH=60; 
 const WORLD_W=CHUNK*10, WORLD_D=CHUNK*10;
-const WCX=WORLD_W/2, WCZ=WORLD_D/2;
 const WATER_LEVEL = 30; 
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  STATE
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-const gridData={}, meshByKey={}, animalData=[];
-const chunkState={}, chunkGroups={};
-const deletedBlocks=new Set();
-let missionDone=false, pickedAnimal=null, injuredHealedCount=0;
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  SCENE SETUP
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const canvas=document.getElementById('canvas');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
@@ -413,9 +763,15 @@ function updateHlMesh() {
 
 const raycaster=new THREE.Raycaster(), mouse2D=new THREE.Vector2(-9999,-9999);
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  TERRAIN CALCULATION
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function isFenced(x, z) {
+  const rx = Math.round(x), rz = Math.round(z);
+  for(let y = GH; y >= 0; y--) {
+    const b = gridData[bk(rx, y, rz)];
+    if(b && b.startsWith('fence')) return true;
+  }
+  return false;
+}
+
 function vn(x,z){
   const h=n=>{let v=Math.sin(n*127.1+311.7)*43758.5453;return v-Math.floor(v);};
   const ix=Math.floor(x),iz=Math.floor(z),fx=x-ix,fz=z-iz;
@@ -426,43 +782,26 @@ function vn(x,z){
 
 function getH(wx,wz){
   const nx=wx*0.03, nz=wz*0.03;
-  
-  // ✨ 1. 대륙과 해양의 빈도를 조절 (육지와 바다가 더 골고루 나타나게 함)
   const macroNoise = vn(wx * 0.012 + 100, wz * 0.012 + 100); 
   
   let base = 0;
-  if (macroNoise > 0.45) {
-      // 넓은 평야와 대륙
-      base = 36.0 + (macroNoise - 0.45) * 12.0; 
-  } else if (macroNoise < 0.35) {
-      // 깊은 바다와 거대한 호수
-      base = 18.0 + (macroNoise * 20.0); 
-  } else {
-      // 완만한 해변가 (자연스러운 연결)
-      const t = (macroNoise - 0.35) * 10.0; 
-      base = 24.0 + t * 12.0; 
-  }
+  if (macroNoise > 0.45) base = 36.0 + (macroNoise - 0.45) * 12.0; 
+  else if (macroNoise < 0.35) base = 18.0 + (macroNoise * 20.0); 
+  else base = 24.0 + (macroNoise - 0.35) * 100.0 * 0.12; 
 
-  // ✨ 2. 무인도 탈출! 시작 지점 주변을 듬직한 '거대 대륙'으로 보장 (반경 50칸)
   const distFromCenter = Math.sqrt(wx*wx + wz*wz);
   if (distFromCenter < 50) {
-      const boost = (50 - distFromCenter) / 50; // 중심일수록 강력한 육지 보정
-      if (base < 36.0) {
-          base = base + (36.0 - base) * boost;
-      }
+      const boost = (50 - distFromCenter) / 50;
+      if (base < 36.0) base = base + (36.0 - base) * boost;
   }
 
-  // 3. 산맥 노이즈 (육지 위에서만 솟아오름)
   const mountains = Math.pow(vn(nx*0.5+100, nz*0.5+100), 2.0) * (vn(nx*2.0, nz*2.0) * 18.0);
-  
-  // 4. 강줄기 노이즈 (육지를 가로지르는 계곡)
   const riverNoise = Math.abs(vn(nx*0.6+50, nz*0.6+50)*2 - 1);
   const riverCarve = Math.max(0, 1.0 - riverNoise*3.5);
   
   let h = base;
-  if(h >= 34.0) h += mountains; // 육지에서만 산맥 적용
-  if(riverCarve > 0) h = h - (riverCarve * 16.0); // 강줄기 파내기
-  
+  if(h >= 34.0) h += mountains; 
+  if(riverCarve > 0) h = h - (riverCarve * 16.0); 
   if(h > 50.0) h = 50.0 + Math.sqrt(h-50.0)*1.5;
   return Math.min(GH, Math.max(10, Math.round(h))); 
 }
@@ -482,9 +821,6 @@ function colColor(h){
   return h>=44?0x9a8878:h>=40?0x7a8e68:h>=36?0x4a7a3a:h>=34?0x6aaa5a:0x7a5c1e;
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  CHUNK & SPAWN
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const ck=(cx,cz)=>`${cx},${cz}`;
 const w2c=(wx,wz)=>[Math.floor(wx/CHUNK),Math.floor(wz/CHUNK)];
 const isActive=(wx,wz)=>chunkState[ck(...w2c(wx,wz))]==='active';
@@ -500,6 +836,14 @@ function spawnAnimalsInChunk(cx,cz){
   }
 }
 
+function spawnLevelAnimals() {
+  placeAnimal(3, getTopY(3,3)+0.5, 3, 'sheep', true);
+  placeAnimal(6, getTopY(6,4)+0.5, 4, 'sheep', false);
+  placeAnimal(4, getTopY(4,6)+0.5, 6, 'sheep', false);
+  placeAnimal(12, getTopY(12,5)+0.5, 5, 'horse', false);
+  placeAnimal(14, getTopY(14,8)+0.5, 8, 'goat', false);
+}
+
 function bldActive(cx,cz){
   const x0=cx*CHUNK,z0=cz*CHUNK;
   for(let lx=0;lx<CHUNK;lx++) for(let lz=0;lz<CHUNK;lz++){
@@ -511,7 +855,6 @@ function bldActive(cx,cz){
 function bldPreview(cx,cz){
   const k=ck(cx,cz); if(chunkGroups[k]) scene.remove(chunkGroups[k]);
   const g=new THREE.Group(),x0=cx*CHUNK,z0=cz*CHUNK;
-  
   const boxGeo = new THREE.BoxGeometry(1, 1, 1);
   const edgeGeo = new THREE.EdgesGeometry(boxGeo);
 
@@ -519,11 +862,9 @@ function bldPreview(cx,cz){
     const wx=x0+lx,wz=z0+lz,sh=getH(wx,wz);
     const visH=sh<WATER_LEVEL?Math.ceil(WATER_LEVEL):sh;
     const col=sh<WATER_LEVEL?0x1565c0:colColor(sh);
-    
     const mesh=new THREE.Mesh(boxGeo,new THREE.MeshLambertMaterial({color:col,transparent:true,opacity:0.15}));
     mesh.position.set(wx,visH+0.5,wz); 
     mesh.add(new THREE.LineSegments(edgeGeo,new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0.25})));
-    
     mesh.userData={isPreview:true,cx,cz}; g.add(mesh);
   }
   scene.add(g); chunkGroups[k]=g;
@@ -560,18 +901,90 @@ function activateChunk(cx,cz,isInit=false){
   rebuildGrid(); updateMapOverlay();
 }
 
+function initOldTree() {
+  if(OldTree.group) scene.remove(OldTree.group);
+  const g = new THREE.Group();
+  const tx = 8, tz = 8;
+  const ty = getTopY(tx, tz);
+  g.position.set(tx, ty, tz);
+
+  const M = (hex) => new THREE.MeshLambertMaterial({color: hex});
+  const trunkMat = M(0x5C3D1A);
+  
+  for(let i=0; i<3; i++) {
+     const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1, 0.8), trunkMat);
+     mesh.position.y = i + 0.5;
+     mesh.castShadow = true; mesh.receiveShadow = true;
+     mesh.userData = { isOldTree: true }; 
+     g.add(mesh);
+  }
+
+  OldTree.branches = [];
+  OldTree.leaves = [];
+  OldTree.fruits = [];
+
+  const branchDirs = [
+      {y: 2.2, r: 0}, {y: 2.5, r: Math.PI/2}, {y: 2.8, r: Math.PI}, {y: 2.4, r: -Math.PI/2}, {y: 3.0, r: Math.PI/4}
+  ];
+
+  branchDirs.forEach((dir) => {
+      const branchGroup = new THREE.Group();
+      branchGroup.position.set(0, dir.y, 0);
+      branchGroup.rotation.y = dir.r;
+
+      const branch = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 1.2), trunkMat);
+      branch.position.z = 0.6;
+      branch.castShadow = true;
+      branch.userData = { isOldTree: true };
+      branchGroup.add(branch);
+      OldTree.branches.push(branchGroup);
+
+      const leafMat = M(0x888888); 
+      const leaf1 = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 1.2), leafMat);
+      leaf1.position.z = 1.2;
+      leaf1.castShadow = true;
+      leaf1.userData = { isOldTree: true };
+      branchGroup.add(leaf1);
+      OldTree.leaves.push(leaf1);
+      
+      const fruit = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 8), M(0xff0000));
+      fruit.position.set(0, -0.6, 1.2);
+      fruit.visible = false;
+      branchGroup.add(fruit);
+      OldTree.fruits.push(fruit);
+
+      g.add(branchGroup);
+  });
+  
+  const topLeaves = [ {x: 0, y: 3.5, z: 0}, {x: 0.5, y: 3.2, z: 0.5}, {x: -0.5, y: 3.2, z: -0.5} ];
+  topLeaves.forEach(pos => {
+      const leaf = new THREE.Mesh(new THREE.BoxGeometry(1.3, 1.3, 1.3), M(0x888888));
+      leaf.position.set(pos.x, pos.y, pos.z);
+      leaf.castShadow = true;
+      leaf.userData = { isOldTree: true };
+      g.add(leaf);
+      OldTree.leaves.push(leaf);
+  });
+
+  OldTree.group = g;
+  scene.add(g);
+  OldTree.updateVisual();
+}
+
 function initWorld(){
   activateChunk(0,0,true); activateChunk(1,0,true);
   activateChunk(0,1,true); activateChunk(1,1,true);
-  placeAnimal(3,getTopY(3,3)+0.5,3,'sheep',true);
-  placeAnimal(6,getTopY(6,4)+0.5,4,'sheep',false);
-  placeAnimal(4,getTopY(4,6)+0.5,6,'sheep',false);
+  
+  initOldTree(); 
+  ClueSystem.init(); 
+
+  spawnLevelAnimals();
   
   initInventoryUI(); applyCurrentTool();
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  BLOCKS
+//  블록 함수
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const bk=(x,y,z)=>`${x},${y},${z}`;
 function getTopY(x,z){for(let y=GH;y>=0;y--){if(gridData[bk(x,y,z)]) return y+1;}return 0;}
@@ -630,17 +1043,17 @@ function placeBlock(x,y,z,type){
   if(!isActive(x,z)){toast('⚠️ 희미한 지역을 먼저 탐험해주세요!');return;}
   let finalType = type;
   if(type === 'fence') finalType = type + '_' + currentRotation;
-  _place(x,y,z,finalType); checkMission();
+  _place(x,y,z,finalType); QuestManager.check();
 }
 
 function removeBlock(x,y,z){
   const k=bk(x,y,z); if(!gridData[k]) return;
   scene.remove(meshByKey[k]); delete meshByKey[k]; delete gridData[k];
-  deletedBlocks.add(k); checkMission();
+  deletedBlocks.add(k); QuestManager.check();
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  ANIMALS
+//  동물 함수
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 function buildAnimal(type,isInjured){
   const g=new THREE.Group(), M=hex=>new THREE.MeshLambertMaterial({color:hex}), B=(w,h,d)=>new THREE.BoxGeometry(w,h,d);
@@ -655,6 +1068,18 @@ function buildAnimal(type,isInjured){
     const t=new THREE.Mesh(B(.24,.3,.12),M(0xff4500)); t.position.set(-.38,.5,0); g.add(t);
     const f=new THREE.Mesh(B(.18,.18,.06),M(0xff8c00)); f.position.set(.05,.68,0); g.add(f);
     const e=new THREE.Mesh(B(.09,.09,.09),M(0x111111)); e.position.set(.28,.56,.15); g.add(e);
+  } else if(type==='horse'){
+    const b=new THREE.Mesh(B(1.0,0.6,0.5),M(0x8B4513)); b.position.y=.5; g.add(b);
+    const hd=new THREE.Mesh(B(0.4,0.4,0.35),M(0x8B4513)); hd.position.set(.6,.8,0); g.add(hd);
+    [[-.35,-.15],[.35,-.15],[-.35,.15],[.35,.15]].forEach(([lx,lz])=>{const l=new THREE.Mesh(B(.15,.5,.15),M(0x5C2E00));l.position.set(lx,.25,lz);g.add(l);});
+    const mane=new THREE.Mesh(B(.3,.1,.1),M(0x111111)); mane.position.set(.4,1.0,0); g.add(mane);
+    const tail=new THREE.Mesh(B(.1,.4,.1),M(0x111111)); tail.position.set(-.55,.5,0); tail.rotation.z=0.2; g.add(tail);
+  } else if(type==='goat'){
+    const b=new THREE.Mesh(B(0.7,0.5,0.45),M(0xEEEEEE)); b.position.y=.4; g.add(b);
+    const hd=new THREE.Mesh(B(0.3,0.3,0.3),M(0xEEEEEE)); hd.position.set(.4,.65,0); g.add(hd);
+    [[-.2,-.15],[.2,-.15],[-.2,.15],[.2,.15]].forEach(([lx,lz])=>{const l=new THREE.Mesh(B(.12,.4,.12),M(0xAAAAAA));l.position.set(lx,.2,lz);g.add(l);});
+    [[.08],[-.08]].forEach(([ez])=>{const horn=new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.2, 4),M(0xAAAAAA));horn.position.set(.4,.85,ez);g.add(horn);});
+    const beard=new THREE.Mesh(B(.05,.15,.1),M(0xEEEEEE)); beard.position.set(.5,.45,0); g.add(beard);
   }
   g.traverse(c=>{if(c.isMesh){c.castShadow=c.receiveShadow=true;c.userData.agr=g;}});
   return g;
@@ -665,12 +1090,12 @@ function placeAnimal(x,y,z,type,isInjured=false){
   group.position.set(x,y,z); scene.add(group);
   const angle=Math.random()*Math.PI*2;
   animalData.push({type,x,y,z,group,isInjured,angle,targetAngle:angle});
-  checkMission();
+  QuestManager.check();
 }
 
 function removeAnimalAt(a){
   const i=animalData.indexOf(a);
-  if(i!==-1){scene.remove(animalData[i].group);animalData.splice(i,1);checkMission();}
+  if(i!==-1){scene.remove(animalData[i].group);animalData.splice(i,1);QuestManager.check();}
 }
 
 function getVisualTopY(x, z) {
@@ -683,8 +1108,39 @@ function getVisualTopY(x, z) {
   return gy;
 }
 
+function isSolid(rawType) {
+  if(!rawType) return false;
+  const base = rawType.split('_')[0];
+  const def = ITEM_DB[base] || TERRAIN_BLOCKS[base];
+  return def && def.solid;
+}
+
+function analyzeHabitat(sx,sz){
+  const v=new Set(),q=[[sx,sz]]; v.add(`${sx},${sz}`);
+  let count=0,grassCount=0;
+  while(q.length){
+    count++;
+    if(count>2000) return {enclosed:false,grass:0};
+    const[cx,cz]=q.shift();
+    const topY=getTopY(cx,cz)-1;
+    const rawType=gridData[bk(cx,topY,cz)];
+    const floorType=rawType?rawType.split('_')[0]:'';
+    
+    if(floorType==='grass'||floorType==='t_low'||floorType==='t_mid') grassCount++;
+    for(const[nx,nz] of[[cx+1,cz],[cx-1,cz],[cx,cz+1],[cx,cz-1]]){
+      const nk=`${nx},${nz}`; if(v.has(nk)) continue;
+      const blocked=[0,1].some(hy=>{
+        const b = gridData[bk(nx, topY+1+hy, nz)];
+        return isSolid(b);
+      });
+      if(!blocked){v.add(nk);q.push([nx,nz]);}
+    }
+  }
+  return {enclosed:true,grass:grassCount};
+}
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  CAMERA
+//  카메라
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const orbitTarget=new THREE.Vector3(CHUNK, 38, CHUNK); 
 let theta=0.7,phi=0.85,radius=36;
@@ -702,7 +1158,7 @@ function syncCam(){
 syncCam();
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  INTERACTION
+//  인터랙션 이벤트
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 let isDragging=false, clickMoved=false, dragButton=0;
 let mouseStart={x:0,y:0}, currentMouseX=0, currentMouseY=0;
@@ -710,10 +1166,17 @@ let touchMode=null, touchTimer=null;
 let digInterval=null, isHoldingPickaxe=false;
 let lastClickTime=0, lastTouchTime=0;
 
+function isUIBlocking() {
+  const pt = document.getElementById('phase-transition');
+  return isOpeningActive || isInventoryOpen || (pt && pt.style.display !== 'none');
+}
+
 function getRayTargets(){
   const am=[]; for(const a of animalData) a.group.traverse(c=>{if(c.isMesh)am.push(c);});
   const pm=[]; for(const g of Object.values(chunkGroups)) g.traverse(c=>{if(c.isMesh)pm.push(c);});
-  return [groundMesh,...Object.values(meshByKey),...am,...pm];
+  const ot=[]; if(OldTree.group) OldTree.group.traverse(c=>{if(c.isMesh)ot.push(c);}); 
+  const cm=[]; for(const m of ClueSystem.meshes) cm.push(m, ...m.children);
+  return [groundMesh,...Object.values(meshByKey),...am,...pm,...ot,...cm];
 }
 function castRay(cx,cy){
   const r=canvas.getBoundingClientRect();
@@ -722,6 +1185,7 @@ function castRay(cx,cy){
 }
 
 function doDig(clientX, clientY) {
+  if(isUIBlocking()) return;
   const hits=castRay(clientX, clientY);
   if(!hits.length) return;
   const obj=hits[0].object;
@@ -738,7 +1202,7 @@ function doDig(clientX, clientY) {
 
 // Mouse
 canvas.addEventListener('mousedown',e=>{
-  if(isInventoryOpen) return;
+  if(isUIBlocking()) return;
   if(e.button===2&&pickedAnimal){cancelCarry();return;}
   if(e.button===0||e.button===2){
     isDragging=true; clickMoved=false; dragButton=e.button;
@@ -792,7 +1256,7 @@ canvas.addEventListener('mouseup',e=>{
 // Touch
 let initialPinchDist=null, initialRadius=null, initialPanCenter=null;
 canvas.addEventListener('touchstart',e=>{
-  if(isInventoryOpen) return;
+  if(isUIBlocking()) return;
   if(e.touches.length===1){
     touchMode='single'; isDragging=true; clickMoved=false; isHoldingPickaxe=false;
     currentMouseX=e.touches[0].clientX; currentMouseY=e.touches[0].clientY;
@@ -815,7 +1279,7 @@ canvas.addEventListener('touchstart',e=>{
 },{passive:false});
 
 canvas.addEventListener('touchmove',e=>{
-  if(isInventoryOpen) return; e.preventDefault();
+  if(isUIBlocking()) return; e.preventDefault();
   if(touchMode==='single' && e.touches.length===1){
     currentMouseX=e.touches[0].clientX; currentMouseY=e.touches[0].clientY;
     const dx=currentMouseX-mouseStart.x,dy=currentMouseY-mouseStart.y;
@@ -852,10 +1316,19 @@ canvas.addEventListener('wheel',e=>{radius+=e.deltaY*.04;syncCam();e.preventDefa
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 
 function handleClick(clientX, clientY){
+  if(isUIBlocking()) return;
+
   const hits=castRay(clientX,clientY);
   if(pickedAnimal&&!hits.length){cancelCarry();return;}
   if(!hits.length) return;
   const hit=hits[0],obj=hit.object;
+
+  if(QuestManager.currentPhase === 0) {
+    if(obj.userData.isClue) {
+      ClueSystem.checkClick(obj.userData.clueId);
+      return;
+    }
+  }
 
   if(obj.userData.isPreview){activateChunk(obj.userData.cx,obj.userData.cz);toast('✨ 미지의 영역을 탐험했습니다!');return;}
 
@@ -876,7 +1349,7 @@ function handleClick(clientX, clientY){
           const underFloor = gridData[bk(gx,ty,gz)] ? gridData[bk(gx,ty,gz)].split('_')[0] : '';
           if(underFloor==='straw'){
             a.isInjured=false; a.group.children[0].material.color.setHex(0xe8e8e8);
-            injuredHealedCount++; toast('💖 치료 성공! 동물이 건강해졌어요!'); checkMission();
+            QuestManager.injuredHealedCount++; toast('💖 치료 성공! 동물이 건강해졌어요!'); QuestManager.check();
           } else { toast('⚠️ 다친 동물은 볏짚(보호소) 위에서 치료해야 해요!'); }
         } else if(a&&!a.isInjured){ toast('😊 이 동물은 이미 건강해요!'); }
       }
@@ -887,6 +1360,27 @@ function handleClick(clientX, clientY){
       toast('안아줄 동물을 정확히 클릭해주세요!');
       return;
     }
+  }
+
+  if(toolMode==='axe') {
+    if(obj.userData.isOldTree) {
+      if(OldTree.state !== 'chopped') {
+        OldTree.chopCount++;
+        if(OldTree.chopCount >= 3) {
+          OldTree.chop();
+        } else {
+          toast(`🪓 쾅! (${OldTree.chopCount}/3)`);
+          if(navigator.vibrate) navigator.vibrate(50);
+        }
+      }
+    } else if (obj.userData.isBlock) {
+      const k = bk(obj.userData.bx, obj.userData.by, obj.userData.bz);
+      if (gridData[k] && gridData[k].startsWith('tree')) {
+         removeBlock(obj.userData.bx, obj.userData.by, obj.userData.bz);
+         toast('🪓 나무를 베었습니다!');
+      }
+    }
+    return;
   }
 
   if(toolMode==='block'){
@@ -920,58 +1414,6 @@ function cancelCarry(){
   pickedAnimal=null; document.getElementById('carry-indicator').style.display='none';
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  MISSION
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-function isSolid(rawType) {
-  if(!rawType) return false;
-  const base = rawType.split('_')[0];
-  const def = ITEM_DB[base] || TERRAIN_BLOCKS[base];
-  return def && def.solid;
-}
-
-function analyzeHabitat(sx,sz){
-  const v=new Set(),q=[[sx,sz]]; v.add(`${sx},${sz}`);
-  let count=0,grassCount=0;
-  while(q.length){
-    count++;
-    if(count>2000) return {enclosed:false,grass:0};
-    const[cx,cz]=q.shift();
-    const topY=getTopY(cx,cz)-1;
-    const rawType=gridData[bk(cx,topY,cz)];
-    const floorType=rawType?rawType.split('_')[0]:'';
-    
-    if(floorType==='grass'||floorType==='t_low'||floorType==='t_mid') grassCount++;
-    for(const[nx,nz] of[[cx+1,cz],[cx-1,cz],[cx,cz+1],[cx,cz-1]]){
-      const nk=`${nx},${nz}`; if(v.has(nk)) continue;
-      const blocked=[0,1].some(hy=>{
-        const b = gridData[bk(nx, topY+1+hy, nz)];
-        return isSolid(b);
-      });
-      if(!blocked){v.add(nk);q.push([nx,nz]);}
-    }
-  }
-  return {enclosed:true,grass:grassCount};
-}
-
-function checkMission(){
-  const sheepList=animalData.filter(a=>a.type==='sheep');
-  let enclosedCount=0,maxGrass=0;
-  for(const s of sheepList){
-    const r=analyzeHabitat(Math.round(s.x),Math.round(s.z));
-    if(r.enclosed){enclosedCount++;if(r.grass>maxGrass)maxGrass=r.grass;}
-  }
-  const eHeal=document.getElementById('mc-heal'),eS=document.getElementById('mc-sheep'),eG=document.getElementById('mc-grass');
-  eHeal.textContent=`${injuredHealedCount>=1?'✅':'⬜'} 다친 양 치료 ${injuredHealedCount}/1`; eHeal.className=`mc${injuredHealedCount>=1?' done':''}`;
-  eS.textContent=`${enclosedCount>=3?'✅':'⬜'} 보호된 양 ${enclosedCount}/3`; eS.className=`mc${enclosedCount>=3?' done':''}`;
-  const fg=Math.min(6,maxGrass);
-  eG.textContent=`${fg>=6?'✅':'⬜'} 서식지 내 풀밭 ${fg}/6`; eG.className=`mc${fg>=6?' done':''}`;
-  if(injuredHealedCount>=1&&enclosedCount>=3&&fg>=6&&!missionDone){missionDone=true;setTimeout(()=>{document.getElementById('mission-clear').style.display='block';},600);}
-}
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  UI & MAP
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 function updateMapOverlay(){
   const grid=document.getElementById('map-grid');
   let mnX=Infinity,mxX=-Infinity,mnZ=Infinity,mxZ=-Infinity;
@@ -992,14 +1434,24 @@ function openMap(){updateMapOverlay();document.getElementById('map-overlay').sty
 function closeMap(){document.getElementById('map-overlay').style.display='none';}
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  SAVE / LOAD / CLEAR
+//  저장 / 불러오기 / 초기화
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 function saveGame(){
   const activeList=Object.entries(chunkState).filter(([,v])=>v==='active').map(([k])=>k);
   const terrainSet=new Set(Object.keys(TERRAIN_BLOCKS));
   const userGrid={};
   for(const[k,v] of Object.entries(gridData)) if(!terrainSet.has(v)) userGrid[k]=v;
-  const data={v:8,chunks:activeList,grid:userGrid,deleted:Array.from(deletedBlocks),animals:animalData.map(({type,x,y,z,isInjured})=>({type,x,y,z,isInjured})),missionDone,injuredHealedCount};
+  const data={
+    v:12,chunks:activeList,grid:userGrid,deleted:Array.from(deletedBlocks),
+    animals:animalData.map(({type,x,y,z,isInjured,angle})=>({type,x,y,z,isInjured,angle})),
+    themeComplete: QuestManager.themeComplete,
+    currentPhase: QuestManager.currentPhase,
+    phaseComplete: QuestManager.phaseComplete,
+    injuredHealedCount: QuestManager.injuredHealedCount,
+    oldTreeState: OldTree.state,
+    oldTreeChopCount: OldTree.chopCount,
+    cluesFound: ClueSystem.clues.map(c => ({ id: c.id, found: c.found }))
+  };
   try{
     const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
     const url=URL.createObjectURL(blob),a=document.createElement('a');
@@ -1019,8 +1471,26 @@ function onFileSelected(e){
       for(const k of(data.chunks||[])){const[cx,cz]=k.split(',').map(Number);activateChunk(cx,cz,true);}
       for(const[k,t] of Object.entries(data.grid||[])){const[x,y,z]=k.split(',').map(Number);_place(x,y,z,t);}
       for(const a of(data.animals||[]))placeAnimal(a.x,a.y,a.z,a.type,a.isInjured);
-      missionDone=data.missionDone||false; injuredHealedCount=data.injuredHealedCount||0;
-      checkMission(); toast('📂 불러왔어요!');
+      
+      QuestManager.themeComplete = data.themeComplete || {};
+      QuestManager.currentPhase = data.currentPhase !== undefined ? data.currentPhase : 0;
+      QuestManager.phaseComplete = data.phaseComplete || {};
+      QuestManager.injuredHealedCount = data.injuredHealedCount || 0;
+      
+      OldTree.state = data.oldTreeState || 'withered';
+      OldTree.chopCount = data.oldTreeChopCount || 0;
+      OldTree.updateVisual();
+      
+      if(data.cluesFound) {
+        data.cluesFound.forEach(saved => {
+          const clue = ClueSystem.clues.find(c => c.id === saved.id);
+          if (clue) clue.found = saved.found;
+        });
+      }
+      ClueSystem.init();
+      
+      QuestManager.updateUI();
+      QuestManager.check(); toast('📂 불러왔어요!');
     }catch{toast('파일을 읽을 수 없어요 😢');}
     e.target.value='';
   };
@@ -1032,18 +1502,30 @@ function clearAll(silent=false){
   for(const g of Object.values(chunkGroups))scene.remove(g);
   Object.keys(chunkGroups).forEach(k=>delete chunkGroups[k]); Object.keys(chunkState).forEach(k=>delete chunkState[k]);
   for(const a of animalData)scene.remove(a.group); animalData.length=0;
-  deletedBlocks.clear(); missionDone=false; injuredHealedCount=0;
-  initWorld(); checkMission();
+  deletedBlocks.clear(); 
+  QuestManager.themeComplete = {}; 
+  QuestManager.currentPhase = 0;
+  QuestManager.phaseComplete = {};
+  QuestManager.injuredHealedCount = 0;
+  OldTree.chopCount = 0;
+  OldTree.state = 'withered';
+  
+  ClueSystem.clues.forEach(c => c.found = false);
+  
+  initWorld(); QuestManager.updateUI(); QuestManager.check();
   if(!silent)toast('🗑️ 처음으로 돌아갔어요');
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  ANIMATE
+//  ANIMATE & RENDER
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 let toastTimer;
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.style.display='block';clearTimeout(toastTimer);toastTimer=setTimeout(()=>{el.style.display='none';},2400);}
 
 canvas.addEventListener('mousemove',()=>{
+  // ✨ 핵심 최적화: 드래그 중이거나 UI 블로킹 상태일 때는 무거운 3D 충돌 연산을 건너뜁니다!
+  if(isDragging || isUIBlocking()) { hlMesh.visible = false; return; }
+
   raycaster.setFromCamera(mouse2D,camera);
   const hits=raycaster.intersectObjects(getRayTargets(),false);
   if(!hits.length){hlMesh.visible=false;return;}
@@ -1094,81 +1576,166 @@ function animate(){
   waterVolume.position.y=WATER_LEVEL+Math.sin(t*1.5)*0.04;
   waterDeep.position.y=WATER_LEVEL-0.5+Math.sin(t*1.5)*0.02;
 
-  // ━━ 동물 애니메이션 ━━
-  for(const a of animalData){
-    if(pickedAnimal&&pickedAnimal.entry===a){
-      a.group.position.y=a.y+1.5+Math.sin(t*4)*.12; a.group.rotation.y=t*1.5; continue;
-    }
-
-    const curTopY=getVisualTopY(a.x,a.z);
-
-    if(a.type==='fish'){
-      if(curTopY<WATER_LEVEL){
-        const spd=0.022, look=3.5;
-        const fwdX=a.x+Math.cos(a.angle)*look, fwdZ=a.z-Math.sin(a.angle)*look;
-        const fwdY=getTopY(Math.round(fwdX),Math.round(fwdZ));
-
-        if(fwdY>=WATER_LEVEL-0.5){
-          const la=a.angle+Math.PI*0.6, ra=a.angle-Math.PI*0.6;
-          const lY=getTopY(Math.round(a.x+Math.cos(la)*look),Math.round(a.z-Math.sin(la)*look));
-          const rY=getTopY(Math.round(a.x+Math.cos(ra)*look),Math.round(a.z-Math.sin(ra)*look));
-          a.targetAngle=(lY<rY?la:ra)+(Math.random()-0.5)*0.5;
-        } else if(Math.random()<0.012){
-          a.targetAngle=a.angle+(Math.random()-0.5)*1.0;
-        }
-
-        let diff=a.targetAngle-a.angle;
-        while(diff>Math.PI) diff-=2*Math.PI; while(diff<-Math.PI) diff+=2*Math.PI;
-        a.angle+=diff*0.07;
-
-        const nx=a.x+Math.cos(a.angle)*spd, nz=a.z-Math.sin(a.angle)*spd;
-        const nY=getTopY(Math.round(nx),Math.round(nz));
-        if(nY<WATER_LEVEL){ a.x=nx; a.z=nz; }
-        else { a.targetAngle=a.angle+Math.PI+(Math.random()-0.5)*0.8; }
-
-        const depth=Math.max(0.4,WATER_LEVEL-curTopY);
-        const swimY=curTopY+depth*0.35+Math.sin(t*1.8+a.x)*0.12;
-        a.group.position.set(a.x,swimY,a.z);
-        a.group.rotation.y=a.angle; 
-        a.group.rotation.z=Math.sin(t*2)*0.04;
-      } else {
-        a.group.position.set(a.x,curTopY+0.2+Math.abs(Math.sin(t*15))*0.3,a.z);
-        a.group.rotation.z=Math.sin(t*20)*0.5;
-      }
-
-    } else {
-      if(toolMode==='action'&&selItem==='lure'&&hlMesh.visible&&a.type==='sheep'){
-        const dx=hlMesh.position.x-a.x, dz=hlMesh.position.z-a.z;
-        const dist=Math.sqrt(dx*dx+dz*dz);
-        if(dist>1.5&&dist<12){
-          const ws=a.isInjured?0.015:0.04;
-          a.x+=dx/dist*ws; a.z+=dz/dist*ws;
-          a.targetAngle=Math.atan2(-dz, dx); 
-        }
-      }
-      
-      let diff=a.targetAngle-a.angle;
-      while(diff>Math.PI) diff-=2*Math.PI; while(diff<-Math.PI) diff+=2*Math.PI;
-      a.angle+=diff*0.1;
-      
-      // ✨ 얇은 블록 위로도 자연스럽게 오르는 스마트 스텝
-      const aheadX = a.x + Math.cos(a.angle)*0.4;
-      const aheadZ = a.z - Math.sin(a.angle)*0.4;
-      const aheadY = getVisualTopY(aheadX, aheadZ);
-      
-      a.y += (aheadY - a.y) * 0.25; 
-
-      a.group.position.set(a.x, a.y+Math.sin(t*2.5+a.x)*0.06, a.z);
-      a.group.rotation.y=a.angle;
-      a.group.rotation.z=0;
-    }
-  }
+  updateAnimals(t);
+  ClueSystem.updateAnims(t);
 
   for(const c of cloudGroups){c.mesh.position.x=c.bx+Math.sin(t*.035+c.bz*.1)*4;c.mesh.position.z=c.bz+Math.cos(t*.025+c.bx*.08)*3;}
   renderer.render(scene,camera);
 }
 
-initWorld(); checkMission(); animate();
+function updateAnimals(t) {
+  for(const a of animalData) {
+    if(pickedAnimal && pickedAnimal.entry === a) {
+      a.group.position.y = a.y + 1.5 + Math.sin(t*4)*0.12; 
+      a.group.rotation.y = t*1.5; 
+      continue;
+    }
+    
+    if (a.type === 'fish') updateFish(a, t);
+    else if (a.type === 'sheep') updateSheep(a, t);
+    else if (a.type === 'horse') updateHorse(a, t);
+    else if (a.type === 'goat') updateGoat(a, t);
+    else updateDefaultAnimal(a, t);
+  }
+}
+
+function updateFish(a, t) {
+  const curTopY = getVisualTopY(a.x, a.z);
+  if(curTopY < WATER_LEVEL) {
+    const spd=0.022, look=3.5;
+    const fwdX=a.x+Math.cos(a.angle)*look, fwdZ=a.z-Math.sin(a.angle)*look;
+    const fwdY=getTopY(Math.round(fwdX),Math.round(fwdZ));
+
+    if(fwdY>=WATER_LEVEL-0.5){
+      const la=a.angle+Math.PI*0.6, ra=a.angle-Math.PI*0.6;
+      const lY=getTopY(Math.round(a.x+Math.cos(la)*look),Math.round(a.z-Math.sin(la)*look));
+      const rY=getTopY(Math.round(a.x+Math.cos(ra)*look),Math.round(a.z-Math.sin(ra)*look));
+      a.targetAngle=(lY<rY?la:ra)+(Math.random()-0.5)*0.5;
+    } else if(Math.random()<0.012){
+      a.targetAngle=a.angle+(Math.random()-0.5)*1.0;
+    }
+
+    let diff=a.targetAngle-a.angle;
+    while(diff>Math.PI) diff-=2*Math.PI; while(diff<-Math.PI) diff+=2*Math.PI;
+    a.angle+=diff*0.07;
+
+    const nx=a.x+Math.cos(a.angle)*spd, nz=a.z-Math.sin(a.angle)*spd;
+    const nY=getTopY(Math.round(nx),Math.round(nz));
+    if(nY<WATER_LEVEL){ a.x=nx; a.z=nz; }
+    else { a.targetAngle=a.angle+Math.PI+(Math.random()-0.5)*0.8; }
+
+    const depth=Math.max(0.4,WATER_LEVEL-curTopY);
+    const swimY=curTopY+depth*0.35+Math.sin(t*1.8+a.x)*0.12;
+    a.group.position.set(a.x,swimY,a.z);
+    a.group.rotation.y=a.angle; 
+    a.group.rotation.z=Math.sin(t*2)*0.04;
+  } else {
+    a.group.position.set(a.x,curTopY+0.2+Math.abs(Math.sin(t*15))*0.3,a.z);
+    a.group.rotation.z=Math.sin(t*20)*0.5;
+  }
+}
+
+function updateHorse(a, t) {
+  let clearPath = 0;
+  for(let i=1; i<=10; i++) {
+    const cx = Math.round(a.x + Math.cos(a.angle)*i);
+    const cz = Math.round(a.z - Math.sin(a.angle)*i);
+    if(isFenced(cx, cz)) break;
+    clearPath = i;
+  }
+
+  if(clearPath >= 8) {
+    a.x += Math.cos(a.angle) * 0.08;
+    a.z -= Math.sin(a.angle) * 0.08;
+    a.group.rotation.y = a.angle;
+  } else {
+    a.group.rotation.y = a.angle + Math.sin(t*8) * 0.05; // 제자리 발구르기 진동
+    if(Math.random() < 0.02) a.angle += 0.5; // 막히면 방향 돌리기
+  }
+  
+  const aheadX = a.x + Math.cos(a.angle)*0.4;
+  const aheadZ = a.z - Math.sin(a.angle)*0.4;
+  const aheadY = getVisualTopY(aheadX, aheadZ);
+  a.y += (aheadY - a.y) * 0.25; 
+  a.group.position.set(a.x, a.y+Math.sin(t*4.0)*0.08, a.z); // 빠른 상하 진동(달리기/발구르기)
+  a.group.rotation.z = 0;
+}
+
+function updateGoat(a, t) {
+  if(!a.escapeTimer) a.escapeTimer = 0;
+  a.escapeTimer += 0.016;
+
+  if(a.escapeTimer > 30) {
+    a.escapeTimer = 0;
+    const escapeAngle = Math.random() * Math.PI * 2;
+    const tx = a.x + Math.cos(escapeAngle) * 3;
+    const tz = a.z - Math.sin(escapeAngle) * 3;
+    if(!isFenced(Math.round(tx), Math.round(tz))) {
+      a.x = tx; a.z = tz;
+      toast('🐐 염소가 탈출했어요!');
+    }
+  }
+  
+  if(Math.random() < 0.01) a.targetAngle = a.angle + (Math.random()-0.5)*2;
+  let diff=a.targetAngle-a.angle;
+  while(diff>Math.PI) diff-=2*Math.PI; while(diff<-Math.PI) diff+=2*Math.PI;
+  a.angle+=diff*0.1;
+  
+  const aheadX = a.x + Math.cos(a.angle)*0.4;
+  const aheadZ = a.z - Math.sin(a.angle)*0.4;
+  const aheadY = getVisualTopY(aheadX, aheadZ);
+  
+  a.y += (aheadY - a.y) * 0.25; 
+  a.group.position.set(a.x, a.y+Math.sin(t*2.5+a.x)*0.06, a.z);
+  a.group.rotation.y=a.angle;
+  a.group.rotation.z=0;
+}
+
+function updateSheep(a, t) {
+  const curTopY = getVisualTopY(a.x, a.z);
+  if(toolMode==='action'&&selItem==='lure'&&hlMesh.visible&&a.type==='sheep'){
+    const dx=hlMesh.position.x-a.x, dz=hlMesh.position.z-a.z;
+    const dist=Math.sqrt(dx*dx+dz*dz);
+    if(dist>1.5&&dist<12){
+      const ws=a.isInjured?0.015:0.04;
+      a.x+=dx/dist*ws; a.z+=dz/dist*ws;
+      a.targetAngle=Math.atan2(-dz, dx); 
+    }
+  }
+  
+  let diff=a.targetAngle-a.angle;
+  while(diff>Math.PI) diff-=2*Math.PI; while(diff<-Math.PI) diff+=2*Math.PI;
+  a.angle+=diff*0.1;
+  
+  const aheadX = a.x + Math.cos(a.angle)*0.4;
+  const aheadZ = a.z - Math.sin(a.angle)*0.4;
+  const aheadY = getVisualTopY(aheadX, aheadZ);
+  
+  a.y += (aheadY - a.y) * 0.25; 
+
+  a.group.position.set(a.x, a.y+Math.sin(t*2.5+a.x)*0.06, a.z);
+  a.group.rotation.y=a.angle;
+  a.group.rotation.z=0;
+}
+
+function updateDefaultAnimal(a, t) {
+  const curTopY = getVisualTopY(a.x, a.z);
+  let diff=a.targetAngle-a.angle;
+  while(diff>Math.PI) diff-=2*Math.PI; while(diff<-Math.PI) diff+=2*Math.PI;
+  a.angle+=diff*0.1;
+  
+  const aheadX = a.x + Math.cos(a.angle)*0.4;
+  const aheadZ = a.z - Math.sin(a.angle)*0.4;
+  const aheadY = getVisualTopY(aheadX, aheadZ);
+  
+  a.y += (aheadY - a.y) * 0.25; 
+
+  a.group.position.set(a.x, a.y+Math.sin(t*2.5+a.x)*0.06, a.z);
+  a.group.rotation.y=a.angle;
+  a.group.rotation.z=0;
+}
+
+initWorld(); QuestManager.check(); animate();
 </script>
 </body>
 </html>
