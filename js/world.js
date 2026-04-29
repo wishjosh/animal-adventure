@@ -201,8 +201,24 @@ function buildMesh(rawType,x,y,z){
   let type=rawType, rot=0;
   if(rawType.startsWith('fence_')){ type='fence'; rot=parseInt(rawType.split('_')[1]); }
   const mat=def.transparent?new THREE.MeshLambertMaterial({color:def.hex,transparent:true,opacity:def.opacity}):new THREE.MeshLambertMaterial({color:def.hex});
+  
+  if(def.category==='plant' || def.category==='seed') {
+    const group = new THREE.Group();
+    const g1 = new THREE.BoxGeometry(0.8, 0.8, 0.1);
+    const g2 = new THREE.BoxGeometry(0.1, 0.8, 0.8);
+    const m1 = new THREE.Mesh(g1, mat); m1.rotation.y = Math.PI / 4;
+    const m2 = new THREE.Mesh(g2, mat); m2.rotation.y = Math.PI / 4;
+    m1.castShadow=m1.receiveShadow=true; m2.castShadow=m2.receiveShadow=true;
+    m1.add(new THREE.LineSegments(new THREE.EdgesGeometry(g1),new THREE.LineBasicMaterial({color:0x000000,transparent:true,opacity:0.14})));
+    m2.add(new THREE.LineSegments(new THREE.EdgesGeometry(g2),new THREE.LineBasicMaterial({color:0x000000,transparent:true,opacity:0.14})));
+    group.add(m1); group.add(m2);
+    group.position.set(x, y + 0.4, z);
+    group.userData={isBlock:true,bx:x,by:y,bz:z};
+    return group;
+  }
+
   let geo, py=y+0.5;
-  if(type==='grass'||type==='straw'||def.category==='plant'||def.category==='seed'||def.category==='resource'){
+  if(type==='grass'||type==='straw'||def.category==='resource'){
     geo=new THREE.BoxGeometry(1,0.2,1); py=y+0.1;
   } else if(type==='fence'){
     geo=new THREE.BoxGeometry(1,1,0.2);
