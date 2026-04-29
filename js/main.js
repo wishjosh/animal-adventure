@@ -16,7 +16,7 @@ const camera=new THREE.PerspectiveCamera(62,window.innerWidth/window.innerHeight
 const ambient=new THREE.AmbientLight(0xfff0dd,0.52); scene.add(ambient);
 const sun=new THREE.DirectionalLight(0xfff4c8,1.1);
 sun.position.set(25,75,18); sun.castShadow=true;
-sun.shadow.mapSize.set(2048,2048);
+sun.shadow.mapSize.set(1024,1024);
 sun.shadow.camera.left=-65; sun.shadow.camera.right=65;
 sun.shadow.camera.bottom=-65; sun.shadow.camera.top=65;
 sun.shadow.camera.far=180;
@@ -44,10 +44,10 @@ function mkCloud(x,y,z,s){
 const cloudGroups=[[5,60,-12,1.1],[24,65,3,.9],[45,58,10,1.3],[-4,62,30,1],[20,68,50,1.2],[50,59,44,.85],[55,63,20,1],[-6,58,18,.8],[30,61,-10,1.1],[-20,65,-30,1.5],[-40,58,20,1.2]]
   .map(([x,y,z,s])=>{const c=mkCloud(x,y,z,s);scene.add(c);return{mesh:c,bx:x,bz:z};});
 
-const waterDeep=new THREE.Mesh(new THREE.PlaneGeometry(5000,5000),new THREE.MeshLambertMaterial({color:0x012040,transparent:true,opacity:0.8,depthWrite:false,side:THREE.DoubleSide}));
+const waterDeep=new THREE.Mesh(new THREE.PlaneGeometry(5000,5000),new THREE.MeshLambertMaterial({color:0x012040,transparent:true,opacity:0.8,depthWrite:false,side:THREE.FrontSide}));
 waterDeep.rotation.x=-Math.PI/2; waterDeep.position.y=WATER_LEVEL-0.5; scene.add(waterDeep);
 
-const waterVolume=new THREE.Mesh(new THREE.PlaneGeometry(5000,5000),new THREE.MeshLambertMaterial({color:0x0a4b80,transparent:true,opacity:0.6,depthWrite:false,side:THREE.DoubleSide}));
+const waterVolume=new THREE.Mesh(new THREE.PlaneGeometry(5000,5000),new THREE.MeshLambertMaterial({color:0x0a4b80,transparent:true,opacity:0.6,depthWrite:false,side:THREE.FrontSide}));
 waterVolume.rotation.x=-Math.PI/2; waterVolume.position.y=WATER_LEVEL; scene.add(waterVolume);
 
 const groundMesh=new THREE.Mesh(new THREE.PlaneGeometry(5000,5000),new THREE.MeshLambertMaterial({color:0x4a8a30}));
@@ -356,8 +356,22 @@ canvas.addEventListener('mousemove',()=>{
 
 window.addEventListener('resize',()=>{camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();renderer.setSize(window.innerWidth,window.innerHeight);});
 
+// Stats 모니터
+let stats;
+if(typeof Stats !== 'undefined'){
+  stats = new Stats();
+  stats.showPanel(0);
+  document.body.appendChild(stats.dom);
+  stats.dom.style.position = 'absolute';
+  stats.dom.style.bottom = '10px';
+  stats.dom.style.left = '10px';
+  stats.dom.style.top = 'auto';
+  stats.dom.style.zIndex = '9999';
+}
+
 let t=0;
 function animate(){
+  if(stats) stats.begin();
   requestAnimationFrame(animate); t+=.016;
 
   let camMoved=false;
@@ -385,6 +399,7 @@ function animate(){
 
   for(const c of cloudGroups){c.mesh.position.x=c.bx+Math.sin(t*.035+c.bz*.1)*4;c.mesh.position.z=c.bz+Math.cos(t*.025+c.bx*.08)*3;}
   renderer.render(scene,camera);
+  if(stats) stats.end();
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
