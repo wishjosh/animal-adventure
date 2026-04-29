@@ -49,6 +49,13 @@ function initInventoryUI() {
       slot.title = item.label;
       if(item.icon) { const icon=document.createElement('div'); icon.className='slot-icon'; icon.textContent=item.icon; slot.appendChild(icon); }
       else if(item.color) { const sw=document.createElement('div'); sw.className='slot-swatch'; sw.style.background=item.color; slot.appendChild(sw); }
+      
+      if(QuestManager.currentPhase === 1) {
+        const s = QuestManager.phase1State;
+        if(!s.toxicRemoved && itemId === 'shovel') slot.classList.add('slot-glowing');
+        else if(s.toxicRemoved && !s.tomatoFruited && (itemId === 'seed_tomato' || itemId === 'watering_can')) slot.classList.add('slot-glowing');
+        else if(s.tomatoFruited && !s.wormDone && itemId === 'fallen_leaf') slot.classList.add('slot-glowing');
+      }
     }
     hotbarEl.appendChild(slot);
   }
@@ -64,6 +71,13 @@ function initInventoryUI() {
         const item=ITEM_DB[itemId]; slot.title=item.label;
         if(item.icon){const icon=document.createElement('div');icon.className='slot-icon';icon.textContent=item.icon;slot.appendChild(icon);}
         else if(item.color){const sw=document.createElement('div');sw.className='slot-swatch';sw.style.background=item.color;slot.appendChild(sw);}
+        
+        if(QuestManager.currentPhase === 1) {
+          const s = QuestManager.phase1State;
+          if(!s.toxicRemoved && itemId === 'shovel') slot.classList.add('slot-glowing');
+          else if(s.toxicRemoved && !s.tomatoFruited && (itemId === 'seed_tomato' || itemId === 'watering_can')) slot.classList.add('slot-glowing');
+          else if(s.tomatoFruited && !s.wormDone && itemId === 'fallen_leaf') slot.classList.add('slot-glowing');
+        }
       }
       previewEl.appendChild(slot);
     }
@@ -235,4 +249,13 @@ function clearAll(silent=false){
   LeafSystem.meshes=[]; LeafSystem.collected=0;
   initWorld(); QuestManager.updateUI(); QuestManager.check();
   if(!silent) toast('🗑️ 처음으로 돌아갔어요');
+}
+
+function showEcoPopup(emoji, htmlText) {
+  const popup = document.getElementById('eco-popup');
+  if(!popup) return;
+  document.getElementById('eco-emoji').textContent = emoji;
+  document.getElementById('eco-text').innerHTML = htmlText;
+  popup.classList.add('show');
+  setTimeout(() => { popup.classList.remove('show'); }, 4000);
 }
