@@ -66,7 +66,23 @@ function bldActive(cx,cz){
   const x0=cx*CHUNK,z0=cz*CHUNK;
   for(let lx=0;lx<CHUNK;lx++) for(let lz=0;lz<CHUNK;lz++){
     const wx=x0+lx,wz=z0+lz,sh=getH(wx,wz);
-    for(let y=0;y<=sh;y++) if(!deletedBlocks.has(bk(wx,y,wz))) _place(wx,y,wz,terrainType(y,sh));
+    
+    const minH = Math.min(getH(wx-1,wz), getH(wx+1,wz), getH(wx,wz-1), getH(wx,wz+1));
+    const visibleStartY = Math.min(sh, minH);
+
+    for(let y=0;y<=sh;y++) {
+      const k=bk(wx,y,wz);
+      if(!deletedBlocks.has(k)) {
+        const type = terrainType(y,sh);
+        gridData[k] = type;
+        if(y >= visibleStartY) {
+          if(!meshByKey[k]) {
+            const mesh=buildMesh(type,wx,y,wz);
+            if(mesh){meshByKey[k]=mesh;scene.add(mesh);}
+          }
+        }
+      }
+    }
   }
 }
 
@@ -205,7 +221,7 @@ function buildMesh(rawType,x,y,z){
 function _place(x,y,z,type){
   if(y<0||y>=GH) return;
   const k=bk(x,y,z);
-  if(gridData[k]){scene.remove(meshByKey[k]);delete meshByKey[k];delete gridData[k];}
+  if(gridData[k]){if(meshByKey[k])scene.remove(meshByKey[k]);delete meshByKey[k];delete gridData[k];}
   gridData[k]=type; const mesh=buildMesh(type,x,y,z); if(mesh){meshByKey[k]=mesh;scene.add(mesh);}
   deletedBlocks.delete(k);
 }
@@ -219,8 +235,25 @@ function placeBlock(x,y,z,type){
 
 function removeBlock(x,y,z){
   const k=bk(x,y,z); if(!gridData[k]) return;
-  scene.remove(meshByKey[k]); delete meshByKey[k]; delete gridData[k];
-  deletedBlocks.add(k); QuestManager.check();
+  if(meshByKey[k]){scene.remove(meshByKey[k]); delete meshByKey[k];}
+  delete gridData[k];
+  deletedBlocks.add(k); 
+  
+  const neighbors = [
+    [x, y-1, z], [x, y+1, z],
+    [x-1, y, z], [x+1, y, z],
+    [x, y, z-1], [x, y, z+1]
+  ];
+  for(const [nx,ny,nz] of neighbors) {
+    const nk = bk(nx,ny,nz);
+    if(gridData[nk] && !meshByKey[nk]) {
+      const type = gridData[nk];
+      const mesh = buildMesh(type,nx,ny,nz);
+      if(mesh){ meshByKey[nk]=mesh; scene.add(mesh); }
+    }
+  }
+
+  QuestManager.check();
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
