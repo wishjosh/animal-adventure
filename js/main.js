@@ -396,6 +396,7 @@ function animate(){
   ClueSystem.updateAnims(t);
   LadybugSystem.update(t);
   OldTree.updateParticles();
+  if(typeof ArrowSystem !== 'undefined') ArrowSystem.update(t);
 
   for(const c of cloudGroups){c.mesh.position.x=c.bx+Math.sin(t*.035+c.bz*.1)*4;c.mesh.position.z=c.bz+Math.cos(t*.025+c.bx*.08)*3;}
   renderer.render(scene,camera);
