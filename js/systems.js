@@ -3,7 +3,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const ClueSystem = {
   clues: [
-    { id:'tree',  pos:{x:9, z:8},   found:false, emoji:'🌳', msg:'뿌리가 말라있어요. 흙이 딱딱해서 물을 흡수하지 못해요.' },
+    { id:'tree',  pos:{x:8, z:8},   found:false, emoji:'🌳', msg:'뿌리가 말라있어요. 흙이 딱딱해서 물을 흡수하지 못해요.' },
     { id:'farm',  pos:{x:4, z:4},   found:false, emoji:'🌱', msg:'흙이 콘크리트처럼 굳어있어요. 씨앗을 심어도 싹이 안 트네요.' },
     { id:'hive',  pos:{x:12, z:4},  found:false, emoji:'🐝', msg:'벌집이 텅 비어있어요. 꿀벌들이 어디로 갔을까요?' },
     { id:'river', pos:{x:4, z:12},  found:false, emoji:'🦆', msg:'쓰레기가 쌓여 수위가 낮아졌어요. 오리들이 뭍으로 올라와 있어요.' }
@@ -23,9 +23,10 @@ const ClueSystem = {
         const halo = new THREE.Mesh(new THREE.SphereGeometry(0.6, 16, 16), new THREE.MeshBasicMaterial({color: 0xffffff, transparent:true, opacity:0.3}));
         mesh.add(halo);
         const ty = getTopY(clue.pos.x, clue.pos.z);
-        mesh.position.set(clue.pos.x, ty + 1, clue.pos.z);
-        mesh.userData = { isClue: true, clueId: clue.id, baseTopY: ty };
-        halo.userData = { isClue: true, clueId: clue.id, baseTopY: ty };
+        const yOffset = clue.id === 'tree' ? 3.5 : 1;
+        mesh.position.set(clue.pos.x, ty + yOffset, clue.pos.z);
+        mesh.userData = { isClue: true, clueId: clue.id, baseTopY: ty + yOffset - 1 };
+        halo.userData = { isClue: true, clueId: clue.id, baseTopY: ty + yOffset - 1 };
         scene.add(mesh);
         this.meshes.push(mesh);
         clue.mesh = mesh;
@@ -102,12 +103,14 @@ const LeafSystem = {
     this.meshes = [];
     this.collected = 0;
     this.locations.forEach(({x, z}) => {
-      const y = getTopY(x, z) + 0.2;
-      const geo = new THREE.BoxGeometry(0.5, 0.08, 0.5);
+      const y = getTopY(x, z) + 0.1;
+      const geo = new THREE.BoxGeometry(0.6, 0.04, 0.35); // 얇고 넓은 Voxel 형태
       const mat = new THREE.MeshLambertMaterial({ color: Math.random() > 0.5 ? 0xD2691E : 0xFF8C00 });
       const mesh = new THREE.Mesh(geo, mat);
       mesh.position.set(x, y, z);
+      mesh.rotation.x = 0.25; // 바닥에 비스듬히 눕기
       mesh.rotation.y = Math.random() * Math.PI;
+      mesh.rotation.z = Math.random() * 0.3 - 0.15;
       mesh.userData = { isLeaf: true, lx: x, lz: z };
       scene.add(mesh);
       this.meshes.push(mesh);
@@ -402,18 +405,10 @@ const QuestManager = {
     const statusEl = document.getElementById('mission-status');
     if(statusEl) {
       statusEl.innerHTML = `
-        <span class="mc${toxicOk?' done':''}">
-          ${toxicOk?'✅':'⬜'} 🌼 나쁜 노란 꽃 뽑기 <small>(동물 보호)</small>
-        </span>
-        <span class="mc${tomatoOk?' done':''}">
-          ${tomatoOk?'✅':'⬜'} 💧 토마토에 물 주기 <small>(싹 틔우기)</small>
-        </span>
-        <span class="mc${wormOk?' done':''}">
-          ${wormOk?'✅':'⬜'} 🍂 지렁이 밥 주기 <small>(건강한 흙)</small>
-        </span>
-        <span class="mc${treeOk?' done':''}">
-          ${treeOk?'✅':'⬜'} 🌳 나무 할아버지 깨우기 <small>(자연 회복)</small>
-        </span>
+        <div class="mc${toxicOk?' done':''}">\n          ${toxicOk?'✅':'1️⃣'} 🌼 나쁜 노란 꽃 뽑기 <small style="opacity:0.7">→ 말 구출</small>\n        </div>
+        <div class="mc${tomatoOk?' done':''}">\n          ${tomatoOk?'✅':'2️⃣'} 💧 토마토 물 주기 <small style="opacity:0.7">→ 싹 틔우기</small>\n        </div>
+        <div class="mc${wormOk?' done':''}">\n          ${wormOk?'✅':'3️⃣'} 🍂 지렁이 밥 주기 <small style="opacity:0.7">→ 영양토 만들기</small>\n        </div>
+        <div class="mc${treeOk?' done':''}">\n          ${treeOk?'✅':'🌳'} 나무 할아버지 <small style="opacity:0.7">→ 지렁이가 부르면 자동!</small>\n        </div>
       `;
     }
 
@@ -462,13 +457,13 @@ const QuestManager = {
     const statusEl = document.getElementById('mission-status');
 
     if(this.currentPhase === 0) {
-      titleEl.textContent = `🔍 단서 탐색`;
-      descEl.innerHTML = `마을을 탐험하며 이상한 점을 찾아보세요!`;
-      statusEl.innerHTML = '';
+      titleEl.textContent = `🔍 단서 탐색 중... (탭해서 열기)`;
+      if(descEl) descEl.innerHTML = `마을 곳곳의 <b style="color:#FFD700">노란색 구슬</b>을 눌러 단서를 수집하세요!`;
+      if(statusEl) statusEl.innerHTML = '';
 
     } else if(this.currentPhase === 1) {
-      titleEl.textContent = `🌱 페이즈 1: 자연의 첫걸음`;
-      descEl.innerHTML = `도구를 사용해서 친구들을 도와주세요! ⬇️ 화살표와 반짝이는 도구를 찾아보세요.`;
+      titleEl.textContent = `🌱 목표: 병든 고목나무 살리기 (탭해서 열기)`;
+      if(descEl) descEl.innerHTML = `화살표(⬇️)와 반짝이는 도구를 따라 순서대로 해결하세요!`;
       this.checkPhase1();  // 상태바 즉시 갱신
 
     } else if(this.currentPhase === 2) {
