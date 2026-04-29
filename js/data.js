@@ -40,7 +40,7 @@ const ITEM_DB = {
   plant_tomato_fruit:{ category:'plant', type:'block', label:'익은 토마토', color:'#FF6347', hex:0xFF6347, solid:false },
   plant_basil:       { category:'plant', type:'block', label:'바질',        color:'#006400', hex:0x006400, solid:false },
   plant_dead:        { category:'plant', type:'block', label:'죽은 식물',   color:'#2F2F2F', hex:0x2F2F2F, solid:false },
-  toxic_plant:       { category:'plant', type:'block', label:'독성 식물',   color:'#DAA520', hex:0xDAA520, solid:false },
+  toxic_plant:       { category:'plant', type:'block', label:'독성 식물',   color:'#FFFF00', hex:0xFFFF00, solid:false },
 
   lure:  { category:'kit', type:'action', label:'먹이(유도)', icon:'🌾' },
   heal:  { category:'kit', type:'action', label:'구급상자',   icon:'🩹' },
