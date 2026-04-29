@@ -91,3 +91,41 @@ body { overflow:hidden; background:#87CEEB; font-family:'Malgun Gothic','Apple S
   #hint { font-size: 9px; bottom: 75px; }
   .mc-cell { width: 24px; height: 24px; font-size: 10px;}
 }
+
+/* Hotbar Glow Animation */
+@keyframes toolGlow {
+  0% { box-shadow: 0 0 5px #ffd700, inset 0 0 5px #ffd700; border-color: #ffd700; }
+  50% { box-shadow: 0 0 20px #ffd700, inset 0 0 10px #ffd700; border-color: #ffffff; transform: scale(1.05); }
+  100% { box-shadow: 0 0 5px #ffd700, inset 0 0 5px #ffd700; border-color: #ffd700; }
+}
+.slot-glowing {
+  animation: toolGlow 1.2s infinite alternate !important;
+  border-color: #ffd700 !important;
+}
+
+/* Ecological Popup */
+#eco-popup {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%) scale(0.8);
+  background: rgba(255, 255, 255, 0.95);
+  border: 6px solid #4CAF50;
+  border-radius: 20px;
+  padding: 40px;
+  text-align: center;
+  color: #333;
+  font-weight: bold;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  z-index: 2000;
+  box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+  display: none;
+}
+#eco-popup.show {
+  display: block;
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 1;
+}
+#eco-emoji { font-size: 80px; margin-bottom: 20px; }
+#eco-text { font-size: 28px; line-height: 1.4; color: #1b5e20; }
