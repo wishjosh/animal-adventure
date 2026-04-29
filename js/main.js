@@ -142,6 +142,10 @@ function doDig(clientX,clientY){
     ClueSystem.checkClick(obj.userData.clueId); 
     return; 
   }
+  if(QuestManager.currentPhase===0) {
+    toast('탐험을 시작하기 전에 단서를 모두 모아주세요!');
+    return;
+  }
 
   if(obj.userData.isPreview){ activateChunk(obj.userData.cx,obj.userData.cz); toast('✨ 미지의 영역을 탐험했습니다!'); return; }
   if(obj.userData.agr){ const a=animalData.find(a=>a.group===obj.userData.agr); if(a) removeAnimalAt(a); }
@@ -240,6 +244,8 @@ function handleClick(clientX,clientY){
 
   if(QuestManager.currentPhase===0){
     if(obj.userData.isClue){ ClueSystem.checkClick(obj.userData.clueId); return; }
+    toast('탐험을 시작하기 전에 단서를 모두 모아주세요!');
+    return;
   }
 
   if(obj.userData.isLeaf){
