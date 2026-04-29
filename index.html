@@ -15,25 +15,30 @@
 
 <div id="topbar">
   <div id="title-text">🐾 생태계 수호자</div>
-  <div id="mission-box">
-    <div id="mission-title">🎯 미션 로딩 중...</div>
-    <div id="mission-desc"></div>
-    <div id="mission-status"></div>
+  <div id="mission-box" onclick="this.classList.toggle('open')">
+    <div id="mission-header">
+      <div id="mission-title">🎯 미션 로딩 중...</div>
+      <div id="mission-chevron">▼</div>
+    </div>
+    <div id="mission-detail">
+      <div id="mission-desc"></div>
+      <div id="mission-status"></div>
+    </div>
   </div>
-</div>
-
-<div id="side-buttons">
-  <button class="side-btn" onclick="toggleRotation()">🔄 회전 (R)</button>
-  <button class="side-btn" onclick="toggleInventory()">🎒 가방 (E)</button>
-  <button class="side-btn" onclick="openMap()">🗺️ 지도 (M)</button>
-  <button class="side-btn" onclick="saveGame()" style="background:#27AE60;">💾 저장</button>
-  <button class="side-btn" onclick="loadGame()" style="background:#2980B9;">📂 불러오기</button>
-  <button class="side-btn" onclick="clearAll()" style="background:#C0392B;">🗑️ 초기화</button>
 </div>
 
 <div id="hotbar-wrapper">
   <div id="hotbar-label">도구 선택</div>
-  <div id="hotbar-container"></div>
+  <div id="hotbar-row">
+    <div id="hotbar-container"></div>
+    <div id="hotbar-actions">
+      <button class="action-btn" onclick="toggleRotation()" title="방향 회전 (R)">🔄</button>
+      <button class="action-btn" onclick="toggleInventory()" title="가방 (E)">🎒</button>
+      <button class="action-btn" onclick="openMap()" title="지도 (M)">🗺️</button>
+      <button class="action-btn" onclick="saveGame()" title="저장" style="color:#6fcf97;">💾</button>
+      <button class="action-btn" onclick="clearAll()" title="초기화" style="color:#eb5757;">🗑️</button>
+    </div>
+  </div>
 </div>
 
 <div id="inventory-overlay">
