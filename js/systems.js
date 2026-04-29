@@ -3,7 +3,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const ClueSystem = {
   clues: [
-    { id:'tree',  pos:{x:8, z:8},   found:false, emoji:'🌳', msg:'뿌리가 말라있어요. 흙이 딱딱해서 물을 흡수하지 못해요.' },
+    { id:'tree',  pos:{x:9, z:8},   found:false, emoji:'🌳', msg:'뿌리가 말라있어요. 흙이 딱딱해서 물을 흡수하지 못해요.' },
     { id:'farm',  pos:{x:4, z:4},   found:false, emoji:'🌱', msg:'흙이 콘크리트처럼 굳어있어요. 씨앗을 심어도 싹이 안 트네요.' },
     { id:'hive',  pos:{x:12, z:4},  found:false, emoji:'🐝', msg:'벌집이 텅 비어있어요. 꿀벌들이 어디로 갔을까요?' },
     { id:'river', pos:{x:4, z:12},  found:false, emoji:'🦆', msg:'쓰레기가 쌓여 수위가 낮아졌어요. 오리들이 뭍으로 올라와 있어요.' }
@@ -25,6 +25,7 @@ const ClueSystem = {
         const ty = getTopY(clue.pos.x, clue.pos.z);
         mesh.position.set(clue.pos.x, ty + 1, clue.pos.z);
         mesh.userData = { isClue: true, clueId: clue.id, baseTopY: ty };
+        halo.userData = { isClue: true, clueId: clue.id, baseTopY: ty };
         scene.add(mesh);
         this.meshes.push(mesh);
         clue.mesh = mesh;
