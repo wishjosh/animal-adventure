@@ -137,6 +137,12 @@ function doDig(clientX,clientY){
   const hits=castRay(clientX,clientY);
   if(!hits.length) return;
   const obj=hits[0].object;
+  
+  if(QuestManager.currentPhase===0 && obj.userData.isClue){ 
+    ClueSystem.checkClick(obj.userData.clueId); 
+    return; 
+  }
+
   if(obj.userData.isPreview){ activateChunk(obj.userData.cx,obj.userData.cz); toast('✨ 미지의 영역을 탐험했습니다!'); return; }
   if(obj.userData.agr){ const a=animalData.find(a=>a.group===obj.userData.agr); if(a) removeAnimalAt(a); }
   else if(obj.userData.isBlock){ removeBlock(obj.userData.bx,obj.userData.by,obj.userData.bz); }
