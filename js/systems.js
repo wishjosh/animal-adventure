@@ -84,6 +84,7 @@ const ToxicPlantSystem = {
     if(this.removed >= this.locations.length) {
       toast('✅ 독성 식물을 모두 제거했어요! 말 목초지가 안전해졌어요!');
       QuestManager.phase1State.toxicRemoved = true;
+      if(typeof showEcoPopup === 'function') showEcoPopup('🌼❌', '나쁜 노란 꽃을 뽑아<br>동물 친구들이 안전해졌어요!');
       QuestManager.check();
     }
   }
@@ -220,6 +221,7 @@ const WormMinigame = {
 
     toast('🌱 지렁이가 흙을 살려냈어요! 영양토가 생겼어요!');
     QuestManager.phase1State.wormDone = true;
+    if(typeof showEcoPopup === 'function') showEcoPopup('🍂🪱', '지렁이가 낙엽을 먹고<br>딱딱한 흙을 숨 쉬게 만들었어요!');
     OldTree.showNutrientFlow();
     QuestManager.check();
   }
@@ -330,6 +332,7 @@ const CompanionPlant = {
           }
           toast(pair.bonus);
           QuestManager.phase1State.tomatoFruited = true;
+          if(typeof showEcoPopup === 'function') showEcoPopup('💧🌱', '목마른 씨앗에 물을 주어<br>건강한 토마토가 자랐어요!');
           showAromaEffect(x, y, z);
           LadybugSystem.summon(x, z);
           QuestManager.check();
@@ -399,16 +402,16 @@ const QuestManager = {
     if(statusEl) {
       statusEl.innerHTML = `
         <span class="mc${toxicOk?' done':''}">
-          ${toxicOk?'✅':'⬜'} 독성 식물 제거
+          ${toxicOk?'✅':'⬜'} 🌼 나쁜 노란 꽃 뽑기 <small>(동물 보호)</small>
         </span>
         <span class="mc${tomatoOk?' done':''}">
-          ${tomatoOk?'✅':'⬜'} 토마토 열매 맺기
+          ${tomatoOk?'✅':'⬜'} 💧 토마토에 물 주기 <small>(싹 틔우기)</small>
         </span>
         <span class="mc${wormOk?' done':''}">
-          ${wormOk?'✅':'⬜'} 지렁이 미니게임
+          ${wormOk?'✅':'⬜'} 🍂 지렁이 밥 주기 <small>(건강한 흙)</small>
         </span>
         <span class="mc${treeOk?' done':''}">
-          ${treeOk?'✅':'⬜'} 고목나무 회복
+          ${treeOk?'✅':'⬜'} 🌳 나무 할아버지 깨우기 <small>(자연 회복)</small>
         </span>
       `;
     }
@@ -463,8 +466,8 @@ const QuestManager = {
       statusEl.innerHTML = '';
 
     } else if(this.currentPhase === 1) {
-      titleEl.textContent = `🌱 페이즈 1: 식물과 토양을 살려라`;
-      descEl.innerHTML = `텃밭에 물을 주고 씨앗을 심어보세요!<br>지렁이를 불러 흙을 살리고, 고목나무를 회복시키세요.`;
+      titleEl.textContent = `🌱 페이즈 1: 자연의 첫걸음`;
+      descEl.innerHTML = `도구를 사용해서 친구들을 도와주세요! ⬇️ 화살표와 반짝이는 도구를 찾아보세요.`;
       this.checkPhase1();  // 상태바 즉시 갱신
 
     } else if(this.currentPhase === 2) {
@@ -537,6 +540,7 @@ const OldTree = {
       this._particles = [];
       this.setState('growing');
       QuestManager.phase1State.treeGrowing = true;
+      if(typeof showEcoPopup === 'function') showEcoPopup('🌳✨', '주변 흙이 건강해져서<br>나무 할아버지가 살아났어요!');
       QuestManager.check();
       toast('🌳 고목나무에 잎이 돋아나고 있어요!');
       return;
@@ -636,5 +640,62 @@ const SeedSystem = {
       setTimeout(() => AphidSystem.attack(x, z), 2000);
     }
     QuestManager.check();
+  }
+};
+
+const ArrowSystem = {
+  pool: [],
+  activeCount: 0,
+  getArrow() {
+    if(this.activeCount < this.pool.length) {
+      const a = this.pool[this.activeCount++];
+      a.visible = true;
+      return a;
+    }
+    const geo = new THREE.ConeGeometry(0.3, 0.6, 4);
+    const mat = new THREE.MeshBasicMaterial({color: 0xffff00});
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.rotation.x = Math.PI; // point down
+    scene.add(mesh);
+    this.pool.push(mesh);
+    this.activeCount++;
+    return mesh;
+  },
+  update(t) {
+    this.activeCount = 0;
+    if(QuestManager.currentPhase === 1) {
+      const s = QuestManager.phase1State;
+      if(!s.toxicRemoved) {
+        for(const [k, type] of Object.entries(gridData)) {
+          if(type === 'toxic_plant') {
+            const [x,y,z] = k.split(',').map(Number);
+            const a = this.getArrow();
+            a.position.set(x, y + 1.2 + Math.sin(t*5)*0.15, z);
+          }
+        }
+      } else if (!s.tomatoFruited) {
+        for(const [k, type] of Object.entries(gridData)) {
+          if(type === 'dirt_rich' || type === 'dirt_moist' || type === 'sprout') {
+            const [x,y,z] = k.split(',').map(Number);
+            const a = this.getArrow();
+            a.position.set(x, y + 1.2 + Math.sin(t*5)*0.15, z);
+          }
+        }
+      } else if (!s.wormDone) {
+        for(const [k, type] of Object.entries(gridData)) {
+          if(type === 'dirt_dry' || type === 't_dirt') {
+            const [x,y,z] = k.split(',').map(Number);
+            // Just point to a few random hard dirts to guide them, up to 5 arrows
+            if(this.activeCount < 5 && Math.sin(x*z) > 0.8) {
+              const a = this.getArrow();
+              a.position.set(x, y + 1.2 + Math.sin(t*5)*0.15, z);
+            }
+          }
+        }
+      }
+    }
+    for(let i=this.activeCount; i<this.pool.length; i++) {
+      this.pool[i].visible = false;
+    }
   }
 };
