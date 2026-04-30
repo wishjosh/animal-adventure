@@ -52,8 +52,10 @@ function initInventoryUI() {
       
       if(QuestManager.currentPhase === 1) {
         const s = QuestManager.phase1State;
+        const _hasMoist = Object.values(gridData).some(t => t === 'dirt_moist' || t === 'dirt_rich');
         if(!s.toxicRemoved && itemId === 'shovel') slot.classList.add('slot-glowing');
-        else if(s.toxicRemoved && !s.tomatoFruited && (itemId === 'seed_tomato' || itemId === 'watering_can')) slot.classList.add('slot-glowing');
+        else if(s.toxicRemoved && !s.tomatoFruited && !_hasMoist && itemId === 'watering_can') slot.classList.add('slot-glowing');
+        else if(s.toxicRemoved && !s.tomatoFruited && _hasMoist && (itemId === 'seed_tomato' || itemId === 'seed_basil')) slot.classList.add('slot-glowing');
         else if(s.tomatoFruited && !s.wormDone && itemId === 'fallen_leaf') slot.classList.add('slot-glowing');
       }
     }
@@ -74,8 +76,10 @@ function initInventoryUI() {
         
         if(QuestManager.currentPhase === 1) {
           const s = QuestManager.phase1State;
+          const _hasMoist = Object.values(gridData).some(t => t === 'dirt_moist' || t === 'dirt_rich');
           if(!s.toxicRemoved && itemId === 'shovel') slot.classList.add('slot-glowing');
-          else if(s.toxicRemoved && !s.tomatoFruited && (itemId === 'seed_tomato' || itemId === 'watering_can')) slot.classList.add('slot-glowing');
+          else if(s.toxicRemoved && !s.tomatoFruited && !_hasMoist && itemId === 'watering_can') slot.classList.add('slot-glowing');
+          else if(s.toxicRemoved && !s.tomatoFruited && _hasMoist && (itemId === 'seed_tomato' || itemId === 'seed_basil')) slot.classList.add('slot-glowing');
           else if(s.tomatoFruited && !s.wormDone && itemId === 'fallen_leaf') slot.classList.add('slot-glowing');
         }
       }
