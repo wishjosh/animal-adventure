@@ -404,11 +404,22 @@ const QuestManager = {
 
     const statusEl = document.getElementById('mission-status');
     if(statusEl) {
+      const _hasMoist = Object.values(gridData).some(t => t === 'dirt_moist' || t === 'dirt_rich');
+      const nowDoing = !toxicOk
+        ? '🪤 삽 선택 → 노란 꽃 클릭'
+        : !tomatoOk
+          ? (_hasMoist ? '🌱 씨앗 선택 → 젖은 흙 위 클릭' : '💧 물뿌리개 선택 → 텃밭 흙 클릭')
+          : !wormOk
+            ? (LeafSystem.collected < LeafSystem.needed
+              ? `🍂 낙엽 줍기 (${LeafSystem.collected}/${LeafSystem.needed})`
+              : '🍂 낙엽 선택 → 흙 위에 클릭')
+            : !treeOk ? '🌳 잠깐 기다려요...' : '✨ 페이즈 1 완료!';
       statusEl.innerHTML = `
-        <div class="mc${toxicOk?' done':''}">\n          ${toxicOk?'✅':'1️⃣'} 🌼 나쁜 노란 꽃 뽑기 <small style="opacity:0.7">→ 말 구출</small>\n        </div>
-        <div class="mc${tomatoOk?' done':''}">\n          ${tomatoOk?'✅':'2️⃣'} 💧 토마토 물 주기 <small style="opacity:0.7">→ 싹 틔우기</small>\n        </div>
-        <div class="mc${wormOk?' done':''}">\n          ${wormOk?'✅':'3️⃣'} 🍂 지렁이 밥 주기 <small style="opacity:0.7">→ 영양토 만들기</small>\n        </div>
-        <div class="mc${treeOk?' done':''}">\n          ${treeOk?'✅':'🌳'} 나무 할아버지 <small style="opacity:0.7">→ 지렁이가 부르면 자동!</small>\n        </div>
+        <div style="background:rgba(255,215,0,0.15);border:1px solid rgba(255,215,0,0.4);border-radius:8px;padding:5px 10px;margin-bottom:5px;font-size:11px;color:#FFD700;font-weight:bold;">▶ 지금: ${nowDoing}</div>
+        <div class="mc${toxicOk?' done':''}">${toxicOk?'✅':'1️⃣'} 🌼 나쁜 노란 꽃 뽑기 <small style="opacity:0.7">→ 말 구출</small></div>
+        <div class="mc${tomatoOk?' done':''}">${tomatoOk?'✅':'2️⃣'} 💧 토마토 물 주기 <small style="opacity:0.7">→ 싹 틔우기</small></div>
+        <div class="mc${wormOk?' done':''}">${wormOk?'✅':'3️⃣'} 🍂 지렁이 밥 주기 <small style="opacity:0.7">→ 영양토 만들기</small></div>
+        <div class="mc${treeOk?' done':''}">${treeOk?'✅':'🌳'} 나무 할아버지 <small style="opacity:0.7">→ 지렁이가 부르면 자동!</small></div>
       `;
     }
 
