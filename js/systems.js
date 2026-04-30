@@ -414,8 +414,14 @@ const QuestManager = {
       if (!toxicOk) {
         nowDoing = '🪤 삽 선택 → 노란 꽃 클릭';
       } else if (!tomatoOk) {
-        if (hasMoist) {
-          nowDoing = '🌱 씨앗 선택 → 젖은 흙 위 클릭';
+        const hasSprout = Object.values(gridData).some(function(t) { return t === 'sprout'; });
+        const hasTomato = Object.values(gridData).some(function(t) { return t === 'plant_tomato'; });
+        if (hasSprout) {
+          nowDoing = '⏳ 새싹이 자라는 중... 잠깐 기다려요!';
+        } else if (hasTomato) {
+          nowDoing = '🌿 바질 씨앗 선택 → 토마토 바로 옆 칸에 심기!';
+        } else if (hasMoist) {
+          nowDoing = '🍅 토마토 씨앗 선택 → 젖은 흙 위 클릭';
         } else {
           nowDoing = '💧 물뿌리개 선택 → 텃밭 흙 클릭';
         }
@@ -727,7 +733,29 @@ const ArrowSystem = {
             }
           }
         } else {
-          // 물 준 후 — 젖은 흙 또는 새싹을 가리킴
+        const hasTomato = Object.values(gridData).some(function(type) {
+          return type === 'plant_tomato';
+        });
+        if (hasTomato) {
+          // 토마토가 자랐으면 토마토 옆 빈 칸을 가리킴
+          for(const [k, type] of Object.entries(gridData)) {
+            if(type === 'plant_tomato') {
+              const parts = k.split(',');
+              const tx = Number(parts[0]);
+              const ty = Number(parts[1]);
+              const tz = Number(parts[2]);
+              const neighbors = [[tx+1,ty,tz],[tx-1,ty,tz],[tx,ty,tz+1],[tx,ty,tz-1]];
+              for(const [nx,ny,nz] of neighbors) {
+                if(!gridData[bk(nx,ny,nz)]) {
+                  const a = this.getArrow();
+                  a.position.set(nx, ny + 1.2 + Math.sin(t*5)*0.15, nz);
+                  break;
+                }
+              }
+            }
+          }
+        } else {
+          // 젖은 흙 또는 새싹을 가리킴
           for(const [k, type] of Object.entries(gridData)) {
             if(type === 'dirt_moist' || type === 'dirt_rich' || type === 'sprout') {
               const parts = k.split(',');
@@ -739,6 +767,7 @@ const ArrowSystem = {
             }
           }
         }
+      }
       } else if (!s.wormDone) {
         if(LeafSystem.meshes.length > 0) {
           // 낙엽이 남아있으면 낙엽 위치를 직접 가리킴
