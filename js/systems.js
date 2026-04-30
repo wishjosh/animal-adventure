@@ -41,7 +41,7 @@ const ClueSystem = {
       this.foundCount++;
       if(clue.mesh) { scene.remove(clue.mesh); clue.mesh = null; }
       CreatureReport.show(clue.id);
-      toast(`🔍 ${clue.emoji} 단서를 찾았어요! (${this.foundCount}/4)`);
+      toast('🔍 ' + clue.emoji + ' 단서를 찾았어요! (' + this.foundCount + '/4)');
       if(this.foundCount >= 4) { setTimeout(() => this.allFound(), 1500); }
     }
   },
@@ -72,9 +72,9 @@ const ToxicPlantSystem = {
   removed: 0,
   init() {
     this.removed = 0;
-    this.locations.forEach(({x, z}) => {
-      const y = getTopY(x, z);
-      _place(x, y, z, 'toxic_plant');
+    this.locations.forEach(function(loc) {
+      const y = getTopY(loc.x, loc.z);
+      _place(loc.x, y, loc.z, 'toxic_plant');
     });
   },
   remove(x, y, z) {
@@ -82,7 +82,7 @@ const ToxicPlantSystem = {
     if(gridData[k] !== 'toxic_plant') return;
     removeBlock(x, y, z);
     this.removed++;
-    toast(`🗑️ 독성 식물 제거 (${this.removed}/${this.locations.length})`);
+    toast('🗑️ 독성 식물 제거 (' + this.removed + '/' + this.locations.length + ')');
     if(this.removed >= this.locations.length) {
       toast('✅ 독성 식물을 모두 제거했어요! 말 목초지가 안전해졌어요!');
       QuestManager.phase1State.toxicRemoved = true;
@@ -92,6 +92,7 @@ const ToxicPlantSystem = {
   }
 };
 
+// [수정 1] 낙엽 메시 크기를 0.9×0.2×0.6으로 확대 (클릭 영역 개선)
 const LeafSystem = {
   locations: [ {x:6,z:7},{x:9,z:5},{x:7,z:10},{x:11,z:8},{x:5,z:9} ],
   meshes: [],
@@ -102,18 +103,16 @@ const LeafSystem = {
     this.meshes.forEach(m => scene.remove(m));
     this.meshes = [];
     this.collected = 0;
-    this.locations.forEach(({x, z}) => {
-      const y = getTopY(x, z) + 0.1;
-      const geo = new THREE.BoxGeometry(0.9, 0.2, 0.6); // 얇고 넓은 Voxel 형태
+    this.locations.forEach(function(loc) {
+      const y = getTopY(loc.x, loc.z) + 0.1;
+      const geo = new THREE.BoxGeometry(0.9, 0.2, 0.6);
       const mat = new THREE.MeshLambertMaterial({ color: Math.random() > 0.5 ? 0xD2691E : 0xFF8C00 });
       const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(x, y, z);
-      mesh.rotation.x = 0.25; // 바닥에 비스듬히 눕기
+      mesh.position.set(loc.x, y, loc.z);
       mesh.rotation.y = Math.random() * Math.PI;
-      mesh.rotation.z = Math.random() * 0.3 - 0.15;
-      mesh.userData = { isLeaf: true, lx: x, lz: z };
+      mesh.userData = { isLeaf: true, lx: loc.x, lz: loc.z };
       scene.add(mesh);
-      this.meshes.push(mesh);
+      LeafSystem.meshes.push(mesh);
     });
   },
 
@@ -121,15 +120,16 @@ const LeafSystem = {
     scene.remove(mesh);
     this.meshes = this.meshes.filter(m => m !== mesh);
     this.collected++;
-    toast(`🍂 낙엽 수집 (${this.collected}/${this.needed})`);
+    toast('🍂 낙엽 수집 (' + this.collected + '/' + this.needed + ')');
     if(this.collected >= this.needed) {
       toast('🍂 낙엽을 충분히 모았어요! 고목나무 주변 흙에 덮어주세요!');
     }
+    QuestManager.check();
   },
 
   placeOnSoil(x, y, z) {
     if(this.collected < this.needed) {
-      toast(`⚠️ 낙엽이 부족해요! (${this.collected}/${this.needed})`);
+      toast('⚠️ 낙엽이 부족해요! (' + this.collected + '/' + this.needed + ')');
       return false;
     }
     WormMinigame.start(x, z);
@@ -150,14 +150,13 @@ const WormMinigame = {
 
     this.overlay = document.createElement('div');
     this.overlay.id = 'worm-minigame';
-    this.overlay.innerHTML = `
-      <div style="position:fixed;top:0;left:0;right:0;bottom:0;background:linear-gradient(180deg,#3B2510,#1a0d00);z-index:80;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;">
-        <div style="color:#FFD700;font-size:22px;font-weight:900;">🐛 땅속 세계</div>
-        <div style="color:rgba(255,255,255,0.85);font-size:14px;text-align:center;line-height:1.6;">지렁이들이 낙엽을 먹으며 흙을 살려요!<br>각 칸을 클릭해서 지렁이를 안내하세요!</div>
-        <div id="worm-grid" style="display:grid;grid-template-columns:repeat(4,64px);gap:6px;margin:10px 0;"></div>
-        <div style="color:rgba(255,255,255,0.6);font-size:13px;">진행: <span id="worm-progress">0</span>/16 칸 완료</div>
-      </div>
-    `;
+    this.overlay.innerHTML =
+      '<div style="position:fixed;top:0;left:0;right:0;bottom:0;background:linear-gradient(180deg,#3B2510,#1a0d00);z-index:80;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;">' +
+      '<div style="color:#FFD700;font-size:22px;font-weight:900;">🐛 땅속 세계</div>' +
+      '<div style="color:rgba(255,255,255,0.85);font-size:14px;text-align:center;line-height:1.6;">지렁이들이 낙엽을 먹으며 흙을 살려요!<br>각 칸을 클릭해서 지렁이를 안내하세요!</div>' +
+      '<div id="worm-grid" style="display:grid;grid-template-columns:repeat(4,64px);gap:6px;margin:10px 0;"></div>' +
+      '<div style="color:rgba(255,255,255,0.6);font-size:13px;">진행: <span id="worm-progress">0</span>/16 칸 완료</div>' +
+      '</div>';
     document.body.appendChild(this.overlay);
 
     const grid = document.getElementById('worm-grid');
@@ -191,7 +190,7 @@ const WormMinigame = {
     if(idx < 12) neighbors.push(idx + 4);
 
     neighbors.forEach(n => {
-      const nb = document.querySelector(`#worm-minigame [data-index="${n}"]`);
+      const nb = document.querySelector('#worm-minigame [data-index="' + n + '"]');
       if(nb && nb.dataset.done !== 'true') {
         setTimeout(() => { if(nb.dataset.done !== 'true') nb.style.borderColor = '#FFD700'; }, 300);
       }
@@ -211,14 +210,16 @@ const WormMinigame = {
 
     const tx = Math.round(OldTree.group ? OldTree.group.position.x : 8);
     const tz = Math.round(OldTree.group ? OldTree.group.position.z : 8);
-    for(let dx = -3; dx <= 3; dx++) for(let dz = -3; dz <= 3; dz++) {
-      const wx = tx + dx, wz = tz + dz;
-      const wy = getTopY(wx, wz) - 1;
-      const k = bk(wx, wy, wz);
-      if(gridData[k]) {
-        const bt = gridData[k];
-        if(bt === 'dirt' || bt === 't_dirt' || bt === 'dirt_dry' || bt === 'dirt_moist') {
-          _place(wx, wy, wz, 'dirt_rich');
+    for(let dx = -3; dx <= 3; dx++) {
+      for(let dz = -3; dz <= 3; dz++) {
+        const wx = tx + dx, wz = tz + dz;
+        const wy = getTopY(wx, wz) - 1;
+        const k = bk(wx, wy, wz);
+        if(gridData[k]) {
+          const bt = gridData[k];
+          if(bt === 'dirt' || bt === 't_dirt' || bt === 'dirt_dry' || bt === 'dirt_moist') {
+            _place(wx, wy, wz, 'dirt_rich');
+          }
         }
       }
     }
@@ -351,7 +352,7 @@ const CompanionPlant = {
 const CreatureReport = {
   data: {
     tree:  { name:'🌳 고목나무', skill:'수백 년을 살며 수십 종의 생명에게 집을 내어줘요', weak:'뿌리가 마르면 주변 생태계 전체가 무너져요', fact:'나무들은 뿌리로 서로 영양분을 나눠요! (숲의 인터넷)', hint:'흙을 먼저 살려야 나무가 회복돼요' },
-    farm:  { name:'🌱 지렁이', skill:'매일 자기 몸무게만큼 낙엽을 먹어요', weak:'농약과 건조한 땅에서는 살 수 없어요', fact:'지렁이가 없으면 아무리 씨앗을 심어도 풀이 안 자라요', hint:'낙엽을 모아 흙 위에 덮어주세요!' },
+    farm:  { name:'🐛 지렁이', skill:'매일 자기 몸무게만큼 낙엽을 먹어요', weak:'농약과 건조한 땅에서는 살 수 없어요', fact:'지렁이가 없으면 아무리 씨앗을 심어도 풀이 안 자라요', hint:'낙엽을 모아 흙 위에 덮어주세요!' },
     hive:  { name:'🐝 꿀벌', skill:'하루에 꽃 수백 송이를 돌아다니며 꽃가루를 날라요', weak:'겹꽃(장미 등)에는 꽃가루가 없어서 못 먹어요', fact:'꿀벌이 없으면 과일과 채소의 70%가 열매를 못 맺어요', hint:'클로버·해바라기처럼 꽃가루 있는 꽃을 심어주세요!' },
     river: { name:'🦆 오리', skill:'고개를 물속에 넣어 먹이를 찾아요', weak:'물이 너무 얕으면 먹이를 못 찾아요', fact:'물이 없으면 깃털이 방수력을 잃어 오리가 물에 빠져요!', hint:'강의 쓰레기를 치워 수위를 높여주세요!' }
   },
@@ -394,7 +395,8 @@ const QuestManager = {
 
   checkPhase0() {},
 
-checkPhase1() {
+  // [수정 4] 중첩 삼항 연산자 제거, "지금 할 일" 안내 추가
+  checkPhase1() {
     if(this.phaseComplete[1]) return;
     const s = this.phase1State;
     const toxicOk  = s.toxicRemoved;
@@ -404,14 +406,19 @@ checkPhase1() {
 
     const statusEl = document.getElementById('mission-status');
     if(statusEl) {
-      const hasMoist = Object.values(gridData).some(function(t) {
-        return t === 'dirt_moist' || t === 'dirt_rich';
+      const hasMoist = Object.values(gridData).some(function(type) {
+        return type === 'dirt_moist' || type === 'dirt_rich';
       });
+
       let nowDoing;
       if (!toxicOk) {
         nowDoing = '🪤 삽 선택 → 노란 꽃 클릭';
       } else if (!tomatoOk) {
-        nowDoing = hasMoist ? '🌱 씨앗 선택 → 젖은 흙 위 클릭' : '💧 물뿌리개 선택 → 텃밭 흙 클릭';
+        if (hasMoist) {
+          nowDoing = '🌱 씨앗 선택 → 젖은 흙 위 클릭';
+        } else {
+          nowDoing = '💧 물뿌리개 선택 → 텃밭 흙 클릭';
+        }
       } else if (!wormOk) {
         if (LeafSystem.collected < LeafSystem.needed) {
           nowDoing = '🍂 낙엽 줍기 (' + LeafSystem.collected + '/' + LeafSystem.needed + ')';
@@ -423,6 +430,7 @@ checkPhase1() {
       } else {
         nowDoing = '✨ 페이즈 1 완료!';
       }
+
       statusEl.innerHTML =
         '<div style="background:rgba(255,215,0,0.15);border:1px solid rgba(255,215,0,0.4);border-radius:8px;padding:5px 10px;margin-bottom:5px;font-size:11px;color:#FFD700;font-weight:bold;">▶ 지금: ' + nowDoing + '</div>' +
         '<div class="mc' + (toxicOk ? ' done' : '') + '">' + (toxicOk ? '✅' : '1️⃣') + ' 🌼 나쁜 노란 꽃 뽑기 <small style="opacity:0.7">→ 말 구출</small></div>' +
@@ -465,39 +473,41 @@ checkPhase1() {
 
   advance() {
     this.currentPhase++;
-    toast(`새로운 퀘스트(페이즈 ${this.currentPhase})가 시작되었습니다!`);
+    toast('새로운 퀘스트(페이즈 ' + this.currentPhase + ')가 시작되었습니다!');
     this.updateUI();
     showPhaseTransition(this.currentPhase);
   },
 
-  updateUI(healed=0, enclosed=0, grass=0) {
+  updateUI(healed, enclosed, grass) {
+    healed = healed || 0;
+    enclosed = enclosed || 0;
+    grass = grass || 0;
     const titleEl  = document.getElementById('mission-title');
     const descEl   = document.getElementById('mission-desc');
     const statusEl = document.getElementById('mission-status');
 
     if(this.currentPhase === 0) {
-      titleEl.textContent = `🔍 단서 탐색 중... (탭해서 열기)`;
-      if(descEl) descEl.innerHTML = `마을 곳곳의 <b style="color:#FFD700">노란색 구슬</b>을 눌러 단서를 수집하세요!`;
+      titleEl.textContent = '🔍 단서 탐색 중... (탭해서 열기)';
+      if(descEl) descEl.innerHTML = '마을 곳곳의 <b style="color:#FFD700">노란색 구슬</b>을 눌러 단서를 수집하세요!';
       if(statusEl) statusEl.innerHTML = '';
 
     } else if(this.currentPhase === 1) {
-      titleEl.textContent = `🌱 목표: 병든 고목나무 살리기 (탭해서 열기)`;
-      if(descEl) descEl.innerHTML = `화살표(⬇️)와 반짝이는 도구를 따라 순서대로 해결하세요!`;
-      this.checkPhase1();  // 상태바 즉시 갱신
+      titleEl.textContent = '🌱 목표: 병든 고목나무 살리기 (탭해서 열기)';
+      if(descEl) descEl.innerHTML = '화살표(⬇️)와 반짝이는 도구를 따라 순서대로 해결하세요!';
+      this.checkPhase1();
 
     } else if(this.currentPhase === 2) {
-      titleEl.textContent = `🦋 페이즈 2: 곤충과 새가 돌아오고 있어요`;
-      descEl.innerHTML = `준비 중인 퀘스트입니다.`;
-      statusEl.innerHTML = '';
+      titleEl.textContent = '🦋 페이즈 2: 곤충과 새가 돌아오고 있어요';
+      if(descEl) descEl.innerHTML = '준비 중인 퀘스트입니다.';
+      if(statusEl) statusEl.innerHTML = '';
 
     } else if(this.currentPhase === 3) {
-      titleEl.textContent = `🐑 페이즈 3: 동물들의 보금자리를 완성해요`;
-      descEl.innerHTML = `1. 먹이로 유도해서 양들을 볏짚 위로 데려오세요.<br>2. 구급상자로 치료하고, 풀밭 울타리를 만들어주세요!`;
-      statusEl.innerHTML = `
-        <span class="mc${healed>=1?' done':''}" id="mc-heal">${healed>=1?'✅':'⬜'} 다친 양 치료 ${healed}/1</span>
-        <span class="mc${enclosed>=3?' done':''}" id="mc-sheep">${enclosed>=3?'✅':'⬜'} 보호된 양 ${enclosed}/3</span>
-        <span class="mc${grass>=6?' done':''}" id="mc-grass">${grass>=6?'✅':'⬜'} 서식지 내 풀밭 ${grass}/6</span>
-      `;
+      titleEl.textContent = '🐑 페이즈 3: 동물들의 보금자리를 완성해요';
+      if(descEl) descEl.innerHTML = '1. 먹이로 유도해서 양들을 볏짚 위로 데려오세요.<br>2. 구급상자로 치료하고, 풀밭 울타리를 만들어주세요!';
+      if(statusEl) statusEl.innerHTML =
+        '<span class="mc' + (healed>=1?' done':'') + '" id="mc-heal">' + (healed>=1?'✅':'⬜') + ' 다친 양 치료 ' + healed + '/1</span>' +
+        '<span class="mc' + (enclosed>=3?' done':'') + '" id="mc-sheep">' + (enclosed>=3?'✅':'⬜') + ' 보호된 양 ' + enclosed + '/3</span>' +
+        '<span class="mc' + (grass>=6?' done':'') + '" id="mc-grass">' + (grass>=6?'✅':'⬜') + ' 서식지 내 풀밭 ' + grass + '/6</span>';
     }
   }
 };
@@ -636,7 +646,7 @@ const SeedSystem = {
     if(gridData[bk(x,y,z)]) { toast('⚠️ 이미 뭔가 심어져 있어요!'); return; }
     this.planted[bk(x,y,z)] = { type: seedType, plantedAt: Date.now(), grown: false };
     _place(x, y, z, 'sprout');
-    toast(`🌱 ${ITEM_DB[seedType].label}을 심었어요!`);
+    toast('🌱 ' + ITEM_DB[seedType].label + '을 심었어요!');
     setTimeout(() => this.grow(x, y, z, seedType), 10000);
   },
   grow(x, y, z, seedType) {
@@ -649,7 +659,7 @@ const SeedSystem = {
     const plantType = 'plant_' + ITEM_DB[seedType].grows;
     _place(x, y, z, plantType);
     if(this.planted[k]) this.planted[k].grown = true;
-    toast(`🌿 ${ITEM_DB[seedType].label}가 자랐어요!`);
+    toast('🌿 ' + ITEM_DB[seedType].label + '가 자랐어요!');
     const partnerFound = CompanionPlant.check(x, y, z, ITEM_DB[seedType].grows);
     if(ITEM_DB[seedType].grows === 'tomato' && !partnerFound) {
       setTimeout(() => AphidSystem.attack(x, z), 2000);
@@ -658,6 +668,7 @@ const SeedSystem = {
   }
 };
 
+// [수정 2] ArrowSystem — 초기 안내 화살표 추가, 낙엽 위치 화살표 추가
 const ArrowSystem = {
   pool: [],
   activeCount: 0,
@@ -670,7 +681,7 @@ const ArrowSystem = {
     const geo = new THREE.ConeGeometry(0.3, 0.6, 4);
     const mat = new THREE.MeshBasicMaterial({color: 0xffff00});
     const mesh = new THREE.Mesh(geo, mat);
-    mesh.rotation.x = Math.PI; // point down
+    mesh.rotation.x = Math.PI;
     scene.add(mesh);
     this.pool.push(mesh);
     this.activeCount++;
@@ -683,62 +694,79 @@ const ArrowSystem = {
       if(!s.toxicRemoved) {
         for(const [k, type] of Object.entries(gridData)) {
           if(type === 'toxic_plant') {
-            const [x,y,z] = k.split(',').map(Number);
+            const parts = k.split(',');
+            const x = Number(parts[0]);
+            const y = Number(parts[1]);
+            const z = Number(parts[2]);
             const a = this.getArrow();
             a.position.set(x, y + 1.2 + Math.sin(t*5)*0.15, z);
           }
         }
-} else if (!s.tomatoFruited) {
-  const hasMoist = Object.values(gridData).some(t => t === 'dirt_moist' || t === 'dirt_rich');
-  const hasPlant = Object.values(gridData).some(t => t === 'sprout' || t.startsWith('plant_'));
-  if (!hasMoist && !hasPlant) {
-    // 물 주기 전 — 텃밭 영역 건조한 흙을 가리킴
-    let count = 0;
-    for(const [k, type] of Object.entries(gridData)) {
-      if(count >= 3) break;
-      if(type === 't_dirt' || type === 'dirt_dry' || type === 'dirt') {
-        const [x,y,z] = k.split(',').map(Number);
-        if(x >= 3 && x <= 10 && z >= 3 && z <= 10) {
-          const a = this.getArrow();
-          a.position.set(x, y + 1.2 + Math.sin(t*5)*0.15, z);
-          count++;
+      } else if (!s.tomatoFruited) {
+        const hasMoist = Object.values(gridData).some(function(type) {
+          return type === 'dirt_moist' || type === 'dirt_rich';
+        });
+        const hasPlant = Object.values(gridData).some(function(type) {
+          return type === 'sprout' || (type && type.startsWith('plant_'));
+        });
+        if (!hasMoist && !hasPlant) {
+          // 물 주기 전 — 텃밭 근처 건조한 흙을 가리킴
+          let count = 0;
+          for(const [k, type] of Object.entries(gridData)) {
+            if(count >= 3) break;
+            if(type === 't_dirt' || type === 'dirt_dry' || type === 'dirt') {
+              const parts = k.split(',');
+              const x = Number(parts[0]);
+              const y = Number(parts[1]);
+              const z = Number(parts[2]);
+              if(x >= 3 && x <= 10 && z >= 3 && z <= 10) {
+                const a = this.getArrow();
+                a.position.set(x, y + 1.2 + Math.sin(t*5)*0.15, z);
+                count++;
+              }
+            }
+          }
+        } else {
+          // 물 준 후 — 젖은 흙 또는 새싹을 가리킴
+          for(const [k, type] of Object.entries(gridData)) {
+            if(type === 'dirt_moist' || type === 'dirt_rich' || type === 'sprout') {
+              const parts = k.split(',');
+              const x = Number(parts[0]);
+              const y = Number(parts[1]);
+              const z = Number(parts[2]);
+              const a = this.getArrow();
+              a.position.set(x, y + 1.2 + Math.sin(t*5)*0.15, z);
+            }
+          }
+        }
+      } else if (!s.wormDone) {
+        if(LeafSystem.meshes.length > 0) {
+          // 낙엽이 남아있으면 낙엽 위치를 직접 가리킴
+          for(const m of LeafSystem.meshes) {
+            const a = this.getArrow();
+            a.position.set(m.position.x, m.position.y + 1.0 + Math.sin(t*5)*0.15, m.position.z);
+          }
+        } else {
+          // 낙엽 다 모은 후 — 고목나무 주변 흙을 가리킴
+          let count = 0;
+          for(const [k, type] of Object.entries(gridData)) {
+            if(count >= 4) break;
+            if(type === 'dirt_dry' || type === 't_dirt') {
+              const parts = k.split(',');
+              const x = Number(parts[0]);
+              const y = Number(parts[1]);
+              const z = Number(parts[2]);
+              if(x >= 5 && x <= 12 && z >= 5 && z <= 12) {
+                const a = this.getArrow();
+                a.position.set(x, y + 1.2 + Math.sin(t*5)*0.15, z);
+                count++;
+              }
+            }
+          }
         }
       }
     }
-  } else {
-    // 물 준 후 — 젖은 흙 또는 새싹을 가리킴
-    for(const [k, type] of Object.entries(gridData)) {
-      if(type === 'dirt_moist' || type === 'dirt_rich' || type === 'sprout') {
-        const [x,y,z] = k.split(',').map(Number);
-        const a = this.getArrow();
-        a.position.set(x, y + 1.2 + Math.sin(t*5)*0.15, z);
-      }
-    }
-  }
-} else if (!s.wormDone) {
-  if(LeafSystem.meshes.length > 0) {
-    // 낙엽이 남아있으면 낙엽 위치를 가리킴
-    for(const m of LeafSystem.meshes) {
-      const a = this.getArrow();
-      a.position.set(m.position.x, m.position.y + 1.0 + Math.sin(t*5)*0.15, m.position.z);
-    }
-  } else {
-    // 낙엽 다 모은 후 — 고목나무 주변 건조한 흙을 가리킴
-    let count = 0;
-    for(const [k, type] of Object.entries(gridData)) {
-      if(count >= 4) break;
-      if(type === 'dirt_dry' || type === 't_dirt') {
-        const [x,y,z] = k.split(',').map(Number);
-        if(x >= 5 && x <= 12 && z >= 5 && z <= 12) {
-          const a = this.getArrow();
-          a.position.set(x, y + 1.2 + Math.sin(t*5)*0.15, z);
-          count++;
-        }
-      }
-    }
-  }
-}
-    for(let i=this.activeCount; i<this.pool.length; i++) {
+    for(let i = this.activeCount; i < this.pool.length; i++) {
       this.pool[i].visible = false;
     }
   }
