@@ -9,7 +9,8 @@ function toast(msg){
   toastTimer=setTimeout(()=>{el.style.display='none';},2400);
 }
 
-function showWaterGauge(level, isOver=false) {
+function showWaterGauge(level, isOver) {
+  isOver = isOver || false;
   const el = document.getElementById('water-gauge');
   const bar = document.getElementById('gauge-bar');
   const filled = Math.min(10, level);
@@ -17,7 +18,7 @@ function showWaterGauge(level, isOver=false) {
   el.style.borderColor = isOver ? '#ff5252' : '#4fc3f7';
   el.style.display = 'block';
   clearTimeout(el._timer);
-  el._timer = setTimeout(() => el.style.display='none', 2000);
+  el._timer = setTimeout(() => { el.style.display='none'; }, 2000);
 }
 
 function showPhaseTransition(phase) {
@@ -35,65 +36,119 @@ function showPhaseTransition(phase) {
   setTimeout(() => { el.style.display = 'none'; }, 2500);
 }
 
+// [수정 3] 핫바 반짝임을 물 주기 → 씨앗 심기 순서에 맞게 분리
 function initInventoryUI() {
   const hotbarEl = document.getElementById('hotbar-container');
   hotbarEl.innerHTML = '';
   for(let i=0; i<9; i++) {
     const slot = document.createElement('div');
-    slot.className = `hotbar-slot ${i===activeSlot?'active':''}`;
-    slot.onclick = () => selectHotbarSlot(i);
-    const num = document.createElement('div'); num.className='slot-num'; num.textContent=i+1; slot.appendChild(num);
+    slot.className = 'hotbar-slot ' + (i===activeSlot ? 'active' : '');
+    slot.onclick = (function(idx){ return function(){ selectHotbarSlot(idx); }; })(i);
+    const num = document.createElement('div');
+    num.className = 'slot-num';
+    num.textContent = i+1;
+    slot.appendChild(num);
     const itemId = hotbar[i];
     if(itemId && ITEM_DB[itemId]) {
       const item = ITEM_DB[itemId];
       slot.title = item.label;
-      if(item.icon) { const icon=document.createElement('div'); icon.className='slot-icon'; icon.textContent=item.icon; slot.appendChild(icon); }
-      else if(item.color) { const sw=document.createElement('div'); sw.className='slot-swatch'; sw.style.background=item.color; slot.appendChild(sw); }
-      
+      if(item.icon) {
+        const icon = document.createElement('div');
+        icon.className = 'slot-icon';
+        icon.textContent = item.icon;
+        slot.appendChild(icon);
+      } else if(item.color) {
+        const sw = document.createElement('div');
+        sw.className = 'slot-swatch';
+        sw.style.background = item.color;
+        slot.appendChild(sw);
+      }
       if(QuestManager.currentPhase === 1) {
         const s = QuestManager.phase1State;
-        const _hasMoist = Object.values(gridData).some(t => t === 'dirt_moist' || t === 'dirt_rich');
-        if(!s.toxicRemoved && itemId === 'shovel') slot.classList.add('slot-glowing');
-        else if(s.toxicRemoved && !s.tomatoFruited && !_hasMoist && itemId === 'watering_can') slot.classList.add('slot-glowing');
-        else if(s.toxicRemoved && !s.tomatoFruited && _hasMoist && (itemId === 'seed_tomato' || itemId === 'seed_basil')) slot.classList.add('slot-glowing');
-        else if(s.tomatoFruited && !s.wormDone && itemId === 'fallen_leaf') slot.classList.add('slot-glowing');
+        const hasMoist = Object.values(gridData).some(function(type) {
+          return type === 'dirt_moist' || type === 'dirt_rich';
+        });
+        if(!s.toxicRemoved && itemId === 'shovel') {
+          slot.classList.add('slot-glowing');
+        } else if(s.toxicRemoved && !s.tomatoFruited && !hasMoist && itemId === 'watering_can') {
+          slot.classList.add('slot-glowing');
+        } else if(s.toxicRemoved && !s.tomatoFruited && hasMoist && (itemId === 'seed_tomato' || itemId === 'seed_basil')) {
+          slot.classList.add('slot-glowing');
+        } else if(s.tomatoFruited && !s.wormDone && itemId === 'fallen_leaf') {
+          slot.classList.add('slot-glowing');
+        }
       }
     }
     hotbarEl.appendChild(slot);
   }
+
   if(isInventoryOpen) {
     const previewEl = document.getElementById('inv-hotbar-grid');
     previewEl.innerHTML = '';
     for(let i=0; i<9; i++) {
-      const slot=document.createElement('div'); slot.className=`hotbar-slot ${i===activeSlot?'active':''}`;
-      slot.onclick=()=>selectHotbarSlot(i);
-      const num=document.createElement('div'); num.className='slot-num'; num.textContent=i+1; slot.appendChild(num);
-      const itemId=hotbar[i];
+      const slot = document.createElement('div');
+      slot.className = 'hotbar-slot ' + (i===activeSlot ? 'active' : '');
+      slot.onclick = (function(idx){ return function(){ selectHotbarSlot(idx); }; })(i);
+      const num = document.createElement('div');
+      num.className = 'slot-num';
+      num.textContent = i+1;
+      slot.appendChild(num);
+      const itemId = hotbar[i];
       if(itemId && ITEM_DB[itemId]) {
-        const item=ITEM_DB[itemId]; slot.title=item.label;
-        if(item.icon){const icon=document.createElement('div');icon.className='slot-icon';icon.textContent=item.icon;slot.appendChild(icon);}
-        else if(item.color){const sw=document.createElement('div');sw.className='slot-swatch';sw.style.background=item.color;slot.appendChild(sw);}
-        
+        const item = ITEM_DB[itemId];
+        slot.title = item.label;
+        if(item.icon) {
+          const icon = document.createElement('div');
+          icon.className = 'slot-icon';
+          icon.textContent = item.icon;
+          slot.appendChild(icon);
+        } else if(item.color) {
+          const sw = document.createElement('div');
+          sw.className = 'slot-swatch';
+          sw.style.background = item.color;
+          slot.appendChild(sw);
+        }
         if(QuestManager.currentPhase === 1) {
           const s = QuestManager.phase1State;
-          const _hasMoist = Object.values(gridData).some(t => t === 'dirt_moist' || t === 'dirt_rich');
-          if(!s.toxicRemoved && itemId === 'shovel') slot.classList.add('slot-glowing');
-          else if(s.toxicRemoved && !s.tomatoFruited && !_hasMoist && itemId === 'watering_can') slot.classList.add('slot-glowing');
-          else if(s.toxicRemoved && !s.tomatoFruited && _hasMoist && (itemId === 'seed_tomato' || itemId === 'seed_basil')) slot.classList.add('slot-glowing');
-          else if(s.tomatoFruited && !s.wormDone && itemId === 'fallen_leaf') slot.classList.add('slot-glowing');
+          const hasMoist = Object.values(gridData).some(function(type) {
+            return type === 'dirt_moist' || type === 'dirt_rich';
+          });
+          if(!s.toxicRemoved && itemId === 'shovel') {
+            slot.classList.add('slot-glowing');
+          } else if(s.toxicRemoved && !s.tomatoFruited && !hasMoist && itemId === 'watering_can') {
+            slot.classList.add('slot-glowing');
+          } else if(s.toxicRemoved && !s.tomatoFruited && hasMoist && (itemId === 'seed_tomato' || itemId === 'seed_basil')) {
+            slot.classList.add('slot-glowing');
+          } else if(s.tomatoFruited && !s.wormDone && itemId === 'fallen_leaf') {
+            slot.classList.add('slot-glowing');
+          }
         }
       }
       previewEl.appendChild(slot);
     }
   }
-  ['inv-tools','inv-seeds','inv-resources','inv-materials','inv-nature','inv-kits'].forEach(id=>{
-    const el=document.getElementById(id); if(el) el.innerHTML='';
+
+  ['inv-tools','inv-seeds','inv-resources','inv-materials','inv-nature','inv-kits'].forEach(function(id) {
+    const el = document.getElementById(id);
+    if(el) el.innerHTML = '';
   });
-  for(const [id,item] of Object.entries(ITEM_DB)) {
-    const div=document.createElement('div'); div.className='inv-item';
-    div.onclick=()=>{ hotbar[activeSlot]=id; initInventoryUI(); applyCurrentTool(); toast(`${item.label} 장착됨 (슬롯 ${activeSlot+1})`); };
-    if(item.icon) div.innerHTML=`<span>${item.icon}</span> ${item.label}`;
-    else if(item.color) div.innerHTML=`<div class="slot-swatch" style="background:${item.color};width:14px;height:14px;"></div> ${item.label}`;
+
+  for(const [id, item] of Object.entries(ITEM_DB)) {
+    const div = document.createElement('div');
+    div.className = 'inv-item';
+    div.onclick = (function(itemId, itemLabel){
+      return function() {
+        hotbar[activeSlot] = itemId;
+        initInventoryUI();
+        applyCurrentTool();
+        toast(itemLabel + ' 장착됨 (슬롯 ' + (activeSlot+1) + ')');
+      };
+    })(id, item.label);
+    if(item.icon) {
+      div.innerHTML = '<span>' + item.icon + '</span> ' + item.label;
+    } else if(item.color) {
+      div.innerHTML = '<div class="slot-swatch" style="background:' + item.color + ';width:14px;height:14px;"></div> ' + item.label;
+    }
     const catMap = { tool:'inv-tools', seed:'inv-seeds', resource:'inv-resources', material:'inv-materials', nature:'inv-nature', plant:'inv-nature', kit:'inv-kits' };
     const target = document.getElementById(catMap[item.category]);
     if(target) target.appendChild(div);
@@ -101,20 +156,25 @@ function initInventoryUI() {
 }
 
 function selectHotbarSlot(idx) { activeSlot=idx; initInventoryUI(); applyCurrentTool(); }
-function clearSelectedSlot() { hotbar[activeSlot]=null; initInventoryUI(); applyCurrentTool(); toast(`슬롯 ${activeSlot+1} 비웠습니다.`); }
+function clearSelectedSlot() { hotbar[activeSlot]=null; initInventoryUI(); applyCurrentTool(); toast('슬롯 ' + (activeSlot+1) + ' 비웠습니다.'); }
 
 function applyCurrentTool() {
   const itemId = hotbar[activeSlot];
   const labelEl = document.getElementById('hotbar-label');
   if(!itemId) {
     toolMode='bare'; selItem=null; updateHlMesh();
-    labelEl.textContent='🖐️ 맨손 (관찰/이동)'; labelEl.style.color='rgba(255,255,255,0.5)'; labelEl.style.borderColor='transparent'; return;
+    labelEl.textContent='🖐️ 맨손 (관찰/이동)';
+    labelEl.style.color='rgba(255,255,255,0.5)';
+    labelEl.style.borderColor='transparent';
+    return;
   }
   const item = ITEM_DB[itemId];
   toolMode=item.type; selItem=itemId; updateHlMesh();
-  labelEl.textContent=item.label; labelEl.style.color='#FFD700'; labelEl.style.borderColor='rgba(255,215,0,0.5)';
+  labelEl.textContent=item.label;
+  labelEl.style.color='#FFD700';
+  labelEl.style.borderColor='rgba(255,215,0,0.5)';
   labelEl.style.transform='translateX(-50%) scale(1.15)';
-  setTimeout(()=>{ labelEl.style.transform='translateX(-50%) scale(1)'; }, 150);
+  setTimeout(function(){ labelEl.style.transform='translateX(-50%) scale(1)'; }, 150);
 }
 
 function toggleInventory() {
@@ -127,7 +187,7 @@ function toggleRotation() {
   toast(currentRotation===1?'방향: 90도 회전':'방향: 기본');
 }
 
-window.addEventListener('keydown',e=>{
+window.addEventListener('keydown', function(e) {
   if(e.key>='1'&&e.key<='9') selectHotbarSlot(parseInt(e.key)-1);
   if(e.key.toLowerCase()==='e') toggleInventory();
   if(e.key.toLowerCase()==='m') openMap();
@@ -150,36 +210,53 @@ function nextScene() {
   document.getElementById('opening-btn').textContent = sc.btn;
 }
 
-function updateMapOverlay(){
-  const grid=document.getElementById('map-grid');
-  let mnX=Infinity,mxX=-Infinity,mnZ=Infinity,mxZ=-Infinity;
-  for(const k in chunkState){const[cx,cz]=k.split(',').map(Number);if(cx<mnX)mnX=cx;if(cx>mxX)mxX=cx;if(cz<mnZ)mnZ=cz;if(cz>mxZ)mxZ=cz;}
+function updateMapOverlay() {
+  const grid = document.getElementById('map-grid');
+  let mnX=Infinity, mxX=-Infinity, mnZ=Infinity, mxZ=-Infinity;
+  for(const k in chunkState) {
+    const parts = k.split(',');
+    const cx = Number(parts[0]);
+    const cz = Number(parts[1]);
+    if(cx<mnX) mnX=cx; if(cx>mxX) mxX=cx;
+    if(cz<mnZ) mnZ=cz; if(cz>mxZ) mxZ=cz;
+  }
   if(mnX===Infinity) return;
-  const cols=mxX-mnX+1;
-  grid.innerHTML=''; grid.style.gridTemplateColumns=`repeat(${cols},minmax(20px,34px))`;
-  for(let cz=mnZ;cz<=mxZ;cz++) for(let cx=mnX;cx<=mxX;cx++){
-    const st=chunkState[ck(cx,cz)]||'hidden';
-    const cell=document.createElement('div'); cell.className=`mc-cell ${st}`;
-    if(st==='active') cell.textContent='🟢';
-    else if(st==='visible'){cell.textContent='🟠';cell.onclick=()=>{activateChunk(cx,cz);toast('✨ 탐험!');closeMap();};}
-    else cell.textContent='⬛';
-    grid.appendChild(cell);
+  const cols = mxX-mnX+1;
+  grid.innerHTML = '';
+  grid.style.gridTemplateColumns = 'repeat(' + cols + ',minmax(20px,34px))';
+  for(let cz=mnZ; cz<=mxZ; cz++) {
+    for(let cx=mnX; cx<=mxX; cx++) {
+      const st = chunkState[ck(cx,cz)] || 'hidden';
+      const cell = document.createElement('div');
+      cell.className = 'mc-cell ' + st;
+      if(st==='active') {
+        cell.textContent = '🟢';
+      } else if(st==='visible') {
+        cell.textContent = '🟠';
+        cell.onclick = (function(x,z){ return function(){ activateChunk(x,z); toast('✨ 탐험!'); closeMap(); }; })(cx,cz);
+      } else {
+        cell.textContent = '⬛';
+      }
+      grid.appendChild(cell);
+    }
   }
 }
-function openMap(){updateMapOverlay();document.getElementById('map-overlay').style.display='flex';}
-function closeMap(){document.getElementById('map-overlay').style.display='none';}
+function openMap(){ updateMapOverlay(); document.getElementById('map-overlay').style.display='flex'; }
+function closeMap(){ document.getElementById('map-overlay').style.display='none'; }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  저장 / 불러오기 / 초기화
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 function saveGame(){
-  const activeList=Object.entries(chunkState).filter(([,v])=>v==='active').map(([k])=>k);
-  const terrainSet=new Set(Object.keys(TERRAIN_BLOCKS));
-  const userGrid={};
-  for(const[k,v] of Object.entries(gridData)) if(!terrainSet.has(v)) userGrid[k]=v;
-  const data={
+  const activeList = Object.entries(chunkState).filter(function(e){ return e[1]==='active'; }).map(function(e){ return e[0]; });
+  const terrainSet = new Set(Object.keys(TERRAIN_BLOCKS));
+  const userGrid = {};
+  for(const [k,v] of Object.entries(gridData)) {
+    if(!terrainSet.has(v)) userGrid[k]=v;
+  }
+  const data = {
     v:13, chunks:activeList, grid:userGrid, deleted:Array.from(deletedBlocks),
-    animals:animalData.map(({type,x,y,z,isInjured,angle})=>({type,x,y,z,isInjured,angle})),
+    animals:animalData.map(function(a){ return {type:a.type,x:a.x,y:a.y,z:a.z,isInjured:a.isInjured,angle:a.angle}; }),
     themeComplete:QuestManager.themeComplete,
     currentPhase:QuestManager.currentPhase,
     phaseComplete:QuestManager.phaseComplete,
@@ -187,70 +264,87 @@ function saveGame(){
     phase1State:QuestManager.phase1State,
     oldTreeState:OldTree.state,
     oldTreeChopCount:OldTree.chopCount,
-    cluesFound:ClueSystem.clues.map(c=>({id:c.id,found:c.found}))
+    cluesFound:ClueSystem.clues.map(function(c){ return {id:c.id,found:c.found}; })
   };
-  try{
-    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-    const url=URL.createObjectURL(blob),a=document.createElement('a');
+  try {
+    const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
     a.href=url; a.download='애니멀어드벤쳐_저장.json'; a.click(); URL.revokeObjectURL(url);
     toast('💾 저장됐어요!');
-  }catch{toast('저장 실패 😢');}
+  } catch(e) { toast('저장 실패 😢'); }
 }
 
-function loadGame(){document.getElementById('file-input').click();}
+function loadGame(){ document.getElementById('file-input').click(); }
 function onFileSelected(e){
-  const file=e.target.files[0]; if(!file) return;
-  const reader=new FileReader();
-  reader.onload=ev=>{
-    try{
-      const data=JSON.parse(ev.target.result);
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const data = JSON.parse(ev.target.result);
       clearAll(true);
-      deletedBlocks.clear(); for(const k of(data.deleted||[]))deletedBlocks.add(k);
-      for(const k of(data.chunks||[])){const[cx,cz]=k.split(',').map(Number);activateChunk(cx,cz,true);}
-      for(const[k,t] of Object.entries(data.grid||[])){const[x,y,z]=k.split(',').map(Number);_place(x,y,z,t);}
-      for(const a of(data.animals||[]))placeAnimal(a.x,a.y,a.z,a.type,a.isInjured);
+      deletedBlocks.clear();
+      for(const k of (data.deleted||[])) deletedBlocks.add(k);
+      for(const k of (data.chunks||[])) {
+        const parts = k.split(',');
+        activateChunk(Number(parts[0]), Number(parts[1]), true);
+      }
+      for(const [k,t] of Object.entries(data.grid||{})) {
+        const parts = k.split(',');
+        _place(Number(parts[0]), Number(parts[1]), Number(parts[2]), t);
+      }
+      for(const a of (data.animals||[])) placeAnimal(a.x,a.y,a.z,a.type,a.isInjured);
 
-      QuestManager.themeComplete=data.themeComplete||{};
-      QuestManager.currentPhase=data.currentPhase!==undefined?data.currentPhase:0;
-      QuestManager.phaseComplete=data.phaseComplete||{};
-      QuestManager.injuredHealedCount=data.injuredHealedCount||0;
-      QuestManager.phase1State={
-        toxicRemoved:  data.phase1State?.toxicRemoved  || false,
-        tomatoFruited: data.phase1State?.tomatoFruited || false,
-        wormDone:      data.phase1State?.wormDone      || false,
-        treeGrowing:   data.phase1State?.treeGrowing   || false
+      QuestManager.themeComplete = data.themeComplete || {};
+      QuestManager.currentPhase = data.currentPhase !== undefined ? data.currentPhase : 0;
+      QuestManager.phaseComplete = data.phaseComplete || {};
+      QuestManager.injuredHealedCount = data.injuredHealedCount || 0;
+      QuestManager.phase1State = {
+        toxicRemoved:  data.phase1State && data.phase1State.toxicRemoved  ? true : false,
+        tomatoFruited: data.phase1State && data.phase1State.tomatoFruited ? true : false,
+        wormDone:      data.phase1State && data.phase1State.wormDone      ? true : false,
+        treeGrowing:   data.phase1State && data.phase1State.treeGrowing   ? true : false
       };
 
-      OldTree.state=data.oldTreeState||'withered';
-      OldTree.chopCount=data.oldTreeChopCount||0;
+      OldTree.state = data.oldTreeState || 'withered';
+      OldTree.chopCount = data.oldTreeChopCount || 0;
       OldTree.updateVisual();
 
-      if(data.cluesFound){ data.cluesFound.forEach(saved=>{ const clue=ClueSystem.clues.find(c=>c.id===saved.id); if(clue) clue.found=saved.found; }); }
+      if(data.cluesFound) {
+        data.cluesFound.forEach(function(saved) {
+          const clue = ClueSystem.clues.find(function(c){ return c.id===saved.id; });
+          if(clue) clue.found = saved.found;
+        });
+      }
       ClueSystem.init();
-
       QuestManager.updateUI(); QuestManager.check(); toast('📂 불러왔어요!');
-    }catch{ toast('파일을 읽을 수 없어요 😢'); }
-    e.target.value='';
+    } catch(err) { toast('파일을 읽을 수 없어요 😢'); }
+    e.target.value = '';
   };
   reader.readAsText(file);
 }
 
-function clearAll(silent=false){
-  for(const m of Object.values(meshByKey))scene.remove(m);
-  Object.keys(meshByKey).forEach(k=>delete meshByKey[k]); Object.keys(gridData).forEach(k=>delete gridData[k]);
-  for(const g of Object.values(chunkGroups))scene.remove(g);
-  Object.keys(chunkGroups).forEach(k=>delete chunkGroups[k]); Object.keys(chunkState).forEach(k=>delete chunkState[k]);
-  for(const a of animalData)scene.remove(a.group); animalData.length=0;
+function clearAll(silent){
+  silent = silent || false;
+  for(const m of Object.values(meshByKey)) scene.remove(m);
+  Object.keys(meshByKey).forEach(function(k){ delete meshByKey[k]; });
+  Object.keys(gridData).forEach(function(k){ delete gridData[k]; });
+  for(const g of Object.values(chunkGroups)) scene.remove(g);
+  Object.keys(chunkGroups).forEach(function(k){ delete chunkGroups[k]; });
+  Object.keys(chunkState).forEach(function(k){ delete chunkState[k]; });
+  for(const a of animalData) scene.remove(a.group);
+  animalData.length = 0;
   deletedBlocks.clear();
-  QuestManager.themeComplete={};
-  QuestManager.currentPhase=0;
-  QuestManager.phaseComplete={};
-  QuestManager.injuredHealedCount=0;
-  QuestManager.phase1State={ toxicRemoved:false, tomatoFruited:false, wormDone:false, treeGrowing:false };
-  OldTree.chopCount=0; OldTree.state='withered';
-  ClueSystem.clues.forEach(c=>c.found=false);
-  LeafSystem.meshes.forEach(m=>scene.remove(m));
-  LeafSystem.meshes=[]; LeafSystem.collected=0;
+  QuestManager.themeComplete = {};
+  QuestManager.currentPhase = 0;
+  QuestManager.phaseComplete = {};
+  QuestManager.injuredHealedCount = 0;
+  QuestManager.phase1State = { toxicRemoved:false, tomatoFruited:false, wormDone:false, treeGrowing:false };
+  OldTree.chopCount = 0; OldTree.state = 'withered';
+  ClueSystem.clues.forEach(function(c){ c.found=false; });
+  LeafSystem.meshes.forEach(function(m){ scene.remove(m); });
+  LeafSystem.meshes = []; LeafSystem.collected = 0;
   initWorld(); QuestManager.updateUI(); QuestManager.check();
   if(!silent) toast('🗑️ 처음으로 돌아갔어요');
 }
@@ -261,5 +355,5 @@ function showEcoPopup(emoji, htmlText) {
   document.getElementById('eco-emoji').textContent = emoji;
   document.getElementById('eco-text').innerHTML = htmlText;
   popup.classList.add('show');
-  setTimeout(() => { popup.classList.remove('show'); }, 4000);
+  setTimeout(function(){ popup.classList.remove('show'); }, 4000);
 }
