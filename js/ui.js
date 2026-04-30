@@ -103,8 +103,8 @@ function applyCurrentTool() {
   const itemId = hotbar[activeSlot];
   const labelEl = document.getElementById('hotbar-label');
   if(!itemId) {
-    toolMode='none'; selItem=null; updateHlMesh();
-    labelEl.textContent='빈 슬롯'; labelEl.style.color='rgba(255,255,255,0.5)'; labelEl.style.borderColor='transparent'; return;
+    toolMode='bare'; selItem=null; updateHlMesh();
+    labelEl.textContent='🖐️ 맨손 (관찰/이동)'; labelEl.style.color='rgba(255,255,255,0.5)'; labelEl.style.borderColor='transparent'; return;
   }
   const item = ITEM_DB[itemId];
   toolMode=item.type; selItem=itemId; updateHlMesh();
