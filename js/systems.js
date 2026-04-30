@@ -104,7 +104,7 @@ const LeafSystem = {
     this.collected = 0;
     this.locations.forEach(({x, z}) => {
       const y = getTopY(x, z) + 0.1;
-      const geo = new THREE.BoxGeometry(0.6, 0.04, 0.35); // 얇고 넓은 Voxel 형태
+      const geo = new THREE.BoxGeometry(0.9, 0.2, 0.6); // 얇고 넓은 Voxel 형태
       const mat = new THREE.MeshLambertMaterial({ color: Math.random() > 0.5 ? 0xD2691E : 0xFF8C00 });
       const mesh = new THREE.Mesh(geo, mat);
       mesh.position.set(x, y, z);
@@ -669,27 +669,56 @@ const ArrowSystem = {
             a.position.set(x, y + 1.2 + Math.sin(t*5)*0.15, z);
           }
         }
-      } else if (!s.tomatoFruited) {
-        for(const [k, type] of Object.entries(gridData)) {
-          if(type === 'dirt_rich' || type === 'dirt_moist' || type === 'sprout') {
-            const [x,y,z] = k.split(',').map(Number);
-            const a = this.getArrow();
-            a.position.set(x, y + 1.2 + Math.sin(t*5)*0.15, z);
-          }
-        }
-      } else if (!s.wormDone) {
-        for(const [k, type] of Object.entries(gridData)) {
-          if(type === 'dirt_dry' || type === 't_dirt') {
-            const [x,y,z] = k.split(',').map(Number);
-            // Just point to a few random hard dirts to guide them, up to 5 arrows
-            if(this.activeCount < 5 && Math.sin(x*z) > 0.8) {
-              const a = this.getArrow();
-              a.position.set(x, y + 1.2 + Math.sin(t*5)*0.15, z);
-            }
-          }
+} else if (!s.tomatoFruited) {
+  const hasMoist = Object.values(gridData).some(t => t === 'dirt_moist' || t === 'dirt_rich');
+  const hasPlant = Object.values(gridData).some(t => t === 'sprout' || t.startsWith('plant_'));
+  if (!hasMoist && !hasPlant) {
+    // 물 주기 전 — 텃밭 영역 건조한 흙을 가리킴
+    let count = 0;
+    for(const [k, type] of Object.entries(gridData)) {
+      if(count >= 3) break;
+      if(type === 't_dirt' || type === 'dirt_dry' || type === 'dirt') {
+        const [x,y,z] = k.split(',').map(Number);
+        if(x >= 3 && x <= 10 && z >= 3 && z <= 10) {
+          const a = this.getArrow();
+          a.position.set(x, y + 1.2 + Math.sin(t*5)*0.15, z);
+          count++;
         }
       }
     }
+  } else {
+    // 물 준 후 — 젖은 흙 또는 새싹을 가리킴
+    for(const [k, type] of Object.entries(gridData)) {
+      if(type === 'dirt_moist' || type === 'dirt_rich' || type === 'sprout') {
+        const [x,y,z] = k.split(',').map(Number);
+        const a = this.getArrow();
+        a.position.set(x, y + 1.2 + Math.sin(t*5)*0.15, z);
+      }
+    }
+  }
+} else if (!s.wormDone) {
+  if(LeafSystem.meshes.length > 0) {
+    // 낙엽이 남아있으면 낙엽 위치를 가리킴
+    for(const m of LeafSystem.meshes) {
+      const a = this.getArrow();
+      a.position.set(m.position.x, m.position.y + 1.0 + Math.sin(t*5)*0.15, m.position.z);
+    }
+  } else {
+    // 낙엽 다 모은 후 — 고목나무 주변 건조한 흙을 가리킴
+    let count = 0;
+    for(const [k, type] of Object.entries(gridData)) {
+      if(count >= 4) break;
+      if(type === 'dirt_dry' || type === 't_dirt') {
+        const [x,y,z] = k.split(',').map(Number);
+        if(x >= 5 && x <= 12 && z >= 5 && z <= 12) {
+          const a = this.getArrow();
+          a.position.set(x, y + 1.2 + Math.sin(t*5)*0.15, z);
+          count++;
+        }
+      }
+    }
+  }
+}
     for(let i=this.activeCount; i<this.pool.length; i++) {
       this.pool[i].visible = false;
     }
