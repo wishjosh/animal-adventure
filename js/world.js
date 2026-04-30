@@ -204,16 +204,84 @@ function buildMesh(rawType,x,y,z){
   
   if(def.category==='plant' || def.category==='seed') {
     const group = new THREE.Group();
-    const g1 = new THREE.BoxGeometry(0.8, 0.8, 0.1);
-    const g2 = new THREE.BoxGeometry(0.1, 0.8, 0.8);
-    const m1 = new THREE.Mesh(g1, mat); m1.rotation.y = Math.PI / 4;
-    const m2 = new THREE.Mesh(g2, mat); m2.rotation.y = Math.PI / 4;
-    m1.castShadow=m1.receiveShadow=true; m2.castShadow=m2.receiveShadow=true;
-    m1.add(new THREE.LineSegments(new THREE.EdgesGeometry(g1),new THREE.LineBasicMaterial({color:0x000000,transparent:true,opacity:0.14})));
-    m2.add(new THREE.LineSegments(new THREE.EdgesGeometry(g2),new THREE.LineBasicMaterial({color:0x000000,transparent:true,opacity:0.14})));
-    group.add(m1); group.add(m2);
+    const M = function(hex){ return new THREE.MeshLambertMaterial({color:hex}); };
+
+    // 기본 십자 줄기 생성 함수
+    function makeX(w, h, thick) {
+      const g1 = new THREE.BoxGeometry(w, h, thick);
+      const g2 = new THREE.BoxGeometry(thick, h, w);
+      const m1 = new THREE.Mesh(g1, mat); m1.rotation.y = Math.PI/4;
+      const m2 = new THREE.Mesh(g2, mat); m2.rotation.y = Math.PI/4;
+      m1.castShadow = m1.receiveShadow = true;
+      m2.castShadow = m2.receiveShadow = true;
+      group.add(m1); group.add(m2);
+    }
+
+    if(rawType === 'toxic_plant') {
+      // 노란 줄기 + 꽃잎 원반 + 주황 꽃심
+      makeX(0.5, 0.65, 0.08);
+      const petal = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.38, 0.38, 0.07, 8),
+        M(0xFFE000)
+      );
+      petal.position.y = 0.42;
+      group.add(petal);
+      const center = new THREE.Mesh(
+        new THREE.SphereGeometry(0.13, 6, 6),
+        M(0xFF7700)
+      );
+      center.position.y = 0.47;
+      group.add(center);
+
+    } else if(rawType === 'sprout') {
+      // 작고 가는 새싹
+      makeX(0.35, 0.35, 0.06);
+
+    } else if(rawType === 'plant_tomato') {
+      // 초록 줄기 + 작은 초록 방울 (미숙 열매)
+      makeX(0.8, 0.8, 0.1);
+      const bud = new THREE.Mesh(
+        new THREE.SphereGeometry(0.1, 6, 6),
+        M(0x4CAF50)
+      );
+      bud.position.set(0.2, 0.3, 0);
+      group.add(bud);
+
+    } else if(rawType === 'plant_tomato_fruit') {
+      // 초록 줄기 + 빨간 토마토 열매 3개
+      makeX(0.8, 0.8, 0.1);
+      var fruitMat = M(0xFF3300);
+      var fruitPos = [[-0.22, 0.25, 0.1], [0.22, 0.15, -0.1], [0, 0.35, 0]];
+      for(var fi = 0; fi < fruitPos.length; fi++) {
+        var f = new THREE.Mesh(new THREE.SphereGeometry(0.14, 7, 7), fruitMat);
+        f.position.set(fruitPos[fi][0], fruitPos[fi][1], fruitPos[fi][2]);
+        group.add(f);
+      }
+
+    } else if(rawType === 'plant_basil') {
+      // 넓고 풍성한 바질
+      makeX(1.05, 0.85, 0.1);
+      // 둥근 윗부분
+      var topMesh = new THREE.Mesh(
+        new THREE.SphereGeometry(0.32, 7, 5),
+        M(0x005500)
+      );
+      topMesh.scale.y = 0.6;
+      topMesh.position.y = 0.52;
+      group.add(topMesh);
+
+    } else if(rawType === 'plant_dead') {
+      // 죽은 식물 — 쓰러진 모양
+      makeX(0.65, 0.5, 0.08);
+      group.rotation.z = 0.45;
+
+    } else {
+      // 기본 (클로버, 해바라기 씨앗 등)
+      makeX(0.8, 0.8, 0.1);
+    }
+
     group.position.set(x, y + 0.4, z);
-    group.userData={isBlock:true,bx:x,by:y,bz:z};
+    group.userData = {isBlock:true, bx:x, by:y, bz:z};
     return group;
   }
 
