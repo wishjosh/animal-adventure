@@ -133,7 +133,9 @@ function getRayTargets() {
     if (m.isMesh) lm.push(m);
     else if (m.isGroup) m.traverse(c => { if (c.isMesh) lm.push(c); });
   }
-  return [groundMesh, ...bm, ...am, ...pm, ...ot, ...cm, ...lm];
+  const p2m = typeof Phase2System !== 'undefined' ? Phase2System.getAllMeshes() : [];
+  const p3m = typeof Phase3System !== 'undefined' ? Phase3System.getAllMeshes() : [];
+  return [groundMesh, ...bm, ...am, ...pm, ...ot, ...cm, ...lm, ...p2m, ...p3m];
 }
 function castRay(cx, cy) {
   const r = canvas.getBoundingClientRect();
@@ -286,6 +288,10 @@ function handleClick(clientX, clientY) {
     dropAnimal(dx, dy, dz); return;
   }
 
+  // === [1.5순위] 페이즈 2/3 개체 상호작용 ===
+  if (QuestManager.currentPhase === 2 && Phase2System.handleClick(obj)) return;
+  if (QuestManager.currentPhase === 3 && Phase3System.handleClick(obj)) return;
+
   // === [2순위] 도구 모드 (Tool Actions) ===
   if (toolMode === 'watering') {
     if (obj.userData.isBlock) { WateringSystem.water(obj.userData.bx, obj.userData.by, obj.userData.bz); }
@@ -320,6 +326,7 @@ function handleClick(clientX, clientY) {
   }
 
   if (toolMode === 'axe') {
+    if (QuestManager.currentPhase < 3) { toast('⚠️ 지금은 나무를 벨 수 없어요!'); return; }
     if (obj.userData.isOldTree) {
       if (OldTree.state !== 'chopped') { OldTree.chopCount++; if (OldTree.chopCount >= 3) { OldTree.chop(); } else { toast(`🪓 쾅! (${OldTree.chopCount}/3)`); if (navigator.vibrate) navigator.vibrate(50); } }
     }
@@ -440,6 +447,7 @@ function animate() {
   updateAnimals(t);
   ClueSystem.updateAnims(t);
   LadybugSystem.update(t);
+  SeedSystem.update(t);
   OldTree.updateParticles();
   if (typeof ArrowSystem !== 'undefined') ArrowSystem.update(t);
 
