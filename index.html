@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🐾 애니멀 어드벤쳐: 생태계 수호자</title>
+<link rel="icon" href="data:,">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -36,6 +37,7 @@
       <button class="action-btn" onclick="toggleInventory()" title="가방 (E)">🎒</button>
       <button class="action-btn" onclick="openMap()" title="지도 (M)">🗺️</button>
       <button class="action-btn" onclick="saveGame()" title="저장" style="color:#6fcf97;">💾</button>
+      <button class="action-btn" onclick="loadGame()" title="불러오기">📂</button>
       <button class="action-btn" onclick="clearAll()" title="초기화" style="color:#eb5757;">🗑️</button>
     </div>
   </div>
@@ -111,15 +113,29 @@
 
 <!-- 외부 라이브러리 (Three.js 및 Stats.js) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/16/Stats.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/r17/Stats.min.js"></script>
 
 <!-- 게임 스크립트 모듈 (순서 중요) -->
-<script src="js/data.js"></script>
-<script src="js/state.js"></script>
-<script src="js/systems.js"></script>
-<script src="js/world.js"></script>
-<script src="js/ui.js"></script>
-<script src="js/main.js"></script>
+<script src="js/data.js?v=20260504"></script>
+<script src="js/state.js?v=20260504"></script>
+<script src="js/systems.js?v=20260504"></script>
+<script src="js/world.js?v=20260504"></script>
+<script src="js/ui.js?v=20260504"></script>
+<script src="js/main.js?v=20260504"></script>
+<script>
+window.goPhase = function(n) {
+  isOpeningActive = false;
+  document.getElementById('opening-overlay').style.display = 'none';
+  QuestManager.phaseComplete = {};
+  for(let i = 1; i < n; i++) QuestManager.phaseComplete[i] = true;
+  QuestManager.phase1State = { toxicRemoved:true, tomatoFruited:true, wormDone:true, treeGrowing:true };
+  QuestManager.currentPhase = n;
+  if(n === 2) Phase2System.init();
+  else if(n >= 3) { Phase2System._clearAll(); Phase3System.init(); }
+  QuestManager.updateUI();
+  toast('🔧 페이즈 ' + n + '로 이동했어요 (개발자 모드)');
+};
+</script>
 
 </body>
 </html>
