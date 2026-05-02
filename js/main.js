@@ -240,10 +240,11 @@ canvas.addEventListener('touchmove', e => {
 }, { passive: false });
 
 canvas.addEventListener('touchend', e => {
+  if(!isUIBlocking()) e.preventDefault(); // 아이패드 등 터치 기기에서 클릭 이벤트 중복 발생(더블 클릭) 방지
   clearInterval(digInterval); digInterval = null; isHoldingPickaxe = false;
   if (touchMode === 'single' && !clickMoved && e.changedTouches.length === 1) { if (toolMode !== 'pickaxe') handleClick(e.changedTouches[0].clientX, e.changedTouches[0].clientY); }
   if (e.touches.length === 0) { touchMode = null; isDragging = false; }
-});
+}, { passive: false });
 
 canvas.addEventListener('mouseleave', () => { isDragging = false; clearInterval(digInterval); });
 canvas.addEventListener('wheel', e => { radius += e.deltaY * .04; syncCam(); e.preventDefault(); }, { passive: false });
