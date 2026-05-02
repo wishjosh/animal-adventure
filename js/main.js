@@ -288,7 +288,13 @@ function handleClick(clientX, clientY) {
     dropAnimal(dx, dy, dz); return;
   }
 
-  // === [1.5순위] 페이즈 2/3 개체 상호작용 ===
+  // === [1.5순위] 독성 식물 삽 없이 상호작용 시 경고 및 페이즈 2/3 ===
+  const udCheck = getUD(obj);
+  if (udCheck && gridData[bk(udCheck.bx, udCheck.by, udCheck.bz)] === 'toxic_plant' && toolMode !== 'shovel') {
+    toast('⚠️ 독성 식물은 맨손으로 만지면 위험해요! 인벤토리에서 삽을 선택해서 뽑으세요!');
+    return;
+  }
+
   if (QuestManager.currentPhase === 2 && Phase2System.handleClick(obj)) return;
   if (QuestManager.currentPhase === 3 && Phase3System.handleClick(obj)) return;
 
@@ -434,8 +440,8 @@ function animate() {
   if (keys.s || keys.ArrowDown) { orbitTarget.addScaledVector(fwd, -spd); camMoved = true; }
   if (keys.a || keys.ArrowLeft) { orbitTarget.addScaledVector(rgt, -spd); camMoved = true; }
   if (keys.d || keys.ArrowRight) { orbitTarget.addScaledVector(rgt, spd); camMoved = true; }
-  if (keys[' ']) { orbitTarget.y += spd; camMoved = true; }
-  if (keys.Shift) { orbitTarget.y -= spd; camMoved = true; }
+  if (keys[' '] || camMoveDir === 1) { orbitTarget.y += spd; camMoved = true; }
+  if (keys.Shift || camMoveDir === -1) { orbitTarget.y -= spd; camMoved = true; }
   if (camMoved) syncCam();
 
   if (camera.position.y < WATER_LEVEL) { scene.fog.color.setHex(0x021b3a); scene.fog.density = 0.08; renderer.setClearColor(0x021b3a); }
@@ -454,6 +460,33 @@ function animate() {
   for (const c of cloudGroups) { c.mesh.position.x = c.bx + Math.sin(t * .035 + c.bz * .1) * 4; c.mesh.position.z = c.bz + Math.cos(t * .025 + c.bx * .08) * 3; }
   renderer.render(scene, camera);
   if (stats) stats.end();
+}
+
+// 모바일 카메라 상승/하강 버튼 로직
+let camMoveDir = 0;
+const camUpBtn = document.getElementById('cam-up-btn');
+const camDownBtn = document.getElementById('cam-down-btn');
+if(camUpBtn && camDownBtn) {
+  const startUp = (e) => { e.preventDefault(); camMoveDir = 1; };
+  const startDown = (e) => { e.preventDefault(); camMoveDir = -1; };
+  const stopMove = (e) => { e.preventDefault(); camMoveDir = 0; };
+  camUpBtn.addEventListener('touchstart', startUp, {passive:false});
+  camUpBtn.addEventListener('mousedown', startUp);
+  camUpBtn.addEventListener('touchend', stopMove);
+  camUpBtn.addEventListener('mouseup', stopMove);
+  camUpBtn.addEventListener('mouseleave', stopMove);
+
+  camDownBtn.addEventListener('touchstart', startDown, {passive:false});
+  camDownBtn.addEventListener('mousedown', startDown);
+  camDownBtn.addEventListener('touchend', stopMove);
+  camDownBtn.addEventListener('mouseup', stopMove);
+  camDownBtn.addEventListener('mouseleave', stopMove);
+}
+
+// 터치 기기인 경우에만 상승/하강 버튼 표시
+if('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+  const mobCamControls = document.getElementById('mobile-cam-controls');
+  if(mobCamControls) mobCamControls.style.display = 'flex';
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
