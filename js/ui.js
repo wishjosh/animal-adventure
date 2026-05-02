@@ -56,6 +56,9 @@ function initInventoryUI() {
         else if(s.toxicRemoved && !s.tomatoFruited && (itemId === 'seed_tomato' || itemId === 'watering_can')) slot.classList.add('slot-glowing');
         else if(s.tomatoFruited && !s.wormDone && itemId === 'fallen_leaf') slot.classList.add('slot-glowing');
       }
+    } else {
+      const icon = document.createElement('div'); icon.className = 'slot-icon'; icon.textContent = '🖐️'; slot.appendChild(icon);
+      icon.style.opacity = '0.4'; slot.title = '맨손 (관찰/이동)';
     }
     hotbarEl.appendChild(slot);
   }
@@ -78,6 +81,9 @@ function initInventoryUI() {
           else if(s.toxicRemoved && !s.tomatoFruited && (itemId === 'seed_tomato' || itemId === 'watering_can')) slot.classList.add('slot-glowing');
           else if(s.tomatoFruited && !s.wormDone && itemId === 'fallen_leaf') slot.classList.add('slot-glowing');
         }
+      } else {
+        const icon = document.createElement('div'); icon.className = 'slot-icon'; icon.textContent = '🖐️'; slot.appendChild(icon);
+        icon.style.opacity = '0.4'; slot.title = '맨손 (관찰/이동)';
       }
       previewEl.appendChild(slot);
     }
