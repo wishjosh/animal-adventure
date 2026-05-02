@@ -804,7 +804,7 @@ const Phase2System = {
     if(!OldTree.group) return;
     const tx=8, tz=8, ty=getTopY(tx,tz);
     this.birdHouseMesh = this._box(0.7,0.7,0.7, 0x3498DB, tx+1.5, ty+3.5, tz, {isBirdHouse:true});
-    this.nestZoneMesh  = this._box(0.7,0.4,0.7, 0x8B6914, tx-1.5, ty+2.5, tz, {isNestZone:true});
+    this.nestZoneMesh  = this._box(0.7,0.4,0.7, 0x8B6914, tx-1.5, ty+3.5, tz, {isNestZone:true});
   },
 
   getAllMeshes() {
