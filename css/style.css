@@ -91,14 +91,40 @@ body { overflow:hidden; background:#87CEEB; font-family:'Malgun Gothic','Apple S
 #pt-emoji { font-size:60px; margin-bottom:10px; animation:float 2s infinite ease-in-out; }
 #pt-text { font-size:18px; font-weight:bold; line-height:1.6; word-break:keep-all; }
 
+/* iOS Safari: 캔버스 위에 고정 UI가 가려지는 문제 방지 */
+#hotbar-wrapper, #topbar {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+}
+
+/* iOS 홈 바/노치 안전 영역 */
+#hotbar-wrapper {
+  padding-bottom: max(14px, env(safe-area-inset-bottom));
+}
+
+/* 태블릿 (iPad) */
+@media (max-width: 1024px) and (min-width: 601px) {
+  .hotbar-slot { width: 38px; height: 38px; }
+  .slot-icon { font-size: 16px; }
+  .action-btn { width: 34px; height: 34px; font-size: 15px; }
+  #hotbar-container { gap: 3px; padding: 5px; }
+  #hotbar-actions { gap: 3px; padding: 5px; }
+  #hotbar-row { gap: 5px; }
+  #hint { bottom: 88px; }
+}
+
+/* 모바일 (phone) */
 @media (max-width: 600px) {
-  #topbar { padding: 5px 10px; gap: 8px;}
+  #topbar { padding: 5px 10px; gap: 8px; }
   #title-text { font-size: 16px; }
-  #hotbar-label { font-size: 12px; padding: 3px 12px; bottom: 85px; }
-  .hotbar-slot { width:34px; height:34px; }
-  .slot-icon { font-size:16px; }
+  #hotbar-label { font-size: 12px; }
+  .hotbar-slot { width: 34px; height: 34px; }
+  .slot-icon { font-size: 16px; }
+  .action-btn { width: 32px; height: 32px; font-size: 14px; }
+  #hotbar-container { gap: 2px; padding: 4px; }
+  #hotbar-actions { gap: 2px; padding: 4px; }
   #hint { font-size: 9px; bottom: 75px; }
-  .mc-cell { width: 24px; height: 24px; font-size: 10px;}
+  .mc-cell { width: 24px; height: 24px; font-size: 10px; }
 }
 
 /* Hotbar Glow Animation */
