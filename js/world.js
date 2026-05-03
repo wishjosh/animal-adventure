@@ -9,32 +9,99 @@ function vn(x,z){
   return a+(b-a)*ux+(c-a)*uz+(a-b-c+d)*ux*uz;
 }
 
-function getH(wx,wz){
-  const nx=wx*0.03, nz=wz*0.03;
-  const macroNoise=vn(wx*0.012+100,wz*0.012+100);
-  let base=0;
-  if(macroNoise>0.45) base=36.0+(macroNoise-0.45)*12.0;
-  else if(macroNoise<0.35) base=18.0+(macroNoise*20.0);
-  else base=24.0+(macroNoise-0.35)*100.0*0.12;
-  const distFromCenter=Math.sqrt(wx*wx+wz*wz);
-  if(distFromCenter<50){ const boost=(50-distFromCenter)/50; if(base<36.0) base=base+(36.0-base)*boost; }
-  const mountains=Math.pow(vn(nx*0.5+100,nz*0.5+100),2.0)*(vn(nx*2.0,nz*2.0)*18.0);
-  const riverNoise=Math.abs(vn(nx*0.6+50,nz*0.6+50)*2-1);
-  const riverCarve=Math.max(0,1.0-riverNoise*3.5);
-  let h=base;
-  if(h>=34.0) h+=mountains;
-  if(riverCarve>0) h=h-(riverCarve*16.0);
-  if(h>50.0) h=50.0+Math.sqrt(h-50.0)*1.5;
-  return Math.min(GH,Math.max(10,Math.round(h)));
+const BiomeSystem = {
+  getBiomeWeights(x, z) {
+    let weights = {};
+    let totalWeight = 0;
+
+    for (const [key, biome] of Object.entries(BIOME_CONFIG)) {
+      const dist = Math.hypot(x - biome.centerX, z - biome.centerZ);
+      let weight = 0;
+      if (dist < biome.radius) {
+        weight = 1.0;
+      } else if (dist < biome.radius + 15) {
+        weight = 1.0 - ((dist - biome.radius) / 15);
+      }
+      
+      if (weight > 0) {
+        weights[key] = weight;
+        totalWeight += weight;
+      }
+    }
+
+    if (totalWeight === 0) {
+      weights['ocean'] = 1.0;
+      totalWeight = 1.0;
+    }
+
+    for (const key in weights) weights[key] /= totalWeight;
+    return weights;
+  },
+
+  getDominantBiome(x, z) {
+    const weights = this.getBiomeWeights(x, z);
+    let maxW = 0, dominant = 'green_village';
+    for (const k in weights) {
+      if (weights[k] > maxW) { maxW = weights[k]; dominant = k; }
+    }
+    return BIOME_CONFIG[dominant] || BIOME_CONFIG['green_village'];
+  }
+};
+
+function getH(wx, wz) {
+  const nx = wx * 0.03, nz = wz * 0.03;
+  const weights = BiomeSystem.getBiomeWeights(wx, wz);
+  
+  let finalH = 0;
+
+  for (const [bKey, weight] of Object.entries(weights)) {
+    let bH = 15; // default ocean
+    let bRough = 0.5;
+    
+    if(bKey !== 'ocean') {
+      const conf = BIOME_CONFIG[bKey];
+      bH = conf.baseHeight;
+      bRough = conf.roughness;
+    }
+
+    // 초기 시작 지점(0,0 주변)의 기존 지형과 유사한 고도를 유지하기 위한 오프셋 조정
+    let noise = vn(nx + bKey.length, nz + bKey.length); 
+    if(bKey === 'green_village') noise = vn(wx*0.012+100, wz*0.012+100);
+    
+    let mountains = Math.pow(vn(nx*0.5+100, nz*0.5+100), 2.0) * (vn(nx*2.0, nz*2.0)*18.0) * bRough;
+    
+    let localH = bH + (noise * 5.0) + mountains;
+    finalH += localH * weight;
+  }
+
+  // 강줄기 깎기
+  const riverNoise = Math.abs(vn(nx*0.6+50, nz*0.6+50)*2 - 1);
+  const riverCarve = Math.max(0, 1.0 - riverNoise*3.5);
+  if (riverCarve > 0) finalH -= (riverCarve * 16.0);
+
+  if (finalH > 50.0) finalH = 50.0 + Math.sqrt(finalH - 50.0) * 1.5;
+  return Math.min(GH, Math.max(5, Math.round(finalH)));
 }
 
-function terrainType(y,sh){
-  const underwater=sh<WATER_LEVEL;
-  if(sh-y===0){ if(underwater) return y<=22?'r_sand':'r_gravel'; return sh>=44?'t_rock':sh>=40?'t_high':sh>=36?'t_mid':sh>=34?'t_low':'t_dirt'; }
-  if(underwater) return sh-y<=3?'r_sub':'t_sub';
-  return sh-y<=4?'t_dirt':'t_sub';
+function terrainType(wx, y, wz, sh) {
+  const dominant = BiomeSystem.getDominantBiome(wx, wz);
+  const underwater = sh < dominant.waterLevel;
+  
+  if (sh - y === 0) {
+    if (underwater) return dominant.surface === 'r_sub' ? 'r_sub' : 'r_sand';
+    if (sh >= 44) return 't_rock';
+    return dominant.surface; 
+  }
+  if (underwater) return sh - y <= 3 ? 'r_sub' : 'stone';
+  return sh - y <= 4 ? dominant.subsurface : 'stone';
 }
-function colColor(h){ if(h<WATER_LEVEL) return 0x1565c0; return h>=44?0x9a8878:h>=40?0x7a8e68:h>=36?0x4a7a3a:h>=34?0x6aaa5a:0x7a5c1e; }
+
+function colColor(wx, wz, h) {
+  const dominant = BiomeSystem.getDominantBiome(wx, wz);
+  if (h < dominant.waterLevel) return 0x1565c0; 
+  if (h >= 44) return 0x9a8878;
+  return ITEM_DB[dominant.surface]?.hex || 0x6aaa5a;
+}
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  청크 시스템
@@ -49,7 +116,8 @@ function spawnAnimalsInChunk(cx,cz){
   for(let i=0;i<count;i++){
     const wx=x0+Math.floor(Math.random()*CHUNK),wz=z0+Math.floor(Math.random()*CHUNK);
     const sh=getH(wx,wz);
-    if(sh<WATER_LEVEL-1){ if(Math.random()<0.6) placeAnimal(wx,sh+0.5,wz,'fish'); }
+    const dominant = BiomeSystem.getDominantBiome(wx, wz);
+    if(sh<dominant.waterLevel-1){ if(Math.random()<0.6) placeAnimal(wx,sh+0.5,wz,'fish'); }
     // 육지 동물 무작위 생성 중단 (페이즈 3 지정 동물에 집중)
   }
 }
@@ -69,7 +137,7 @@ function bldActive(cx,cz){
     for(let y=0;y<=sh;y++) {
       const k=bk(wx,y,wz);
       if(!deletedBlocks.has(k)) {
-        const type = terrainType(y,sh);
+        const type = terrainType(wx, y, wz, sh);
         gridData[k] = type;
         if(y >= visibleStartY) {
           if(!meshByKey[k]) {
@@ -87,8 +155,9 @@ function bldPreview(cx,cz){
   const g=new THREE.Group(),x0=cx*CHUNK,z0=cz*CHUNK;
   for(let lx=0;lx<CHUNK;lx++) for(let lz=0;lz<CHUNK;lz++){
     const wx=x0+lx,wz=z0+lz,sh=getH(wx,wz);
-    const visH=sh<WATER_LEVEL?Math.ceil(WATER_LEVEL):sh;
-    const col=sh<WATER_LEVEL?0x1565c0:colColor(sh);
+    const dominant = BiomeSystem.getDominantBiome(wx, wz);
+    const visH=sh<dominant.waterLevel?Math.ceil(dominant.waterLevel):sh;
+    const col=colColor(wx, wz, sh);
     const geo=new THREE.BoxGeometry(1,1,1);
     const mesh=new THREE.Mesh(geo,new THREE.MeshLambertMaterial({color:col,transparent:true,opacity:0.15}));
     mesh.position.set(wx,visH+0.5,wz);
@@ -129,6 +198,43 @@ function activateChunk(cx,cz,isInit=false){
     if(!chunkState[nk]||chunkState[nk]==='hidden'){chunkState[nk]='visible';bldPreview(nx,nz);}
   }
   rebuildGrid(); updateMapOverlay();
+}
+
+let lastCenterCx = null;
+let lastCenterCz = null;
+
+function updateVisibleChunks(orbitTarget) {
+  if(!orbitTarget) return;
+  const centerCx = Math.floor(orbitTarget.x / CHUNK);
+  const centerCz = Math.floor(orbitTarget.z / CHUNK);
+  
+  if (lastCenterCx === centerCx && lastCenterCz === centerCz) return;
+  lastCenterCx = centerCx;
+  lastCenterCz = centerCz;
+  
+  const R = 2; // 가시 반경 (2청크)
+  
+  // 활성 블록 최적화
+  for (const [k, mesh] of Object.entries(meshByKey)) {
+    const [x, y, z] = k.split(',').map(Number);
+    const cx = Math.floor(x / CHUNK);
+    const cz = Math.floor(z / CHUNK);
+    if (Math.abs(cx - centerCx) <= R && Math.abs(cz - centerCz) <= R) {
+      if (!mesh.parent) scene.add(mesh);
+    } else {
+      if (mesh.parent) scene.remove(mesh);
+    }
+  }
+  
+  // 미탐험(프리뷰) 청크 최적화
+  for (const [k, group] of Object.entries(chunkGroups)) {
+    const [cx, cz] = k.split(',').map(Number);
+    if (Math.abs(cx - centerCx) <= R && Math.abs(cz - centerCz) <= R) {
+      if (!group.parent) scene.add(group);
+    } else {
+      if (group.parent) scene.remove(group);
+    }
+  }
 }
 
 function initOldTree() {
@@ -400,17 +506,18 @@ function updateAnimals(t){
 }
 
 function updateFish(a,t){
+  const wL = BiomeSystem.getDominantBiome(a.x, a.z).waterLevel;
   const curTopY=getVisualTopY(a.x,a.z);
-  if(curTopY<WATER_LEVEL){
+  if(curTopY<wL){
     const spd=0.022,look=3.5;
     const fwdY=getTopY(Math.round(a.x+Math.cos(a.angle)*look),Math.round(a.z-Math.sin(a.angle)*look));
-    if(fwdY>=WATER_LEVEL-0.5){ const la=a.angle+Math.PI*0.6,ra=a.angle-Math.PI*0.6; const lY=getTopY(Math.round(a.x+Math.cos(la)*look),Math.round(a.z-Math.sin(la)*look)); const rY=getTopY(Math.round(a.x+Math.cos(ra)*look),Math.round(a.z-Math.sin(ra)*look)); a.targetAngle=(lY<rY?la:ra)+(Math.random()-0.5)*0.5; }
+    if(fwdY>=wL-0.5){ const la=a.angle+Math.PI*0.6,ra=a.angle-Math.PI*0.6; const lY=getTopY(Math.round(a.x+Math.cos(la)*look),Math.round(a.z-Math.sin(la)*look)); const rY=getTopY(Math.round(a.x+Math.cos(ra)*look),Math.round(a.z-Math.sin(ra)*look)); a.targetAngle=(lY<rY?la:ra)+(Math.random()-0.5)*0.5; }
     else if(Math.random()<0.012){ a.targetAngle=a.angle+(Math.random()-0.5)*1.0; }
     let diff=a.targetAngle-a.angle; while(diff>Math.PI)diff-=2*Math.PI; while(diff<-Math.PI)diff+=2*Math.PI; a.angle+=diff*0.07;
     const nx=a.x+Math.cos(a.angle)*spd,nz=a.z-Math.sin(a.angle)*spd;
     const nY=getTopY(Math.round(nx),Math.round(nz));
-    if(nY<WATER_LEVEL){a.x=nx;a.z=nz;}else{a.targetAngle=a.angle+Math.PI+(Math.random()-0.5)*0.8;}
-    const depth=Math.max(0.4,WATER_LEVEL-curTopY);
+    if(nY<wL){a.x=nx;a.z=nz;}else{a.targetAngle=a.angle+Math.PI+(Math.random()-0.5)*0.8;}
+    const depth=Math.max(0.4,wL-curTopY);
     a.group.position.set(a.x,curTopY+depth*0.35+Math.sin(t*1.8+a.x)*0.12,a.z);
     a.group.rotation.y=a.angle; a.group.rotation.z=Math.sin(t*2)*0.04;
   } else {
