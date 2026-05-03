@@ -347,7 +347,7 @@ function buildMesh(rawType,x,y,z){
     else if(rawType === 'seed_clover' || rawType.startsWith('plant_clover')) emoji = '🍀';
     else if(rawType === 'seed_sunflower' || rawType.startsWith('plant_sunflower')) emoji = '🌻';
     else if(rawType === 'fallen_leaf') emoji = '🍂';
-    else if(rawType === 'toxic_plant') emoji = '⚠️';
+    else if(rawType === 'toxic_plant') emoji = '🥀';
     else if(rawType === 'sprout') emoji = '🌱';
     else if(rawType === 'seed_pine') emoji = '🌲';
     
