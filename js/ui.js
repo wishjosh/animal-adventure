@@ -1,12 +1,52 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  UI 함수 (인벤토리, 단축키, 오프닝, 지도 등)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-function toast(msg){
-  const el=document.getElementById('toast');
-  el.textContent=msg;
-  el.style.display='block';
-  clearTimeout(toastTimer);
-  toastTimer=setTimeout(()=>{el.style.display='none';},2400);
+const messageHistory = [];
+let isMessageLogOpen = false;
+
+function toast(msg) {
+  // 로그에 추가
+  const timeStr = new Date().toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  messageHistory.push({ time: timeStr, text: msg });
+  if (isMessageLogOpen) renderMessageLog();
+
+  // 화면 우측 하단에 스택 생성
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+  const el = document.createElement('div');
+  el.className = 'toast-msg';
+  el.innerHTML = msg;
+  container.appendChild(el);
+
+  // 애니메이션 끝나면 자동 제거 (fadeOut은 4.5초 뒤 완전히 투명해짐)
+  setTimeout(() => {
+    if (el.parentNode === container) container.removeChild(el);
+  }, 4600);
+}
+
+function toggleMessageLog() {
+  const overlay = document.getElementById('message-log-overlay');
+  isMessageLogOpen = overlay.style.display === 'none';
+  overlay.style.display = isMessageLogOpen ? 'flex' : 'none';
+  if (isMessageLogOpen) {
+    renderMessageLog();
+  }
+}
+
+function renderMessageLog() {
+  const content = document.getElementById('message-log-content');
+  if (!content) return;
+  if (messageHistory.length === 0) {
+    content.innerHTML = '<div class="log-item" style="text-align:center; color:#888;">아직 기록된 알림이 없습니다.</div>';
+    return;
+  }
+  content.innerHTML = messageHistory.map(log => `
+    <div class="log-item">
+      <div class="log-time">${log.time}</div>
+      <div>${log.text}</div>
+    </div>
+  `).join('');
+  content.scrollTop = content.scrollHeight;
 }
 
 function showWaterGauge(level, isOver=false) {
@@ -132,16 +172,73 @@ function toggleRotation() {
 window.addEventListener('keydown',e=>{
   if(e.key>='1'&&e.key<='9') selectHotbarSlot(parseInt(e.key)-1);
   if(e.key.toLowerCase()==='e') toggleInventory();
+  if(e.key.toLowerCase()==='b') toggleGuardianBook();
   if(e.key.toLowerCase()==='m') openMap();
   if(e.key.toLowerCase()==='r') toggleRotation();
 });
+
+let isGuardianBookOpen = false;
+function toggleGuardianBook() {
+  isGuardianBookOpen = !isGuardianBookOpen;
+  document.getElementById('guardian-book-overlay').style.display = isGuardianBookOpen ? 'flex' : 'none';
+  if(isGuardianBookOpen) renderGuardianBook();
+}
+
+function renderGuardianBook() {
+  const grid = document.getElementById('guardian-grid');
+  grid.innerHTML = '';
+  let joinedCount = GuardianSystem.getJoinedCount();
+  document.getElementById('guardian-book-title').textContent = `📖 초록별 수호대 모으기: ${joinedCount} / 12`;
+  
+  const detailEl = document.getElementById('guardian-detail');
+  detailEl.style.display = 'none';
+
+  Object.values(GUARDIAN_DATA).forEach(data => {
+    const state = guardianState[data.id] || 0;
+    const card = document.createElement('div');
+    card.className = 'guardian-card';
+    card.dataset.state = state;
+    
+    let displayEmoji = state === 0 ? '❔' : data.emoji;
+    let displayName = state === 0 ? '???' : data.name;
+    
+    card.innerHTML = `<div class="emoji">${displayEmoji}</div><div class="name">${displayName}</div>`;
+    
+    card.onclick = () => {
+      document.querySelectorAll('.guardian-card').forEach(c => c.classList.remove('active'));
+      card.classList.add('active');
+      detailEl.style.display = 'block';
+      
+      document.getElementById('gd-emoji').textContent = state === 0 ? '❔' : data.emoji;
+      document.getElementById('gd-name').textContent = state === 0 ? '???' : data.name;
+      document.getElementById('gd-title').textContent = state === 0 ? '발견되지 않은 수호대' : `"${data.title}"`;
+      
+      let storyHTML = '', perHTML = '', hintHTML = '';
+      if(state === 0) {
+        storyHTML = '아직 이 동물에 대해 알지 못합니다. 마을 어딘가에 흔적이 있을지도 몰라요.';
+      } else if(state === 1) {
+        storyHTML = '누군가 도움이 필요한 것 같습니다.';
+        hintHTML = `💡 힌트: ${data.hint}`;
+      } else {
+        storyHTML = data.story;
+        perHTML = `<b>성격:</b> ${data.personality}`;
+      }
+      
+      document.getElementById('gd-story').innerHTML = storyHTML;
+      document.getElementById('gd-personality').innerHTML = perHTML;
+      document.getElementById('gd-hint').innerHTML = hintHTML;
+    };
+    
+    grid.appendChild(card);
+  });
+}
 
 function nextScene() {
   openingStep++;
   if(openingStep >= openingScenes.length) {
     document.getElementById('opening-overlay').style.display = 'none';
     isOpeningActive = false;
-    QuestManager.currentPhase = 0;
+    Level1Manager.currentPhase = 0;
     QuestManager.updateUI();
     QuestManager.check();
     return;
@@ -182,11 +279,12 @@ function saveGame(){
   const data={
     v:13, chunks:activeList, grid:userGrid, deleted:Array.from(deletedBlocks),
     animals:animalData.map(({type,x,y,z,isInjured,angle})=>({type,x,y,z,isInjured,angle})),
-    themeComplete:QuestManager.themeComplete,
-    currentPhase:QuestManager.currentPhase,
-    phaseComplete:QuestManager.phaseComplete,
-    injuredHealedCount:QuestManager.injuredHealedCount,
-    phase1State:QuestManager.phase1State,
+    currentLevel: currentLevel,
+    themeComplete:Level1Manager.themeComplete,
+    currentPhase:Level1Manager.currentPhase,
+    phaseComplete:Level1Manager.phaseComplete,
+    injuredHealedCount:Level1Manager.injuredHealedCount,
+    phase1State:Level1Manager.phase1State,
     oldTreeState:OldTree.state,
     oldTreeChopCount:OldTree.chopCount,
     cluesFound:ClueSystem.clues.map(c=>({id:c.id,found:c.found})),
@@ -197,7 +295,8 @@ function saveGame(){
       aphidActive: AphidSystem.active,
       aphidTarget: AphidSystem.targetPlant,
       toxicRemoved: ToxicPlantSystem.removed
-    }
+    },
+    guardianState: guardianState
   };
   try{
     const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
@@ -221,11 +320,12 @@ function onFileSelected(e){
       for(const[k,t] of Object.entries(data.grid||[])){const[x,y,z]=k.split(',').map(Number);_place(x,y,z,t);}
       for(const a of(data.animals||[]))placeAnimal(a.x,a.y,a.z,a.type,a.isInjured);
 
-      QuestManager.themeComplete=data.themeComplete||{};
-      QuestManager.currentPhase=data.currentPhase!==undefined?data.currentPhase:0;
-      QuestManager.phaseComplete=data.phaseComplete||{};
-      QuestManager.injuredHealedCount=data.injuredHealedCount||0;
-      QuestManager.phase1State={
+      currentLevel = data.currentLevel || 1;
+      Level1Manager.themeComplete=data.themeComplete||{};
+      Level1Manager.currentPhase=data.currentPhase!==undefined?data.currentPhase:0;
+      Level1Manager.phaseComplete=data.phaseComplete||{};
+      Level1Manager.injuredHealedCount=data.injuredHealedCount||0;
+      Level1Manager.phase1State={
         toxicRemoved:  data.phase1State?.toxicRemoved  || false,
         tomatoFruited: data.phase1State?.tomatoFruited || false,
         wormDone:      data.phase1State?.wormDone      || false,
@@ -251,13 +351,17 @@ function onFileSelected(e){
           AphidSystem.attack(AphidSystem.targetPlant.x, AphidSystem.targetPlant.z);
         }
       }
+      
+      if(data.guardianState) {
+        guardianState = data.guardianState;
+      }
 
       // phaseComplete[1]=true인데 currentPhase가 1에 머문 경우 자동 보정
-      if (QuestManager.currentPhase === 1 && QuestManager.phaseComplete[1]) {
-        QuestManager.currentPhase = 2;
+      if (Level1Manager.currentPhase === 1 && Level1Manager.phaseComplete[1]) {
+        Level1Manager.currentPhase = 2;
       }
-      if (QuestManager.currentPhase === 2) Phase2System.init();
-      else if (QuestManager.currentPhase >= 3) Phase3System.init();
+      if (Level1Manager.currentPhase === 2) Phase2System.init();
+      else if (Level1Manager.currentPhase >= 3) Phase3System.init();
       QuestManager.updateUI(); QuestManager.check(); toast('📂 불러왔어요!');
     }catch{ toast('파일을 읽을 수 없어요 😢'); }
     e.target.value='';
@@ -274,12 +378,15 @@ function clearAll(silent=false){
   deletedBlocks.clear();
   if (typeof Phase2System !== 'undefined') Phase2System._clearAll();
   if (typeof Phase3System !== 'undefined') Phase3System._clearAll();
-  QuestManager.themeComplete={};
-  QuestManager.currentPhase=0;
-  QuestManager.phaseComplete={};
-  QuestManager.injuredHealedCount=0;
-  QuestManager.phase1State={ toxicRemoved:false, tomatoFruited:false, wormDone:false, treeGrowing:false };
+  currentLevel = 1;
+  Level1Manager.themeComplete={};
+  Level1Manager.currentPhase=0;
+  Level1Manager.phaseComplete={};
+  Level1Manager.injuredHealedCount=0;
+  Level1Manager.phase1State={ toxicRemoved:false, tomatoFruited:false, wormDone:false, treeGrowing:false };
   OldTree.chopCount=0; OldTree.state='withered';
+  
+  Object.keys(guardianState).forEach(k => guardianState[k] = 0);
   ClueSystem.clues.forEach(c=>c.found=false);
   LeafSystem.meshes.forEach(m=>scene.remove(m));
   LeafSystem.meshes=[]; LeafSystem.collected=0;
@@ -302,10 +409,10 @@ function showEcoPopup(emoji, htmlText) {
 window.goPhase = function(n) {
   isOpeningActive = false;
   document.getElementById('opening-overlay').style.display = 'none';
-  QuestManager.phaseComplete = {};
-  for(let i = 1; i < n; i++) QuestManager.phaseComplete[i] = true;
-  QuestManager.phase1State = { toxicRemoved:true, tomatoFruited:true, wormDone:true, treeGrowing:true };
-  QuestManager.currentPhase = n;
+  Level1Manager.phaseComplete = {};
+  for(let i = 1; i < n; i++) Level1Manager.phaseComplete[i] = true;
+  Level1Manager.phase1State = { toxicRemoved:true, tomatoFruited:true, wormDone:true, treeGrowing:true };
+  Level1Manager.currentPhase = n;
   if(n === 2) Phase2System.init();
   else if(n >= 3) { Phase2System._clearAll(); Phase3System.init(); }
   QuestManager.updateUI();
