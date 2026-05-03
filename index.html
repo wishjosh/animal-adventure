@@ -35,7 +35,9 @@
     <div id="hotbar-actions">
       <button class="action-btn" onclick="toggleRotation()" title="방향 회전 (R)">🔄</button>
       <button class="action-btn" onclick="toggleInventory()" title="가방 (E)">🎒</button>
+      <button class="action-btn" onclick="toggleGuardianBook()" title="수호대 도감 (B)" style="color:#f2c94c;">📖</button>
       <button class="action-btn" onclick="openMap()" title="지도 (M)">🗺️</button>
+      <button class="action-btn" onclick="toggleMessageLog()" title="알림 기록 (L)" style="color:#a8d0e6;">📩</button>
       <button class="action-btn" onclick="saveGame()" title="저장" style="color:#6fcf97;">💾</button>
       <button class="action-btn" onclick="loadGame()" title="불러오기">📂</button>
       <button class="action-btn" onclick="clearAll()" title="초기화" style="color:#eb5757;">🗑️</button>
@@ -62,10 +64,38 @@
   <div class="inv-category"><h3>💖 구조 키트</h3><div class="inv-grid" id="inv-kits"></div></div>
 </div>
 
+<div id="guardian-book-overlay">
+  <div class="inv-header">
+    <h2 id="guardian-book-title">📖 초록별 수호대 모으기: 0 / 12</h2>
+    <button class="close-btn" onclick="toggleGuardianBook()">✖</button>
+  </div>
+  <div class="guardian-book-content">
+    <div class="guardian-grid" id="guardian-grid"></div>
+    <div class="guardian-detail" id="guardian-detail" style="display:none;">
+      <div id="gd-emoji"></div>
+      <h3 id="gd-name"></h3>
+      <div id="gd-title"></div>
+      <div id="gd-story"></div>
+      <div id="gd-personality"></div>
+      <div id="gd-hint" style="margin-top:10px; color:#f2c94c; font-weight:bold;"></div>
+    </div>
+  </div>
+</div>
+
 <div id="hint">💡 단축키 1~9: 슬롯 교체 | 파기: 1번 클릭 (연속 파기: 더블클릭 꾹~) | 카메라 이동: 화면 드래그</div>
 <input type="file" id="file-input" accept=".json" style="display:none" onchange="onFileSelected(event)">
 <div id="carry-indicator">✋ 동물을 안고 있어요 — 눕힐 곳에 클릭!</div>
-<div id="toast"></div>
+<div id="toast-container"></div>
+
+<div id="message-log-overlay" style="display:none;">
+  <div class="inv-header">
+    <h2 id="message-log-title">📩 알림 기록</h2>
+    <button class="close-btn" onclick="toggleMessageLog()">✖</button>
+  </div>
+  <div class="message-log-content" id="message-log-content">
+    <!-- 메시지 목록이 들어갈 공간 -->
+  </div>
+</div>
 
 <div id="map-overlay">
   <h3>🗺️ 세계 지도</h3>
@@ -132,10 +162,10 @@
 window.goPhase = function(n) {
   isOpeningActive = false;
   document.getElementById('opening-overlay').style.display = 'none';
-  QuestManager.phaseComplete = {};
-  for(let i = 1; i < n; i++) QuestManager.phaseComplete[i] = true;
-  QuestManager.phase1State = { toxicRemoved:true, tomatoFruited:true, wormDone:true, treeGrowing:true };
-  QuestManager.currentPhase = n;
+  Level1Manager.phaseComplete = {};
+  for(let i = 1; i < n; i++) Level1Manager.phaseComplete[i] = true;
+  Level1Manager.phase1State = { toxicRemoved:true, tomatoFruited:true, wormDone:true, treeGrowing:true };
+  Level1Manager.currentPhase = n;
   if(n === 2) Phase2System.init();
   else if(n >= 3) { Phase2System._clearAll(); Phase3System.init(); }
   QuestManager.updateUI();
