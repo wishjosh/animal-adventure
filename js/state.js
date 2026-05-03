@@ -17,10 +17,20 @@ let openingStep = 0;
 
 let toastTimer;
 
+let currentLevel = 1;
+
+// --- Level 1 States ---
 // 페이즈 2 상태 (Phase2System에서 직접 참조)
 const phase2_conditions = { hiveFull: false, nestBuilt: false, treeBlooming: false };
 const environment_flags = { riverTrashCount: 3, hasMud: false, birdHoleSize: 0, toxicPlantsRemoved: true };
 const phase3_conditions = { sheepHealed: false, horseSpace: false, goatClimbed: false };
+// ----------------------
+
+// 0: 미발견(흑백/물음표), 1: 발견(힌트공개), 2: 도움, 3: 합류(완전 공개)
+let guardianState = {
+  sheep: 0, bee: 0, swallow: 0, otter: 0, bat: 0, fox: 0, 
+  eagle: 0, crane: 0, salmon: 0, raccoon: 0, kestrel: 0, bear: 0
+};
 
 // THREE.js 객체를 위한 전역 변수 (main.js에서 초기화됨)
 // scene, camera, renderer 등은 main.js에서 선언하지만 var를 쓰지 않는 이상 여기서 선언해야 할 수도 있습니다.
