@@ -126,13 +126,13 @@ function getRayTargets() {
   
   const bm = []; for (const obj of Object.values(meshByKey)) {
     if(!obj.parent) continue;
-    if (obj.isMesh) bm.push(obj);
-    else if (obj.isGroup) obj.traverse(c => { if (c.isMesh) bm.push(c); });
+    if (obj.isMesh || obj.isSprite) bm.push(obj);
+    else if (obj.isGroup) obj.traverse(c => { if (c.isMesh || c.isSprite) bm.push(c); });
   }
   // 낙엽도 동일하게 traverse
   const lm = []; for (const m of LeafSystem.meshes) {
-    if (m.isMesh) lm.push(m);
-    else if (m.isGroup) m.traverse(c => { if (c.isMesh) lm.push(c); });
+    if (m.isMesh || m.isSprite) lm.push(m);
+    else if (m.isGroup) m.traverse(c => { if (c.isMesh || c.isSprite) lm.push(c); });
   }
   const p2m = typeof Phase2System !== 'undefined' ? Phase2System.getAllMeshes() : [];
   const p3m = typeof Phase3System !== 'undefined' ? Phase3System.getAllMeshes() : [];
