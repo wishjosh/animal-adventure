@@ -119,12 +119,13 @@ function isUIBlocking() {
 }
 
 function getRayTargets() {
-  const am = []; for (const a of animalData) a.group.traverse(c => { if (c.isMesh) am.push(c); });
-  const pm = []; for (const g of Object.values(chunkGroups)) g.traverse(c => { if (c.isMesh) pm.push(c); });
-  const ot = []; if (OldTree.group) OldTree.group.traverse(c => { if (c.isMesh) ot.push(c); });
-  const cm = []; for (const m of ClueSystem.meshes) cm.push(m, ...m.children);
-  // 피일드에 Group(X형 식물 등)이 포함될 수 있으므로 traverse 사용
+  const am = []; for (const a of animalData) if(a.group.parent) a.group.traverse(c => { if (c.isMesh) am.push(c); });
+  const pm = []; for (const g of Object.values(chunkGroups)) if(g.parent) g.traverse(c => { if (c.isMesh) pm.push(c); });
+  const ot = []; if (OldTree.group && OldTree.group.parent) OldTree.group.traverse(c => { if (c.isMesh) ot.push(c); });
+  const cm = []; for (const m of ClueSystem.meshes) if(m.parent) cm.push(m, ...m.children);
+  
   const bm = []; for (const obj of Object.values(meshByKey)) {
+    if(!obj.parent) continue;
     if (obj.isMesh) bm.push(obj);
     else if (obj.isGroup) obj.traverse(c => { if (c.isMesh) bm.push(c); });
   }
@@ -149,12 +150,12 @@ function doDig(clientX, clientY) {
   if (!hits.length) return;
   const obj = hits[0].object;
 
-  if (QuestManager.currentPhase === 0 && obj.userData.isClue) {
+  if (QuestManager.getCurrentPhase() === 0 && obj.userData.isClue) {
     ClueSystem.checkClick(obj.userData.clueId);
     return;
   }
-  if (QuestManager.currentPhase === 0) {
-    toast('탐험을 시작하기 전에 단서를 모두 모아주세요!');
+  if (QuestManager.getCurrentPhase() === 0) {
+    toast('⚠️ 주변에 단서가 더 있을지도 몰라요. 노란 구슬을 찾아보세요!');
     return;
   }
 
@@ -296,8 +297,8 @@ function handleClick(clientX, clientY) {
     return;
   }
 
-  if (QuestManager.currentPhase === 2 && Phase2System.handleClick(obj)) return;
-  if (QuestManager.currentPhase === 3 && Phase3System.handleClick(obj)) return;
+  if (QuestManager.getCurrentPhase() === 2 && Phase2System.handleClick(obj)) return;
+  if (QuestManager.getCurrentPhase() === 3 && Phase3System.handleClick(obj)) return;
 
   // === [2순위] 도구 모드 (Tool Actions) ===
   if (toolMode === 'watering') {
@@ -323,7 +324,7 @@ function handleClick(clientX, clientY) {
   }
 
   if (toolMode === 'resource' && selItem === 'fallen_leaf') {
-    if (QuestManager.currentPhase !== 1) { toast('⚠️ 페이즈 1에서만 낙엽을 덮을 수 있어요!'); return; }
+    if (QuestManager.getCurrentPhase() !== 1) { toast('⚠️ 페이즈 1에서만 낙엽을 덮을 수 있어요!'); return; }
     let tx, tz;
     if (obj.userData.isBlock) { tx = obj.userData.bx; tz = obj.userData.bz; }
     else if (obj.userData.isGround) { tx = Math.round(hit.point.x); tz = Math.round(hit.point.z); }
@@ -333,7 +334,7 @@ function handleClick(clientX, clientY) {
   }
 
   if (toolMode === 'axe') {
-    if (QuestManager.currentPhase < 3) { toast('⚠️ 지금은 나무를 벨 수 없어요!'); return; }
+    if (QuestManager.getCurrentPhase() < 3) { toast('⚠️ 지금은 나무를 벨 수 없어요!'); return; }
     if (obj.userData.isOldTree) {
       if (OldTree.state !== 'chopped') { OldTree.chopCount++; if (OldTree.chopCount >= 3) { OldTree.chop(); } else { toast(`🪓 쾅! (${OldTree.chopCount}/3)`); if (navigator.vibrate) navigator.vibrate(50); } }
     }
@@ -347,7 +348,14 @@ function handleClick(clientX, clientY) {
         if (a && a.isInjured) {
           const gx = Math.round(a.x), gz = Math.round(a.z), ty = getTopY(gx, gz) - 1;
           const underFloor = gridData[bk(gx, ty, gz)] ? gridData[bk(gx, ty, gz)].split('_')[0] : '';
-          if (underFloor === 'straw') { a.isInjured = false; a.group.children[0].material.color.setHex(0xe8e8e8); QuestManager.injuredHealedCount++; toast('💖 치료 성공! 동물이 건강해졌어요!'); QuestManager.check(); }
+          if (underFloor === 'straw') {
+            a.isInjured = false;
+            a.group.children[0].material.color.setHex(0xe8e8e8);
+            Level1Manager.injuredHealedCount++;
+            toast('💖 치료 성공! 동물이 건강해졌어요!');
+            if (a.type === 'sheep' && typeof GuardianSystem !== 'undefined') GuardianSystem.updateState('sheep', 3);
+            QuestManager.check();
+          }
           else { toast('⚠️ 다친 동물은 볏짚(보호소) 위에서 치료해야 해요!'); }
         } else if (a && !a.isInjured) { toast('😊 이 동물은 이미 건강해요!'); }
       }
@@ -445,11 +453,14 @@ function animate() {
   if (keys.Shift || camMoveDir === -1) { orbitTarget.y -= spd; camMoved = true; }
   if (camMoved) syncCam();
 
-  if (camera.position.y < WATER_LEVEL) { scene.fog.color.setHex(0x021b3a); scene.fog.density = 0.08; renderer.setClearColor(0x021b3a); }
+  const wL = typeof BiomeSystem !== 'undefined' ? BiomeSystem.getDominantBiome(orbitTarget.x, orbitTarget.z).waterLevel : 30;
+  if (camera.position.y < wL) { scene.fog.color.setHex(0x021b3a); scene.fog.density = 0.08; renderer.setClearColor(0x021b3a); }
   else { scene.fog.color.setHex(0xc8e5f5); scene.fog.density = 0.008; renderer.setClearColor(0x87CEEB); }
 
-  waterVolume.position.y = WATER_LEVEL + Math.sin(t * 1.5) * 0.04;
-  waterDeep.position.y = WATER_LEVEL - 0.5 + Math.sin(t * 1.5) * 0.02;
+  waterVolume.position.y = wL + Math.sin(t * 1.5) * 0.04;
+  waterDeep.position.y = wL - 0.5 + Math.sin(t * 1.5) * 0.02;
+  
+  if (typeof updateVisibleChunks !== 'undefined') updateVisibleChunks(orbitTarget);
 
   updateAnimals(t);
   ClueSystem.updateAnims(t);
