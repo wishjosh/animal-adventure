@@ -50,16 +50,12 @@ function spawnAnimalsInChunk(cx,cz){
     const wx=x0+Math.floor(Math.random()*CHUNK),wz=z0+Math.floor(Math.random()*CHUNK);
     const sh=getH(wx,wz);
     if(sh<WATER_LEVEL-1){ if(Math.random()<0.6) placeAnimal(wx,sh+0.5,wz,'fish'); }
-    else if(sh>=WATER_LEVEL){ placeAnimal(wx,sh+1,wz,'sheep',Math.random()<0.3); }
+    // 육지 동물 무작위 생성 중단 (페이즈 3 지정 동물에 집중)
   }
 }
 
 function spawnLevelAnimals() {
-  placeAnimal(3,getTopY(3,3)+0.5,3,'sheep',true);
-  placeAnimal(6,getTopY(6,4)+0.5,4,'sheep',false);
-  placeAnimal(4,getTopY(4,6)+0.5,6,'sheep',false);
-  placeAnimal(12,getTopY(12,5)+0.5,5,'horse',false);
-  placeAnimal(14,getTopY(14,8)+0.5,8,'goat',false);
+  // 사용 안 함: 페이즈 3 시스템에서 직접 말, 염소, 양을 생성함.
 }
 
 function bldActive(cx,cz){
@@ -195,6 +191,42 @@ function getBlockData(rawType) {
   return ITEM_DB[baseType]||TERRAIN_BLOCKS[baseType];
 }
 
+const spriteCache = {};
+function createEmojiSprite(emoji) {
+  if (spriteCache[emoji]) {
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: spriteCache[emoji] }));
+    sprite.scale.set(1.2, 1.2, 1);
+    return sprite;
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = 128; canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+  ctx.shadowBlur = 10; ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 4;
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  if (ctx.roundRect) {
+    ctx.roundRect(16, 16, 96, 96, 20);
+  } else {
+    ctx.rect(16, 16, 96, 96);
+  }
+  ctx.fill();
+
+  ctx.shadowColor = 'transparent';
+  ctx.font = '72px Arial';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(emoji, 64, 68);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.LinearFilter;
+  spriteCache[emoji] = texture;
+  
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture }));
+  sprite.scale.set(1.2, 1.2, 1);
+  return sprite;
+}
+
 function buildMesh(rawType,x,y,z){
   const def=getBlockData(rawType);
   if(!def) return null;
@@ -202,36 +234,25 @@ function buildMesh(rawType,x,y,z){
   if(rawType.startsWith('fence_')){ type='fence'; rot=parseInt(rawType.split('_')[1]); }
   const mat=def.transparent?new THREE.MeshLambertMaterial({color:def.hex,transparent:true,opacity:def.opacity}):new THREE.MeshLambertMaterial({color:def.hex});
   
-  if(def.category==='plant' || def.category==='seed') {
-    const group = new THREE.Group();
-    const isSprout = rawType === 'sprout';
-    const h = isSprout ? 0.5 : 1.1;
-    const w = isSprout ? 0.6 : 0.95;
-    const thick = 0.15;
-    const g1 = new THREE.BoxGeometry(w, h, thick);
-    const g2 = new THREE.BoxGeometry(thick, h, w);
-    const m1 = new THREE.Mesh(g1, mat); m1.rotation.y = Math.PI / 4;
-    const m2 = new THREE.Mesh(g2, mat); m2.rotation.y = Math.PI / 4;
-    m1.castShadow=m1.receiveShadow=true; m2.castShadow=m2.receiveShadow=true;
-    m1.add(new THREE.LineSegments(new THREE.EdgesGeometry(g1),new THREE.LineBasicMaterial({color:0x000000,transparent:true,opacity:0.14})));
-    m2.add(new THREE.LineSegments(new THREE.EdgesGeometry(g2),new THREE.LineBasicMaterial({color:0x000000,transparent:true,opacity:0.14})));
-    group.add(m1); group.add(m2);
-    // 익은 토마토: 줄기 위에 빨간 열매 구
-    if(rawType === 'plant_tomato_fruit') {
-      const fruitGeo = new THREE.SphereGeometry(0.25, 8, 8);
-      const fruitMat = new THREE.MeshLambertMaterial({ color: 0xFF2200 });
-      const fruit = new THREE.Mesh(fruitGeo, fruitMat);
-      fruit.position.y = h * 0.5 + 0.25;
-      fruit.castShadow = true;
-      group.add(fruit);
-    }
-    group.position.set(x, y + 0.4, z);
-    group.userData={isBlock:true,bx:x,by:y,bz:z};
-    return group;
+  if(def.category==='plant' || def.category==='seed' || def.category==='resource') {
+    let emoji = def.icon || '🌱';
+    if(rawType === 'seed_tomato' || rawType.startsWith('plant_tomato')) emoji = '🍅';
+    else if(rawType === 'seed_basil' || rawType.startsWith('plant_basil')) emoji = '🌿';
+    else if(rawType === 'seed_clover' || rawType.startsWith('plant_clover')) emoji = '🍀';
+    else if(rawType === 'seed_sunflower' || rawType.startsWith('plant_sunflower')) emoji = '🌻';
+    else if(rawType === 'fallen_leaf') emoji = '🍂';
+    else if(rawType === 'toxic_plant') emoji = '⚠️';
+    else if(rawType === 'sprout') emoji = '🌱';
+    else if(rawType === 'seed_pine') emoji = '🌲';
+    
+    const sprite = createEmojiSprite(emoji);
+    sprite.position.set(x, y + 0.8, z);
+    sprite.userData = { isBlock: true, bx: x, by: y, bz: z };
+    return sprite;
   }
 
   let geo, py=y+0.5;
-  if(type==='grass'||type==='straw'||def.category==='resource'){
+  if(type==='grass'||type==='straw'){
     geo=new THREE.BoxGeometry(1,0.2,1); py=y+0.1;
   } else if(type==='fence'){
     geo=new THREE.BoxGeometry(1,1,0.2);
