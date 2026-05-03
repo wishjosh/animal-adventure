@@ -735,7 +735,6 @@ const ArrowSystem = {
           }
         }
       }
-      }
     } else if(QuestManager.currentPhase === 3) {
       const c = phase3_conditions;
       const p3 = Phase3System;
