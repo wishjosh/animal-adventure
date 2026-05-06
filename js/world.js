@@ -191,7 +191,7 @@ function activateChunk(cx,cz,isInit=false){
   if(chunkState[ck(cx,cz)]==='active') return;
   rmVisible(cx,cz); chunkState[ck(cx,cz)]='active'; bldActive(cx,cz);
   if(!isInit) spawnAnimalsInChunk(cx,cz);
-  const viewRadius=2;
+  const viewRadius=4;
   for(let dx=-viewRadius;dx<=viewRadius;dx++) for(let dz=-viewRadius;dz<=viewRadius;dz++){
     if(dx===0&&dz===0) continue;
     const nx=cx+dx,nz=cz+dz,nk=ck(nx,nz);
@@ -212,7 +212,7 @@ function updateVisibleChunks(orbitTarget) {
   lastCenterCx = centerCx;
   lastCenterCz = centerCz;
   
-  const R = 2; // 가시 반경 (2청크)
+  const R = 4; // 가시 반경 (4청크)
   
   // 활성 블록 최적화
   for (const [k, mesh] of Object.entries(meshByKey)) {
