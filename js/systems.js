@@ -1153,7 +1153,7 @@ const Phase3System = {
   },
 
   _initSheepZone() {
-    const sx = 3, sz = 3, sy = getTopY(sx, sz);
+    const sx = 3, sz = 3, sy = getVisualTopY(sx, sz);
     this.sheepMesh = buildAnimal('sheep', true); // 다친 양
     this.sheepMesh.position.set(sx, sy, sz);
     this.sheepMesh.traverse(c => { if (c.isMesh) c.userData.isSheep = true; });
@@ -1164,7 +1164,7 @@ const Phase3System = {
   },
 
   _initHorseZone() {
-    const hx = 10, hz = 3, hy = getTopY(hx, hz);
+    const hx = 10, hz = 3, hy = getVisualTopY(hx, hz);
     this.horseMesh = buildAnimal('horse', false);
     this.horseMesh.position.set(hx, hy, hz);
     this.horseMesh.traverse(c => { if (c.isMesh) c.userData.isHorse = true; });
@@ -1177,13 +1177,14 @@ const Phase3System = {
   },
 
   _initGoatZone() {
-    const gx = 14, gz = 7, gy = getTopY(gx, gz);
+    const gx = 11, gz = 12, gy = getVisualTopY(gx, gz);
     this.goatMesh = buildAnimal('goat', false);
     this.goatMesh.position.set(gx, gy, gz);
     this.goatMesh.traverse(c => { if (c.isMesh) c.userData.isGoat = true; });
     scene.add(this.goatMesh);
 
-    this.rockMesh = this._box(0.8, 2.0, 0.8, 0x777777, gx + 2, gy + 1.0, gz, { isRock3: true });
+    const rx = gx + 2, rz = gz, ry = getVisualTopY(rx, rz);
+    this.rockMesh = this._box(0.8, 2.0, 0.8, 0x777777, rx, ry + 1.0, rz, { isRock3: true });
   },
 
   getAllMeshes() {
@@ -1215,7 +1216,7 @@ const Phase3System = {
 
   _onShadeZoneClick() {
     if (!this._sheepSelected || this._sheepOnStraw) return;
-    this.sheepMesh.position.set(this.shadeMesh.position.x, this.shadeMesh.position.y + 0.45, this.shadeMesh.position.z);
+    this.sheepMesh.position.set(this.shadeMesh.position.x, this.shadeMesh.position.y - 0.8, this.shadeMesh.position.z);
     this.shadeMesh.material.color.setHex(0xBBBBBB);
     this._sheepSelected = false;
     this.sheepMesh.traverse(c => { if (c.isMesh && c.material) c.material.emissiveIntensity = 0; });
@@ -1225,7 +1226,7 @@ const Phase3System = {
   _onStrawZoneClick() {
     if (!this._sheepSelected) { toast('⚠️ 노란색 화살표가 가리키는 양을 먼저 클릭해주세요!'); return; }
     if (phase3_conditions.sheepHealed) return;
-    this.sheepMesh.position.set(this.strawMesh.position.x, this.strawMesh.position.y + 0.45, this.strawMesh.position.z);
+    this.sheepMesh.position.set(this.strawMesh.position.x, this.strawMesh.position.y - 0.8, this.strawMesh.position.z);
     this.strawMesh.material.color.setHex(0xF5A800);
     this._sheepOnStraw = true;
     this._sheepSelected = false;
