@@ -90,15 +90,19 @@ function initInventoryUI() {
       if(item.icon) { const icon=document.createElement('div'); icon.className='slot-icon'; icon.textContent=item.icon; slot.appendChild(icon); }
       else if(item.color) { const sw=document.createElement('div'); sw.className='slot-swatch'; sw.style.background=item.color; slot.appendChild(sw); }
       
-      if(QuestManager.currentPhase === 1) {
-        const s = QuestManager.phase1State;
+      const _phase = QuestManager.getCurrentPhase();
+      const _lm = QuestManager.levels[1];
+      if(_phase === 1 && _lm) {
+        const s = _lm.phase1State;
         if(!s.toxicRemoved && itemId === 'shovel') slot.classList.add('slot-glowing');
-        else if(s.toxicRemoved && !s.tomatoFruited && (itemId === 'seed_tomato' || itemId === 'watering_can')) slot.classList.add('slot-glowing');
+        else if(s.toxicRemoved && !s.tomatoFruited && (itemId === 'seed_tomato' || itemId === 'seed_basil' || itemId === 'watering_can')) slot.classList.add('slot-glowing');
         else if(s.tomatoFruited && !s.wormDone && itemId === 'fallen_leaf') slot.classList.add('slot-glowing');
       }
     } else {
       const icon = document.createElement('div'); icon.className = 'slot-icon'; icon.textContent = '🖐️'; slot.appendChild(icon);
-      icon.style.opacity = '0.4'; slot.title = '맨손 (관찰/이동)';
+      const _phase = QuestManager.getCurrentPhase();
+      if(_phase === 2 || _phase === 3) { icon.style.opacity = '1'; slot.classList.add('slot-glowing'); slot.title = '맨손으로 클릭하세요!'; }
+      else { icon.style.opacity = '0.4'; slot.title = '맨손 (관찰/이동)'; }
     }
     hotbarEl.appendChild(slot);
   }
@@ -114,16 +118,18 @@ function initInventoryUI() {
         const item=ITEM_DB[itemId]; slot.title=item.label;
         if(item.icon){const icon=document.createElement('div');icon.className='slot-icon';icon.textContent=item.icon;slot.appendChild(icon);}
         else if(item.color){const sw=document.createElement('div');sw.className='slot-swatch';sw.style.background=item.color;slot.appendChild(sw);}
-        
-        if(QuestManager.currentPhase === 1) {
-          const s = QuestManager.phase1State;
+        const _phase2=QuestManager.getCurrentPhase(), _lm2=QuestManager.levels[1];
+        if(_phase2 === 1 && _lm2) {
+          const s = _lm2.phase1State;
           if(!s.toxicRemoved && itemId === 'shovel') slot.classList.add('slot-glowing');
-          else if(s.toxicRemoved && !s.tomatoFruited && (itemId === 'seed_tomato' || itemId === 'watering_can')) slot.classList.add('slot-glowing');
+          else if(s.toxicRemoved && !s.tomatoFruited && (itemId === 'seed_tomato' || itemId === 'seed_basil' || itemId === 'watering_can')) slot.classList.add('slot-glowing');
           else if(s.tomatoFruited && !s.wormDone && itemId === 'fallen_leaf') slot.classList.add('slot-glowing');
         }
       } else {
         const icon = document.createElement('div'); icon.className = 'slot-icon'; icon.textContent = '🖐️'; slot.appendChild(icon);
-        icon.style.opacity = '0.4'; slot.title = '맨손 (관찰/이동)';
+        const _phase2=QuestManager.getCurrentPhase();
+        if(_phase2 === 2 || _phase2 === 3) { icon.style.opacity = '1'; slot.classList.add('slot-glowing'); slot.title = '맨손으로 클릭하세요!'; }
+        else { icon.style.opacity = '0.4'; slot.title = '맨손 (관찰/이동)'; }
       }
       previewEl.appendChild(slot);
     }
