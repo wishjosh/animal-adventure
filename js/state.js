@@ -1,16 +1,16 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  UI 상태 및 전역 변수
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-let hotbar = [null,'pickaxe','watering_can','shovel','seed_tomato','seed_basil','fallen_leaf','grass','straw'];
+let hotbar = [null, 'pickaxe', 'watering_can', 'shovel', 'seed_tomato', 'seed_basil', 'fallen_leaf', 'grass', 'straw'];
 let activeSlot = 0;
 let isInventoryOpen = false;
 let currentRotation = 0;
 let toolMode = 'none', selItem = null;
 
-const gridData={}, meshByKey={}, animalData=[];
-const chunkState={}, chunkGroups={};
-const deletedBlocks=new Set();
-let pickedAnimal=null;
+const gridData = {}, meshByKey = {}, animalData = [];
+const chunkState = {}, chunkGroups = {};
+const deletedBlocks = new Set();
+let pickedAnimal = null;
 
 let isOpeningActive = true;
 let openingStep = 0;
@@ -34,8 +34,8 @@ let toxic_plants_removed = false;
 
 /** Phase 2: 동반식물 심기 & 물주기 상태 */
 const companion_plants_status = {
-  tomato:  false,   // 토마토 씨앗 심기 완료
-  basil:   false,   // 바질 씨앗 심기 완료
+  tomato: false,   // 토마토 씨앗 심기 완료
+  basil: false,   // 바질 씨앗 심기 완료
   watered: false    // 물뿌리개로 물주기 완료
 };
 
@@ -53,17 +53,28 @@ const phase3_conditions = { sheepHealed: false, horseSpace: false, goatClimbed: 
 // -------------------------------------------------------
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  레벨 2: 다양성의 숲 — 페이즈 및 상태 변수
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let level2_phase = 0; // 0 (시작) -> 1 (두꺼비 구출) -> 2 (격리 미션 진행) -> 3 (완료)
+const level2_conditions = {
+  bullfrogIsolated: false,
+  toadRescued: false
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  수호대 영입 상태
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 /**
- * 레벨 1 수호대 최종 합류 여부.
- * systems.js의 checkBeeCondition() 등이 조건 달성 시 true로 설정.
+ * 레벨 1 & 2 수호대 최종 합류 여부.
+ * systems.js의 조건 달성 시 true로 설정.
  */
 const global_protectors = {
-  bee:     false,   // 꿀벌 — 꽃 블록 3개 이상
-  swallow: false,   // 제비 — 진흙 웅덩이 + 처마 설치
-  sheep:   false    // 양  — 그늘(나무 개화) + 볏짚 설치
+  bee: false,   // 레벨 1: 꿀벌 — 꽃 블록 3개 이상
+  swallow: false,   // 레벨 1: 제비 — 진흙 웅덩이 + 처마 설치
+  sheep: false,   // 레벨 1: 양   — 그늘(나무 개화) + 볏짚 설치
+  otter: false,   // 레벨 2: 수달 — 강물 연결
+  bat: false    // 레벨 2: 황금박쥐 — 동굴 빛 차단
 };
 
 /**
@@ -106,8 +117,8 @@ function advancePhase(targetPhase) {
  */
 function checkLevel1Clear() {
   const cleared = global_protectors.bee
-               && global_protectors.swallow
-               && global_protectors.sheep;
+    && global_protectors.swallow
+    && global_protectors.sheep;
 
   if (cleared) {
     console.log('[State] 🎉 Level 1 Clear! 수호대 전원 합류 완료.');
@@ -117,6 +128,7 @@ function checkLevel1Clear() {
   return cleared;
 }
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // THREE.js 객체를 위한 전역 변수 (main.js에서 초기화됨)
 // scene, camera, renderer 등은 main.js에서 선언하지만 var를 쓰지 않는 이상 여기서 선언해야 할 수도 있습니다.
 // 스크립트를 합칠 때 참조 에러를 막기 위해 구조를 그대로 유지합니다.
