@@ -6,6 +6,69 @@
 <title>🐾 애니멀 어드벤쳐: 생태계 수호자</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="css/style.css">
+<style>
+/* ── 수호대 슬롯 ── */
+#protector-bar {
+  position: fixed;
+  bottom: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  z-index: 25;
+  pointer-events: none;
+}
+.protector-slot {
+  width: 52px; height: 52px;
+  border-radius: 14px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  font-size: 24px;
+  border: 2px solid rgba(255,255,255,0.15);
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(6px);
+  transition: border-color 0.4s, background 0.4s, transform 0.3s;
+  pointer-events: auto;
+}
+.protector-slot .slot-label {
+  font-size: 9px;
+  color: rgba(255,255,255,0.45);
+  margin-top: 2px;
+  letter-spacing: 0.3px;
+}
+.protector-slot.slot-inactive { opacity: 0.45; }
+.protector-slot.slot-active {
+  border-color: #FFD700;
+  background: rgba(255,215,0,0.15);
+  opacity: 1;
+  box-shadow: 0 0 12px rgba(255,215,0,0.5);
+}
+@keyframes protector-join-pulse {
+  0%   { transform: scale(1); box-shadow: 0 0 0 rgba(255,215,0,0); }
+  50%  { transform: scale(1.25); box-shadow: 0 0 20px rgba(255,215,0,0.9); }
+  100% { transform: scale(1); box-shadow: 0 0 12px rgba(255,215,0,0.5); }
+}
+/* ── 클리어 배너 ── */
+#protector-clear-banner {
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 100;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(135deg, rgba(10,40,10,0.97), rgba(0,20,0,0.97));
+  border: 2px solid #4caf50;
+  border-radius: 24px;
+  padding: 32px 40px;
+  color: #fff;
+  text-align: center;
+  animation: protector-join-pulse 0.8s ease-out;
+}
+#protector-clear-banner h2 { margin: 0; font-size: 22px; color: #a5d6a7; }
+#protector-clear-banner p  { margin: 0; font-size: 14px; color: rgba(255,255,255,0.8); }
+</style>
 </head>
 <body>
 <canvas id="canvas"></canvas>
@@ -26,6 +89,31 @@
       <div id="mission-status"></div>
     </div>
   </div>
+</div>
+
+<!-- 수호대 슬롯 (3마리) -->
+<div id="protector-bar">
+  <div class="protector-slot slot-inactive" id="protector-slot-bee" title="🐝 꿀벌 (미합류)">
+    <span>🐝</span><span class="slot-label">꿀벌</span>
+  </div>
+  <div class="protector-slot slot-inactive" id="protector-slot-swallow" title="🐦 제비 (미합류)">
+    <span>🐦</span><span class="slot-label">제비</span>
+  </div>
+  <div class="protector-slot slot-inactive" id="protector-slot-sheep" title="🐑 양 (미합류)">
+    <span>🐑</span><span class="slot-label">양</span>
+  </div>
+</div>
+
+<!-- 수호대 전원 합류 클리어 배너 -->
+<div id="protector-clear-banner">
+  <div style="font-size:52px;">🌟</div>
+  <h2>수호대가 모두 합류했어요!</h2>
+  <p>꿀벌 · 제비 · 양이 초록 마을을 지켜줘요 💚</p>
+  <button onclick="document.getElementById('protector-clear-banner').style.display='none'" style="
+    margin-top:8px; padding:10px 26px;
+    background:#4caf50; color:#fff; font-weight:700;
+    border:none; border-radius:10px; cursor:pointer; font-size:15px;
+  ">계속 탐험하기 →</button>
 </div>
 
 <div id="hotbar-wrapper">
@@ -152,12 +240,12 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/r17/Stats.min.js"></script>
 
 <!-- 게임 스크립트 모듈 (순서 중요) -->
-<script src="js/data.js?v=20260504"></script>
-<script src="js/state.js?v=20260504"></script>
-<script src="js/systems.js?v=20260504"></script>
-<script src="js/world.js?v=20260504"></script>
-<script src="js/ui.js?v=20260504"></script>
-<script src="js/main.js?v=20260504"></script>
+<script src="js/data.js?v=20260506"></script>
+<script src="js/state.js?v=20260506"></script>
+<script src="js/systems.js?v=20260506"></script>
+<script src="js/world.js?v=20260506"></script>
+<script src="js/ui.js?v=20260506"></script>
+<script src="js/main.js?v=20260506"></script>
 <script>
 window.goPhase = function(n) {
   isOpeningActive = false;
