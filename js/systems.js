@@ -452,6 +452,7 @@ const Level1Manager = {
         showPhaseTransition(2);
         setTimeout(() => {
           this.currentPhase = 2;
+          advancePhase(2);
           this.updateUI();
           Phase2System.init();
         }, 2500);
@@ -852,18 +853,15 @@ const ArrowSystem = {
 //  (꿀벌 귀환 / 강 쓰레기 제거 / 나무의 손님들)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const Phase2System = {
-  _birdHouseDone: false,
   flowerZoneMeshes: [],
   branchMesh: null,
   trashMeshes: [],
-  birdHouseMesh: null,
   nestZoneMesh: null,
 
   init() {
     this._clearAll();
     Object.assign(phase2_conditions, { hiveFull: false, nestBuilt: false, treeBlooming: false });
-    Object.assign(environment_flags, { riverTrashCount: 3, hasMud: false, birdHoleSize: 0 });
-    this._birdHouseDone = false;
+    Object.assign(environment_flags, { riverTrashCount: 3, hasMud: false });
     this._initFlowerZones();
     this._initBranch();
     this._initRiverTrash();
@@ -873,10 +871,10 @@ const Phase2System = {
 
   _clearAll() {
     [...this.flowerZoneMeshes, ...this.trashMeshes,
-    this.branchMesh, this.birdHouseMesh, this.nestZoneMesh]
+    this.branchMesh, this.nestZoneMesh]
       .filter(Boolean).forEach(m => scene.remove(m));
     this.flowerZoneMeshes = []; this.trashMeshes = [];
-    this.branchMesh = null; this.birdHouseMesh = null; this.nestZoneMesh = null;
+    this.branchMesh = null; this.nestZoneMesh = null;
   },
 
   _box(w, h, d, hex, x, y, z, ud) {
@@ -917,20 +915,18 @@ const Phase2System = {
   _initTreeZones() {
     if (!OldTree.group) return;
     const tx = 8, tz = 8, ty = getTopY(tx, tz);
-    this.birdHouseMesh = this._sprite('🏠', tx + 1.5, ty + 2.7, tz, { isBirdHouse: true });
     this.nestZoneMesh = this._sprite('🪺', tx - 1.5, ty + 2.7, tz, { isNestZone: true });
   },
 
   getAllMeshes() {
     return [...this.flowerZoneMeshes, ...this.trashMeshes,
-    this.branchMesh, this.birdHouseMesh, this.nestZoneMesh].filter(Boolean);
+    this.branchMesh, this.nestZoneMesh].filter(Boolean);
   },
 
   handleClick(obj) {
     if (obj.userData.isFlowerZone) { this._onFlowerZoneClick(obj); return true; }
     if (obj.userData.isBranch) { this._onBranchClick(obj); return true; }
     if (obj.userData.isTrash) { this._onTrashClick(obj); return true; }
-    if (obj.userData.isBirdHouse) { this._onBirdHouseClick(); return true; }
     if (obj.userData.isNestZone) { this._onNestZoneClick(); return true; }
     return false;
   },
@@ -1016,48 +1012,6 @@ const Phase2System = {
     QuestManager.updateUI();
   },
 
-  _onBirdHouseClick() {
-    if (this._birdHouseDone) { toast('🐦 이미 박새가 입주했어요!'); return; }
-    this._showBirdHoleUI();
-  },
-
-  _showBirdHoleUI() {
-    const ov = document.createElement('div');
-    ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.65);z-index:90;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;';
-    ov.innerHTML = `
-      <div style="color:#FFD700;font-size:20px;font-weight:900;">🐦 박새 새집 만들기</div>
-      <div style="color:rgba(255,255,255,0.8);font-size:13px;text-align:center;">박새가 들어올 수 있는 구멍 크기를 맞춰보세요!<br><span style="color:#aaa;font-size:11px;">(너무 크면 다른 새가 침입해요)</span></div>
-      <div style="display:flex;align-items:center;gap:12px;">
-        <label style="color:#fff;font-size:15px;">구멍 크기:</label>
-        <input id="p2-hole" type="number" min="20" max="40" value="25"
-          style="width:72px;padding:8px;font-size:18px;font-weight:700;border-radius:8px;border:none;text-align:center;">
-        <span style="color:#fff;font-size:15px;">mm</span>
-      </div>
-      <div style="display:flex;gap:10px;">
-        <button id="p2-hole-ok" style="padding:10px 24px;border-radius:10px;border:none;cursor:pointer;background:#3498DB;color:#fff;font-size:16px;font-weight:700;">완료</button>
-        <button class="p2c" style="padding:10px 18px;border-radius:10px;border:none;cursor:pointer;background:#888;color:#fff;">취소</button>
-      </div>`;
-    document.body.appendChild(ov);
-    document.getElementById('p2-hole-ok').addEventListener('click', () => {
-      const val = parseInt(document.getElementById('p2-hole').value);
-      environment_flags.birdHoleSize = val;
-      document.body.removeChild(ov);
-      console.log('[Phase2] 입력 구멍 크기:', val, 'mm');
-      if (val === 28) {
-        this._birdHouseDone = true;
-        if (this.birdHouseMesh) this.birdHouseMesh.material.color.setHex(0x27AE60);
-        toast('🐦 딱 맞아요! 박새 가족이 입주했어요!');
-        console.log('[Phase2] 박새 입주 성공 (28mm)');
-        if (typeof showEcoPopup === 'function') showEcoPopup('🐦🏠', '딱 맞는 구멍!<br>박새 가족이 입주했어요!');
-      } else {
-        toast(val < 28
-          ? `⚠️ 구멍이 너무 작아요 (${val}mm). 박새가 들어가지 못해요!`
-          : `⚠️ 구멍이 너무 커요 (${val}mm). 다른 새가 침입할 수 있어요!`);
-      }
-    });
-    ov.querySelector('.p2c').addEventListener('click', () => document.body.removeChild(ov));
-  },
-
   _onNestZoneClick() {
     if (phase2_conditions.nestBuilt) { toast('🪺 이미 둥지가 완성됐어요!'); return; }
     if (!environment_flags.hasMud) {
@@ -1090,6 +1044,7 @@ const Phase2System = {
         showPhaseTransition(3);
         setTimeout(() => {
           Level1Manager.currentPhase = 3;
+          advancePhase(3);
           QuestManager.updateUI();
           Phase3System.init();
         }, 2500);
@@ -1159,8 +1114,11 @@ const Phase3System = {
     this.sheepMesh.traverse(c => { if (c.isMesh) c.userData.isSheep = true; });
     scene.add(this.sheepMesh);
 
-    this.shadeMesh = this._sprite('☂️', sx + 1.5, sy, sz, { isShadeZone: true });
-    this.strawMesh = this._sprite('🌾', sx + 3, sy, sz, { isStrawZone: true });
+    // 그늘 = 고목나무(8,8) 바로 옆, 볏짚 = 그 근처
+    const shx = 7, shz = 8;
+    this.shadeMesh = this._sprite('🌳', shx, getVisualTopY(shx, shz), shz, { isShadeZone: true });
+    const stx = 5, stz = 8;
+    this.strawMesh = this._sprite('🌾', stx, getVisualTopY(stx, stz), stz, { isStrawZone: true });
   },
 
   _initHorseZone() {
@@ -1184,7 +1142,7 @@ const Phase3System = {
     scene.add(this.goatMesh);
 
     const rx = gx + 2, rz = gz, ry = getVisualTopY(rx, rz);
-    this.rockMesh = this._box(0.8, 2.0, 0.8, 0x777777, rx, ry + 1.0, rz, { isRock3: true });
+    this.rockMesh = this._box(1.5, 1.0, 1.5, 0x888888, rx, ry + 0.5, rz, { isRock3: true });
   },
 
   getAllMeshes() {
@@ -1211,7 +1169,7 @@ const Phase3System = {
     if (this._sheepOnStraw) { this._showFirstAidPopup(); return; }
     this._sheepSelected = true;
     this.sheepMesh.traverse(c => { if (c.isMesh && c.material) { c.material = c.material.clone(); c.material.emissive = new THREE.Color(0x664400); c.material.emissiveIntensity = 0.6; } });
-    toast('🐑 양을 선택했어요! 노란색 화살표가 가리키는 회색 블록(그늘)을 클릭하세요!');
+    toast('🐑 양을 선택했어요! 고목나무 근처 ☂️ 그늘 표시를 클릭하세요!');
   },
 
   _onShadeZoneClick() {
@@ -1220,7 +1178,7 @@ const Phase3System = {
     this.shadeMesh.material.color.setHex(0xBBBBBB);
     this._sheepSelected = false;
     this.sheepMesh.traverse(c => { if (c.isMesh && c.material) c.material.emissiveIntensity = 0; });
-    toast('🐑 시원한 그늘로 왔어요! 양을 다시 클릭해서 노란색 화살표가 가리키는 볏짚으로 데려가세요!');
+    toast('🐑 시원한 그늘로 왔어요! 양을 다시 클릭해서 🌾 볏짚 표시를 클릭하세요!');
   },
 
   _onStrawZoneClick() {
@@ -1320,10 +1278,10 @@ const Phase3System = {
     this.escapeSpheres = [];
     const gx = this.goatMesh ? this.goatMesh.position.x : 14;
     const gz = this.goatMesh ? this.goatMesh.position.z : 7;
-    const gy = getTopY(Math.round(gx), Math.round(gz));
     [{ dx: -2, dz: 1 }, { dx: 1, dz: 2 }, { dx: 2, dz: -1 }].forEach(({ dx, dz }) => {
       const m = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8), new THREE.MeshLambertMaterial({ color: 0x00AAFF }));
-      m.position.set(gx + dx, gy + 0.6, gz + dz);
+      const sy = getTopY(Math.round(gx + dx), Math.round(gz + dz));
+      m.position.set(gx + dx, sy + 0.6, gz + dz);
       m.castShadow = true;
       m.userData = { isEscapeSphere: true };
       scene.add(m);
@@ -1359,7 +1317,7 @@ const Phase3System = {
     if (!this._goatSelected) { toast('⚠️ 노란색 화살표가 가리키는 염소를 먼저 클릭하세요!'); return; }
     if (phase3_conditions.goatClimbed) return;
     phase3_conditions.goatClimbed = true;
-    this.goatMesh.position.set(this.rockMesh.position.x, this.rockMesh.position.y + 1.1, this.rockMesh.position.z);
+    this.goatMesh.position.set(this.rockMesh.position.x, this.rockMesh.position.y + 0.55, this.rockMesh.position.z);
     this.goatMesh.traverse(c => { if (c.isMesh && c.material) c.material.emissiveIntensity = 0; });
     this._goatSelected = false;
     toast('🐐 염소가 바위 위로 올라갔어요!');
@@ -1420,10 +1378,9 @@ function checkSwallowCondition() {
 function checkSheepCondition() {
   if (global_protectors.sheep) return;
   const treeOk = tree_state === 'bloomed' || phase2_conditions.treeBlooming;
-  const strawCnt = Object.values(gridData).filter(t => t === 'straw').length;
   const sheepHealed = phase3_conditions.sheepHealed;
-  console.log(`[Condition] 양 — treeBloomed:${treeOk}, straw:${strawCnt}, healed:${sheepHealed}`);
-  if (treeOk && strawCnt >= 1 && sheepHealed) {
+  console.log(`[Condition] 양 — treeBloomed:${treeOk}, healed:${sheepHealed}`);
+  if (treeOk && sheepHealed) {
     global_protectors.sheep = true;
     if (typeof GuardianSystem !== 'undefined') GuardianSystem.updateState('sheep', 3);
     console.log('[Condition] 🐑 양 영입 완료!');
