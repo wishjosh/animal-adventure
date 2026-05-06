@@ -277,7 +277,7 @@ function saveGame(){
   const userGrid={};
   for(const[k,v] of Object.entries(gridData)) if(!terrainSet.has(v)) userGrid[k]=v;
   const data={
-    v:13, chunks:activeList, grid:userGrid, deleted:Array.from(deletedBlocks),
+    v:14, chunks:activeList, grid:userGrid, deleted:Array.from(deletedBlocks),
     animals:animalData.map(({type,x,y,z,isInjured,angle})=>({type,x,y,z,isInjured,angle})),
     currentLevel: currentLevel,
     themeComplete:Level1Manager.themeComplete,
@@ -296,7 +296,17 @@ function saveGame(){
       aphidTarget: AphidSystem.targetPlant,
       toxicRemoved: ToxicPlantSystem.removed
     },
-    guardianState: guardianState
+    guardianState: guardianState,
+    // ── state.js 레벨 1 신규 상태 ──
+    level1State: {
+      level_phase,
+      yellow_orbs_collected,
+      toxic_plants_removed,
+      companion_plants_status: { ...companion_plants_status },
+      leaves_collected,
+      tree_state,
+      global_protectors: { ...global_protectors }
+    }
   };
   try{
     const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
@@ -356,6 +366,19 @@ function onFileSelected(e){
         guardianState = data.guardianState;
       }
 
+      // ── state.js 레벨 1 신규 상태 복원 ──
+      if (data.level1State) {
+        const s = data.level1State;
+        level_phase                = s.level_phase               ?? 0;
+        yellow_orbs_collected      = s.yellow_orbs_collected      ?? 0;
+        toxic_plants_removed       = s.toxic_plants_removed       ?? false;
+        Object.assign(companion_plants_status, s.companion_plants_status ?? {});
+        leaves_collected           = s.leaves_collected           ?? 0;
+        tree_state                 = s.tree_state                 ?? 'withered';
+        Object.assign(global_protectors,       s.global_protectors       ?? {});
+      }
+      updateProtectorSlots();
+
       // phaseComplete[1]=true인데 currentPhase가 1에 머문 경우 자동 보정
       if (Level1Manager.currentPhase === 1 && Level1Manager.phaseComplete[1]) {
         Level1Manager.currentPhase = 2;
@@ -385,11 +408,25 @@ function clearAll(silent=false){
   Level1Manager.injuredHealedCount=0;
   Level1Manager.phase1State={ toxicRemoved:false, tomatoFruited:false, wormDone:false, treeGrowing:false };
   OldTree.chopCount=0; OldTree.state='withered';
-  
+
   Object.keys(guardianState).forEach(k => guardianState[k] = 0);
   ClueSystem.clues.forEach(c=>c.found=false);
   LeafSystem.meshes.forEach(m=>scene.remove(m));
   LeafSystem.meshes=[]; LeafSystem.collected=0;
+
+  // ── state.js 레벨 1 신규 상태 초기화 ──
+  level_phase               = 0;
+  yellow_orbs_collected     = 0;
+  toxic_plants_removed      = false;
+  companion_plants_status.tomato  = false;
+  companion_plants_status.basil   = false;
+  companion_plants_status.watered = false;
+  leaves_collected          = 0;
+  tree_state                = 'withered';
+  global_protectors.bee     = false;
+  global_protectors.swallow = false;
+  global_protectors.sheep   = false;
+  updateProtectorSlots();
   if(!silent) {
     initWorld(); QuestManager.updateUI(); QuestManager.check();
     toast('🗑️ 처음으로 돌아갔어요');
@@ -413,8 +450,271 @@ window.goPhase = function(n) {
   for(let i = 1; i < n; i++) Level1Manager.phaseComplete[i] = true;
   Level1Manager.phase1State = { toxicRemoved:true, tomatoFruited:true, wormDone:true, treeGrowing:true };
   Level1Manager.currentPhase = n;
+  // ── state.js 동기화 ──
+  level_phase = n;
+  if (n >= 1) { toxic_plants_removed = true; yellow_orbs_collected = 4; }
+  if (n >= 2) { companion_plants_status.tomato = true; companion_plants_status.basil = true; }
+  if (n >= 3) { leaves_collected = 5; tree_state = 'withered'; }
+  if (n >= 4) { tree_state = 'bloomed'; }
+  // ─────────────────────
   if(n === 2) Phase2System.init();
   else if(n >= 3) { Phase2System._clearAll(); Phase3System.init(); }
   QuestManager.updateUI();
+  updateProtectorSlots();
   toast(`🔧 페이즈 ${n}로 이동했어요 (개발자 모드)`);
 };
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  레벨 1 UI 함수
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * data.js의 encyclopediaCards에서 카드를 불러와 화면 중앙에 팝업한다.
+ * 블록 또는 생물 클릭 시 트리거된다.
+ *
+ * @param {string} cardId - encyclopediaCards의 키 (예: 'honeybee', 'ancient_tree')
+ */
+function showEncyclopediaCard(cardId) {
+  const card = encyclopediaCards[cardId];
+  if (!card) {
+    console.warn(`[UI] showEncyclopediaCard: cardId '${cardId}' 없음`);
+    return;
+  }
+
+  // 기존 팝업이 있으면 제거
+  const existing = document.getElementById('encyclopedia-popup');
+  if (existing) document.body.removeChild(existing);
+
+  const ov = document.createElement('div');
+  ov.id = 'encyclopedia-popup';
+  ov.style.cssText = [
+    'position:fixed', 'top:0', 'left:0', 'right:0', 'bottom:0',
+    'background:rgba(0,0,0,0.70)', 'z-index:95',
+    'display:flex', 'align-items:center', 'justify-content:center'
+  ].join(';');
+
+  ov.innerHTML = `
+    <div style="
+      background:linear-gradient(160deg,#1a2a1a,#0d1a0d);
+      border:2px solid #4caf50; border-radius:20px;
+      padding:28px 32px; max-width:360px; width:90%;
+      box-shadow:0 8px 40px rgba(0,0,0,0.7);
+      font-family:sans-serif; color:#fff; text-align:center;
+    ">
+      <div style="font-size:52px; margin-bottom:10px;">${card.icon}</div>
+      <div style="font-size:20px; font-weight:900; color:#a5d6a7; margin-bottom:12px;">${card.title}</div>
+      <div style="font-size:14px; line-height:1.7; color:rgba(255,255,255,0.85); margin-bottom:16px;">${card.body}</div>
+      <div style="
+        background:rgba(76,175,80,0.15); border:1px solid rgba(76,175,80,0.4);
+        border-radius:10px; padding:10px 14px;
+        font-size:13px; color:#c8e6c9; line-height:1.6;
+      ">💡 ${card.tip}</div>
+      <button id="enc-close" style="
+        margin-top:18px; padding:10px 28px;
+        background:#4caf50; color:#fff; font-weight:700; font-size:15px;
+        border:none; border-radius:10px; cursor:pointer;
+      ">닫기</button>
+    </div>
+  `;
+
+  document.body.appendChild(ov);
+  document.getElementById('enc-close').addEventListener('click', () => {
+    document.body.removeChild(ov);
+  });
+  // 배경 클릭으로도 닫기
+  ov.addEventListener('click', (e) => {
+    if (e.target === ov) document.body.removeChild(ov);
+  });
+
+  console.log(`[UI] showEncyclopediaCard('${cardId}') 표시`);
+}
+
+/**
+ * 지렁이 부활 HTML 미니게임 오버레이를 표시한다.
+ * systems.js의 WormMinigame.start()를 호출하는 래퍼 함수.
+ * ui.js에서 LeafSystem.placeOnSoil() → WormMinigame 순서를 대체할 수도 있다.
+ *
+ * @param {number} centerX - 고목나무 밑동 X 좌표
+ * @param {number} centerZ - 고목나무 밑동 Z 좌표
+ * @returns {Promise<boolean>} 미니게임 클리어 여부
+ */
+function startWormMinigame(centerX = 8, centerZ = 8) {
+  return new Promise((resolve) => {
+    // systems.js의 WormMinigame이 이미 오버레이를 관리함
+    if (typeof WormMinigame !== 'undefined') {
+      WormMinigame.start(centerX, centerZ);
+      // WormMinigame.complete() 이후 'wormComplete' 커스텀 이벤트로 결과를 수신
+      const handler = () => {
+        document.removeEventListener('wormComplete', handler);
+        resolve(true);
+      };
+      document.addEventListener('wormComplete', handler, { once: true });
+    } else {
+      console.warn('[UI] startWormMinigame: WormMinigame 없음 — 폴백 사용');
+      resolve(false);
+    }
+  });
+}
+
+/**
+ * 수호대가 영입될 때마다 화면 하단의 슬롯 아이콘을 활성화 상태로 변경한다.
+ * systems.js의 global_protectors 변경 후 호출한다.
+ * HTML에 id="protector-slot-bee", "protector-slot-swallow", "protector-slot-sheep" 요소가 있어야 한다.
+ */
+function updateProtectorSlots() {
+  const slotMap = {
+    bee:     { id: 'protector-slot-bee',     emoji: '🐝', label: '꿀벌' },
+    swallow: { id: 'protector-slot-swallow', emoji: '🐦', label: '제비' },
+    sheep:   { id: 'protector-slot-sheep',   emoji: '🐑', label: '양'   }
+  };
+
+  for (const [key, cfg] of Object.entries(slotMap)) {
+    const el = document.getElementById(cfg.id);
+    if (!el) continue;
+
+    const joined = global_protectors[key] === true;
+    el.classList.toggle('slot-active', joined);
+    el.classList.toggle('slot-inactive', !joined);
+    el.title = joined ? `${cfg.emoji} ${cfg.label} 합류 완료!` : `${cfg.emoji} ${cfg.label} (미합류)`;
+
+    if (joined) {
+      // 합류 시 팡파레 효과: 슬롯 테두리 펄스
+      el.style.animation = 'none';
+      requestAnimationFrame(() => {
+        el.style.animation = 'protector-join-pulse 0.6s ease-out 2';
+      });
+    }
+  }
+
+  // 전원 합류 시 클리어 배너 표시
+  const allJoined = Object.values(global_protectors).every(v => v === true);
+  const clearBanner = document.getElementById('protector-clear-banner');
+  if (clearBanner) clearBanner.style.display = allJoined ? 'flex' : 'none';
+
+  console.log('[UI] updateProtectorSlots() — bee:', global_protectors.bee,
+    '| swallow:', global_protectors.swallow, '| sheep:', global_protectors.sheep);
+}
+
+// level1Cleared 이벤트 수신 → UI 슬롯 갱신
+document.addEventListener('level1Cleared', () => {
+  updateProtectorSlots();
+  toast('🎉 초록 마을의 수호대가 모두 모였어요!');
+});
+
+// global_protectors 변경을 감지하기 위한 Proxy 래퍼 설정
+// (state.js 로드 후 실행되므로 DOMContentLoaded 시점에 등록)
+document.addEventListener('DOMContentLoaded', () => {
+  // phaseAdvanced 이벤트 수신 → 수호대 슬롯 UI 갱신
+  document.addEventListener('phaseAdvanced', () => updateProtectorSlots());
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  NPC 대사 팝업
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * data.js의 npcDialogues에서 대사를 불러와 화면에 단계적으로 표시한다.
+ * 기존 grandma-popup 요소를 재활용하거나, 독립 오버레이를 생성한다.
+ *
+ * @param {string} phaseKey - npcDialogues의 키 (예: 'phase0_intro', 'phase1_complete')
+ * @param {Object} [opts]
+ * @param {number}  [opts.autoClose=5000]  - ms 후 자동 닫힘 (0이면 수동)
+ * @param {boolean} [opts.useExisting=true] - grandma-popup 재활용 여부
+ */
+function showNpcDialogue(phaseKey, opts = {}) {
+  const dialogue = npcDialogues[phaseKey];
+  if (!dialogue) {
+    console.warn(`[UI] showNpcDialogue: phaseKey '${phaseKey}' 없음`);
+    return;
+  }
+
+  const { autoClose = 5000, useExisting = true } = opts;
+
+  // grandma-popup 재활용 시도
+  if (useExisting) {
+    const gpop = document.getElementById('grandma-popup');
+    const gtxt = document.getElementById('grandma-text');
+    if (gpop && gtxt) {
+      gtxt.innerHTML = dialogue.lines.join('<br>');
+      gpop.style.display = 'block';
+      if (autoClose > 0) {
+        clearTimeout(gpop._npcTimer);
+        gpop._npcTimer = setTimeout(() => { gpop.style.display = 'none'; }, autoClose);
+      }
+      console.log(`[UI] showNpcDialogue('${phaseKey}') — grandma-popup 사용`);
+      return;
+    }
+  }
+
+  // grandma-popup 없으면 독립 오버레이 생성
+  const existing = document.getElementById('npc-dialogue-popup');
+  if (existing) document.body.removeChild(existing);
+
+  const ov = document.createElement('div');
+  ov.id = 'npc-dialogue-popup';
+  ov.style.cssText = [
+    'position:fixed', 'bottom:160px', 'left:50%', 'transform:translateX(-50%)',
+    'z-index:60', 'max-width:380px', 'width:90%',
+    'background:linear-gradient(160deg,rgba(20,40,20,0.97),rgba(10,25,10,0.97))',
+    'border:2px solid rgba(76,175,80,0.6)', 'border-radius:18px',
+    'padding:18px 22px', 'font-family:sans-serif', 'color:#fff',
+    'box-shadow:0 6px 30px rgba(0,0,0,0.6)',
+    'animation:fadeInUp 0.35s ease-out'
+  ].join(';');
+
+  // 대사를 한 줄씩 순차 표시하는 타이핑 효과
+  let lineIdx = 0;
+  const renderLine = () => {
+    const line = dialogue.lines[lineIdx] || '';
+    ov.innerHTML = `
+      <div style="display:flex;gap:10px;align-items:flex-start;">
+        <div style="font-size:28px;flex-shrink:0;">👵</div>
+        <div>
+          <div style="font-size:11px;color:#a5d6a7;font-weight:700;margin-bottom:4px;">${dialogue.speaker}</div>
+          <div style="font-size:14px;line-height:1.7;color:rgba(255,255,255,0.92);">${line}</div>
+          ${lineIdx < dialogue.lines.length - 1
+            ? `<div style="text-align:right;margin-top:8px;">
+                <button id="npc-next-btn" style="
+                  padding:5px 14px;background:rgba(76,175,80,0.25);
+                  border:1px solid #4caf50;border-radius:8px;
+                  color:#a5d6a7;font-size:12px;cursor:pointer;">다음 ▶</button>
+               </div>`
+            : `<div style="text-align:right;margin-top:8px;font-size:10px;color:rgba(255,255,255,0.4);">클릭하면 닫힙니다</div>`
+          }
+        </div>
+      </div>
+    `;
+    const nextBtn = document.getElementById('npc-next-btn');
+    if (nextBtn) {
+      nextBtn.addEventListener('click', () => { lineIdx++; renderLine(); });
+    }
+  };
+  renderLine();
+
+  document.body.appendChild(ov);
+  ov.addEventListener('click', (e) => {
+    if (e.target === ov || lineIdx >= dialogue.lines.length - 1) {
+      if (ov.parentNode) document.body.removeChild(ov);
+    }
+  });
+
+  if (autoClose > 0) {
+    setTimeout(() => { if (ov.parentNode) document.body.removeChild(ov); }, autoClose + dialogue.lines.length * 3000);
+  }
+
+  console.log(`[UI] showNpcDialogue('${phaseKey}') — 독립 팝업 생성`);
+}
+
+// phaseAdvanced 이벤트 수신 → 페이즈별 할머니 대사 자동 표시
+document.addEventListener('phaseAdvanced', (e) => {
+  const phaseDialogueMap = {
+    1: 'phase1_start',
+    2: 'phase2_start',
+    3: 'phase3_start',
+    4: 'phase4_bloom'
+  };
+  const key = phaseDialogueMap[e.detail?.next];
+  if (key) {
+    setTimeout(() => showNpcDialogue(key, { autoClose: 6000 }), 800);
+  }
+});
