@@ -380,6 +380,8 @@ function _place(x,y,z,type){
   if(gridData[k]){if(meshByKey[k])scene.remove(meshByKey[k]);delete meshByKey[k];delete gridData[k];}
   gridData[k]=type; const mesh=buildMesh(type,x,y,z); if(mesh){meshByKey[k]=mesh;scene.add(mesh);}
   deletedBlocks.delete(k);
+  // ── 수호대 조건 리스너 훅 ──
+  if (typeof onBlockPlaced === 'function') onBlockPlaced(type);
 }
 
 function placeBlock(x,y,z,type){
@@ -565,3 +567,262 @@ function updateDefaultAnimal(a,t){
   a.y+=(aheadY-a.y)*0.25;
   a.group.position.set(a.x,a.y+Math.sin(t*2.5+a.x)*0.06,a.z); a.group.rotation.y=a.angle; a.group.rotation.z=0;
 }
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  레벨 1 렌더링 / 애니메이션 함수
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * 고목나무를 살린다.
+ * 메마른 복셀을 녹색 잎 복셀으로 교체하고 영양분 파티클를 재생한다.
+ * 나무 바로 밑에 '그늘 블록'(t_low)을 자동 생성한다.
+ * state.js의 OldTree.updateParticles() 종료 시 호출된다.
+ */
+function bloomTree() {
+  if (!OldTree.group) return;
+
+  // 1) 잎 색상 전환: 회색 → 비으는 녹색
+  OldTree.leaves.forEach((leaf, i) => {
+    const delay = i * 120;
+    setTimeout(() => {
+      if (leaf.material) {
+        leaf.material.color.setHex(0x228B22);
+        leaf.material.needsUpdate = true;
+      }
+    }, delay);
+  });
+
+  // 2) 가지 각도 회복
+  OldTree.branches.forEach(b => { b.rotation.z = 0.2; });
+
+  // 3) 과일 표시
+  OldTree.fruits.forEach(f => { f.visible = true; });
+
+  // 4) 나무 바로 밑 그늘 블록 생성 (3x3 범위)
+  const tx = Math.round(OldTree.group.position.x);
+  const tz = Math.round(OldTree.group.position.z);
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dz = -1; dz <= 1; dz++) {
+      const sx = tx + dx, sz = tz + dz;
+      const sy = getTopY(sx, sz);
+      if (sy >= 0) _place(sx, sy, sz, 't_low'); // 그늘 효과를 위한 풍부한 풀 바닥
+    }
+  }
+
+  // 5) 복수 녀욕한 녹색 파티클 이펜트
+  const basePos = OldTree.group.position;
+  for (let i = 0; i < 20; i++) {
+    const geo = new THREE.SphereGeometry(0.08, 4, 4);
+    const mat = new THREE.MeshBasicMaterial({ color: 0x90EE90, transparent: true, opacity: 0.9 });
+    const p = new THREE.Mesh(geo, mat);
+    p.position.set(
+      basePos.x + (Math.random() - 0.5) * 3,
+      basePos.y + 1 + Math.random() * 2,
+      basePos.z + (Math.random() - 0.5) * 3
+    );
+    scene.add(p);
+    const startY = p.position.y;
+    let elapsed = 0;
+    const ticker = setInterval(() => {
+      elapsed += 60;
+      p.position.y = startY + elapsed * 0.002;
+      p.material.opacity -= 0.025;
+      if (p.material.opacity <= 0) { clearInterval(ticker); scene.remove(p); }
+    }, 60);
+  }
+
+  console.log('[World] 🌳 bloomTree() 실행 — 그늘 블록 생성 완료');
+}
+
+/**
+ * 무당볼레를 생성하고 진딧물 파티클을 종료한다.
+ * CompanionPlant 승리 시 systems.js의 LadybugSystem.summon()에서 호출된다.
+ * 이미 LadybugSystem이 모델을 관리하므로 이 함수는 AphidSystem을 정리하는 래퍼로 동작한다.
+ */
+function spawnLadybugAndClearAphids() {
+  // AphidSystem 파티클 메쉬 정리
+  if (typeof AphidSystem !== 'undefined') {
+    AphidSystem.meshes.forEach(m => scene.remove(m));
+    AphidSystem.meshes = [];
+    AphidSystem.active = false;
+  }
+
+  // 무당볼레 대신 화려한 빨간 파티클 이펜트 (LadybugSystem이 3D 모델을 이미 취급)
+  if (typeof LadybugSystem !== 'undefined' && LadybugSystem.mesh) {
+    const pos = LadybugSystem.mesh.position.clone();
+    for (let i = 0; i < 8; i++) {
+      const geo = new THREE.SphereGeometry(0.06, 4, 4);
+      const mat = new THREE.MeshBasicMaterial({ color: 0xFF4444, transparent: true, opacity: 1.0 });
+      const p = new THREE.Mesh(geo, mat);
+      p.position.set(pos.x + (Math.random() - 0.5), pos.y + Math.random() * 0.5, pos.z + (Math.random() - 0.5));
+      scene.add(p);
+      let e = 0;
+      const t = setInterval(() => {
+        e += 60; p.position.y += 0.015; p.material.opacity -= 0.04;
+        if (p.material.opacity <= 0) { clearInterval(t); scene.remove(p); }
+      }, 60);
+    }
+  }
+  console.log('[World] 🐞 spawnLadybugAndClearAphids() 실행 — 진딧물 제거 완료');
+}
+
+/**
+ * 말 NPC를 화면 바깥 시작점에서 풍반 지정 위치로 이동시킨다.
+ * 페이즈 3에서 타이타니음(Phase3System):
+ * horseSpace === true 후 QuestManager.check()가 호출할 수 있도록 설계.
+ *
+ * @param {{ x:number, z:number }} targetPos - 도착 위치
+ */
+function animateHorseReturn(targetPos = { x: 10, z: 3 }) {
+  // Phase3System에서 타는 말 메시 활용
+  const horse = (typeof Phase3System !== 'undefined') ? Phase3System.horseMesh : null;
+  if (!horse) {
+    console.warn('[World] animateHorseReturn: horseMesh 없음');
+    return;
+  }
+
+  // 화면 외부에서 시작
+  horse.position.set(targetPos.x - 30, horse.position.y, targetPos.z);
+  scene.add(horse);
+
+  const targetY = getVisualTopY(targetPos.x, targetPos.z);
+  const startTime = Date.now();
+  const DURATION = 3000; // ms
+
+  const tick = setInterval(() => {
+    const prog = Math.min((Date.now() - startTime) / DURATION, 1);
+    const ease = 1 - Math.pow(1 - prog, 3); // easeOutCubic
+
+    horse.position.x = (targetPos.x - 30) + ease * 30;
+    horse.position.y = targetY + Math.abs(Math.sin(prog * Math.PI * 6)) * 0.3; // 말 발바닥 리듬
+    horse.position.z = targetPos.z;
+    horse.rotation.y = -Math.PI / 2; // 오른쪽에서 들어오는 방향
+
+    if (prog >= 1) {
+      clearInterval(tick);
+      toast('💨 말이 달려있어요! 별들이 하나두 돌아오고 있어요~');
+      console.log('[World] animateHorseReturn() 에니메이션 완료');
+    }
+  }, 16);
+}
+
+/**
+ * 수호대 합류 연출을 재생한다.
+ * state.js의 checkLevel1Clear() 또는 global_protectors가 true로 설정될 때 호출한다.
+ *
+ * @param {'bee'|'swallow'|'sheep'} animalType - 합류 연출할 동물 종류
+ */
+function playProtectorJoinEffect(animalType) {
+  const config = {
+    bee:     { emoji: '🐝', color: 0xFFD700, spawnX: -5, spawnZ: 3,  targetX: 8, targetZ: 4,  msg: '🐝 꿀벌이 가든히 관리하던 벌집으로 돌아왔어요!' },
+    swallow: { emoji: '🐦', color: 0x4FC3F7, spawnX: 16, spawnZ: -5, targetX: 8, targetZ: 9,  msg: '🐦 제비가 시녀한 진흙 둥지를 짐고 돌아왔어요!' },
+    sheep:   { emoji: '🐑', color: 0xE8E8E8, spawnX: -3, spawnZ: 10, targetX: 5, targetZ: 5,  msg: '🐑 양이 그늘지고 시원한 고목나무 아래로 옓삼밈습니다!' }
+  };
+  const cfg = config[animalType];
+  if (!cfg) return;
+
+  // 이모지 스프라이트로 동물 등장
+  const sprite = (typeof createEmojiSprite === 'function')
+    ? createEmojiSprite(cfg.emoji)
+    : new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), new THREE.MeshBasicMaterial({ color: cfg.color }));
+
+  const startY = getVisualTopY(cfg.spawnX, cfg.spawnZ) + 2;
+  sprite.position.set(cfg.spawnX, startY, cfg.spawnZ);
+  sprite.scale.set(2, 2, 1);
+  scene.add(sprite);
+
+  const startTime = Date.now();
+  const DURATION = 2800;
+  const targetY = getVisualTopY(cfg.targetX, cfg.targetZ) + 1.2;
+
+  const tick = setInterval(() => {
+    const prog = Math.min((Date.now() - startTime) / DURATION, 1);
+    const ease = 1 - Math.pow(1 - prog, 2); // easeOutQuad
+
+    sprite.position.x = cfg.spawnX + (cfg.targetX - cfg.spawnX) * ease;
+    sprite.position.z = cfg.spawnZ + (cfg.targetZ - cfg.spawnZ) * ease;
+    sprite.position.y = startY + (targetY - startY) * ease + Math.sin(prog * Math.PI * 4) * 0.5;
+
+    if (prog >= 1) {
+      clearInterval(tick);
+      // 화려한 파티클 발사
+      for (let i = 0; i < 12; i++) {
+        const geo = new THREE.SphereGeometry(0.12, 4, 4);
+        const mat = new THREE.MeshBasicMaterial({ color: cfg.color, transparent: true, opacity: 1.0 });
+        const p = new THREE.Mesh(geo, mat);
+        const angle = (i / 12) * Math.PI * 2;
+        p.position.set(
+          cfg.targetX + Math.cos(angle) * 1.5,
+          targetY + 0.5,
+          cfg.targetZ + Math.sin(angle) * 1.5
+        );
+        scene.add(p);
+        let e = 0;
+        const t = setInterval(() => {
+          e += 60; p.position.y += 0.04; p.material.opacity -= 0.04;
+          if (p.material.opacity <= 0) { clearInterval(t); scene.remove(p); }
+        }, 60);
+      }
+      toast(cfg.msg);
+      console.log(`[World] playProtectorJoinEffect('${animalType}') 완료`);
+      // 2초 후 스프라이트 정리
+      setTimeout(() => scene.remove(sprite), 2000);
+    }
+  }, 16);
+}
+
+/**
+ * 레벨 1 클리어 시 맵의 안개(Fog)를 조정하여
+ * '다양성의 숲' 구역을 시각적으로 해금한다.
+ * state.js의 checkLevel1Clear()에서 'level1Cleared' 이벤트를 수신하면 호출.
+ */
+function clearLevelFog() {
+  if (!scene.fog) {
+    console.warn('[World] clearLevelFog: scene.fog가 없음 — 파라미터 조정 볼수 없음');
+    return;
+  }
+
+  const STEPS = 60;
+  let step = 0;
+  const initFar  = scene.fog.far  ?? 120;
+  const initNear = scene.fog.near ?? 50;
+  const targetFar  = 300;
+  const targetNear = 150;
+
+  const tick = setInterval(() => {
+    step++;
+    const t = step / STEPS;
+    scene.fog.near = initNear + (targetNear - initNear) * t;
+    scene.fog.far  = initFar  + (targetFar  - initFar)  * t;
+
+    if (step >= STEPS) {
+      clearInterval(tick);
+      // 다양성의 숲 구역 프리븷 청크 시각화 (현재 비활성 청크 로드)
+      const diversityForest = BIOME_CONFIG.diversity_forest;
+      if (diversityForest) {
+        const fx = Math.floor(diversityForest.centerX / CHUNK);
+        const fz = Math.floor(diversityForest.centerZ / CHUNK);
+        if (chunkState[ck(fx, fz)] !== 'active') {
+          chunkState[ck(fx, fz)] = 'visible';
+          bldPreview(fx, fz);
+        }
+      }
+      console.log('[World] clearLevelFog() 완료 — 다양성의 숲 해금');
+      toast('🌟 다양성의 숲 구역이 해금되었어요!');
+    }
+  }, 50); // ~3초 전환
+}
+
+// 레벨 1 클리어 이벤트 수신 등록
+document.addEventListener('level1Cleared', () => {
+  console.log('[World] level1Cleared 이벤트 수신 — clearLevelFog() 호출');
+  clearLevelFog();
+});
+
+// phaseAdvanced 이벤트 수신: Phase 4 시작 시 bloomTree() 자동 호출
+document.addEventListener('phaseAdvanced', (e) => {
+  if (e.detail && e.detail.next === 4) {
+    console.log('[World] Phase 4 시작 — bloomTree() 호출');
+    setTimeout(() => bloomTree(), 2600); // 지령이 미니게임 종료 후
+  }
+});
