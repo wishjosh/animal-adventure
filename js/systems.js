@@ -39,6 +39,9 @@ const ClueSystem = {
     if (clue && !clue.found) {
       clue.found = true;
       this.foundCount++;
+      // ── state.js 동기화 ──
+      yellow_orbs_collected = this.foundCount;
+      // ────────────────────
       if (clue.mesh) { scene.remove(clue.mesh); clue.mesh = null; }
       CreatureReport.show(clue.id);
       toast(`🔍 ${clue.emoji} 단서를 찾았어요! (${this.foundCount}/4)`);
@@ -90,6 +93,10 @@ const ToxicPlantSystem = {
     toast(`🗑️ 독성 식물 제거 (${this.removed}/${this.locations.length})`);
     if (this.removed >= this.locations.length) {
       Level1Manager.phase1State.toxicRemoved = true;
+      // ── state.js 동기화 ──
+      toxic_plants_removed = true;
+      if (level_phase === 1) advancePhase(2);
+      // ────────────────────
       if (typeof showEcoPopup === 'function') showEcoPopup('🌼❌', '나쁜 노란 꽃을 뽑아<br>동물 친구들이 안전해졌어요!');
       QuestManager.check();
       setTimeout(() => toast('✅ 꽃 뽑기 완료! 다음: 토마토(🍅)와 바질(🌿) 씨앗을 나란히 심어주세요!'), 3500);
@@ -125,6 +132,9 @@ const LeafSystem = {
     scene.remove(mesh);
     this.meshes = this.meshes.filter(m => m !== mesh);
     this.collected++;
+    // ── state.js 동기화 ──
+    leaves_collected = this.collected;
+    // ────────────────────
     toast(`🍂 낙엽 수집 (${this.collected}/${this.needed})`);
     if (this.collected >= this.needed) {
       toast('🍂 낙엽을 충분히 모았어요! 고목나무 주변 흙에 덮어주세요!');
@@ -136,6 +146,8 @@ const LeafSystem = {
       toast(`⚠️ 낙엽이 부족해요! (${this.collected}/${this.needed})`);
       return false;
     }
+    // Phase 3 → Phase 4 이행
+    if (level_phase === 3) advancePhase(4);
     WormMinigame.start(x, z);
     return true;
   }
@@ -235,6 +247,8 @@ const WormMinigame = {
     // 나무 회복 안내
     setTimeout(() => toast('✅ 지렁이 완료! 영양분이 나무 뿌리로 흐르고 있어요... 🌳'), 2600);
     setTimeout(() => toast('🌳 나무 할아버지가 스스로 깨어나고 있어요! 잠시만 기다리세요...'), 5000);
+    // ── ui.js의 startWormMinigame() Promise 해제 신호 ──
+    document.dispatchEvent(new CustomEvent('wormComplete'));
   }
 };
 
@@ -338,8 +352,14 @@ const CompanionPlant = {
         setTimeout(() => {
           if (plantType === 'tomato') {
             _place(x, y, z, 'plant_tomato_fruit');
+            // ── state.js 동기화 ──
+            companion_plants_status.tomato = true;
+            // ────────────────────
           } else if (pair.partner === 'tomato') {
             _place(nx, ny, nz, 'plant_tomato_fruit');
+            // ── state.js 동기화 ──
+            companion_plants_status.basil = true;
+            // ────────────────────
           }
           toast(pair.bonus);
           Level1Manager.phase1State.tomatoFruited = true;
@@ -450,6 +470,9 @@ const Level1Manager = {
 
   advance() {
     this.currentPhase++;
+    // ── state.js 동기화 ──
+    advancePhase(this.currentPhase);
+    // ────────────────────
     toast(`새로운 퀘스트(페이즈 ${this.currentPhase})가 시작되었습니다!`);
     this.updateUI();
     showPhaseTransition(this.currentPhase);
@@ -599,8 +622,13 @@ const OldTree = {
     if (elapsed > 2200) {
       this._particles.forEach(p => scene.remove(p));
       this._particles = [];
-      this.setState('growing');
+      this.setState('blooming');
       Level1Manager.phase1State.treeGrowing = true;
+      // ── state.js 동기화 ──
+      tree_state = 'bloomed';
+      phase2_conditions.treeBlooming = true;
+      checkSheepCondition();
+      // ────────────────────
       if (typeof showEcoPopup === 'function') showEcoPopup('🌳✨', '주변 흙이 건강해져서<br>나무 할아버지가 살아났어요!');
       QuestManager.check();
       toast('🌳 고목나무에 잎이 돋아나고 있어요!');
@@ -965,6 +993,10 @@ const Phase2System = {
     console.log('[Phase2] hiveFull = true');
     if (typeof showEcoPopup === 'function') showEcoPopup('🌸🐝', '꿀벌이 돌아와<br>꽃가루를 날라요!');
     if (typeof GuardianSystem !== 'undefined') GuardianSystem.updateState('bee', 3);
+    // ── state.js 동기화 ──
+    global_protectors.bee = true;
+    checkLevel1Clear();
+    // ────────────────────
     this.check();
   },
 
@@ -1039,6 +1071,10 @@ const Phase2System = {
     console.log('[Phase2] nestBuilt = true');
     if (typeof showEcoPopup === 'function') showEcoPopup('💧🪺', '강물이 살아나<br>진흙으로 둥지를 지었어요!');
     if (typeof GuardianSystem !== 'undefined') GuardianSystem.updateState('swallow', 3);
+    // ── state.js 동기화 ──
+    global_protectors.swallow = true;
+    checkLevel1Clear();
+    // ────────────────────
     this.check();
   },
 
@@ -1214,6 +1250,9 @@ const Phase3System = {
       toast('💖 양이 치료되었어요! 건강을 되찾았어요!');
       console.log('[Phase3] sheepHealed = true');
       if (typeof showEcoPopup === 'function') showEcoPopup('🐑💖', '볏짚 위에서 쉬게 해주니<br>양이 건강해졌어요!');
+      // ── state.js 동기화 ──
+      checkSheepCondition();
+      // ────────────────────
       this.check();
     });
     ov.querySelector('.p3c').addEventListener('click', () => document.body.removeChild(ov));
@@ -1340,3 +1379,66 @@ const Phase3System = {
     }
   }
 };
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  수호대 조건 리스너 (state.js protectorConditions 기반)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * 꿀벌 영입 조건 검사.
+ * 맵에 꽃 블록(plant_clover / plant_sunflower)이 3개 이상이면 달성.
+ */
+function checkBeeCondition() {
+  if (global_protectors.bee) return;
+  const flowerTypes = protectorConditions.bee.conditions[0].blockTypes;
+  const count = Object.values(gridData).filter(t => flowerTypes.includes(t)).length;
+  console.log(`[Condition] 꿀벌 꽃 카운트: ${count}/3`);
+  if (count >= protectorConditions.bee.conditions[0].minCount) {
+    Phase2System._activateHive();
+  }
+}
+
+/**
+ * 제비 영입 조건 검사.
+ * hasMud === true 이고 eave 블록이 1개 이상이면 달성.
+ */
+function checkSwallowCondition() {
+  if (global_protectors.swallow) return;
+  const mudOk = environment_flags.hasMud;
+  const eaveCnt = Object.values(gridData).filter(t => t === 'eave').length;
+  console.log(`[Condition] 제비 — hasMud:${mudOk}, eave:${eaveCnt}`);
+  if (mudOk && eaveCnt >= 1) {
+    Phase2System._onNestZoneClick();
+  }
+}
+
+/**
+ * 양 영입 조건 검사.
+ * tree_state === 'bloomed' 이고 straw 블록이 1개 이상이며 양이 치료됐으면 달성.
+ */
+function checkSheepCondition() {
+  if (global_protectors.sheep) return;
+  const treeOk = tree_state === 'bloomed' || phase2_conditions.treeBlooming;
+  const strawCnt = Object.values(gridData).filter(t => t === 'straw').length;
+  const sheepHealed = phase3_conditions.sheepHealed;
+  console.log(`[Condition] 양 — treeBloomed:${treeOk}, straw:${strawCnt}, healed:${sheepHealed}`);
+  if (treeOk && strawCnt >= 1 && sheepHealed) {
+    global_protectors.sheep = true;
+    if (typeof GuardianSystem !== 'undefined') GuardianSystem.updateState('sheep', 3);
+    console.log('[Condition] 🐑 양 영입 완료!');
+    checkLevel1Clear();
+  }
+}
+
+/**
+ * 블록이 설치될 때마다 수호대 조건을 재검사한다.
+ * world.js의 _place() 또는 SeedSystem.grow()에서 호출.
+ *
+ * @param {string} blockType - 설치된 블록 타입
+ */
+function onBlockPlaced(blockType) {
+  const flowerTypes = protectorConditions.bee.conditions[0].blockTypes;
+  if (flowerTypes.includes(blockType)) checkBeeCondition();
+  if (blockType === 'eave') checkSwallowCondition();
+  if (blockType === 'straw') checkSheepCondition();
+}
