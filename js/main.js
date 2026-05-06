@@ -135,7 +135,14 @@ function getRayTargets() {
     else if (m.isGroup) m.traverse(c => { if (c.isMesh || c.isSprite) lm.push(c); });
   }
   const p2m = typeof Phase2System !== 'undefined' ? Phase2System.getAllMeshes() : [];
-  const p3m = typeof Phase3System !== 'undefined' ? Phase3System.getAllMeshes() : [];
+  const p3m = [];
+  if (typeof Phase3System !== 'undefined') {
+    Phase3System.getAllMeshes().forEach(m => {
+      if (!m) return;
+      if (m.isMesh || m.isSprite) p3m.push(m);
+      else if (m.isGroup) m.traverse(c => { if (c.isMesh || c.isSprite) p3m.push(c); });
+    });
+  }
   return [groundMesh, ...bm, ...am, ...pm, ...ot, ...cm, ...lm, ...p2m, ...p3m];
 }
 function castRay(cx, cy) {
