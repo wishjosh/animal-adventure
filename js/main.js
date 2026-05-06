@@ -10,7 +10,7 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.setClearColor(0x87CEEB);
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0xc8e5f5, 0.008);
+scene.fog = new THREE.FogExp2(0xc8e5f5, 0.003);
 const camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 500);
 
 const ambient = new THREE.AmbientLight(0xfff0dd, 0.52); scene.add(ambient);
