@@ -173,3 +173,248 @@ const BIOME_CONFIG = {
     waterLevel: 30
   }
 };
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  레벨 1 NPC 대사 데이터
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+/**
+ * 페이즈별 할머니(및 기타) NPC 대사.
+ * ui.js 의 showNpcDialogue(phaseKey) 에서 참조한다.
+ *
+ * 구조: { [phaseKey]: { speaker, lines: string[] } }
+ */
+const npcDialogues = {
+  phase0_intro: {
+    speaker: '할머니',
+    lines: [
+      '모든 게 연결되어 있단다.',
+      '마을에 노란 구슬 4개가 떠다니고 있어. 하나씩 눌러서 무엇이 문제인지 조사해 보렴.'
+    ]
+  },
+  phase0_orb1: {
+    speaker: '할머니',
+    lines: [
+      '아이고, 텃밭을 봤니? 독성 식물이 토마토 옆까지 뻗어버렸어.',
+      '삽으로 뽑아내야 다른 식물들이 살 수 있단다.'
+    ]
+  },
+  phase0_orb2: {
+    speaker: '할머니',
+    lines: [
+      '벌집이 텅 비었구나.',
+      '꿀벌은 꽃가루가 있어야 살 수 있는데, 마을에 꽃이 없으니 떠나버렸겠지.'
+    ]
+  },
+  phase0_orb3: {
+    speaker: '할머니',
+    lines: [
+      '저 고목나무 좀 봐. 잎사귀가 하나도 없어.',
+      '낙엽을 모아서 뿌리에 덮어주면 지렁이들이 흙을 살려줄 거야.'
+    ]
+  },
+  phase0_orb4: {
+    speaker: '할머니',
+    lines: [
+      '제비가 집을 못 짓고 있어.',
+      '강이 더러워서 진흙을 구할 수 없거든. 우선 강을 정리해야 해.'
+    ]
+  },
+  phase0_complete: {
+    speaker: '할머니',
+    lines: [
+      '단서 4개를 모두 찾았구나!',
+      '이제 무엇부터 해야 할지 알겠니? 먼저 독성 식물을 삽으로 제거해 보자.'
+    ]
+  },
+  phase1_start: {
+    speaker: '할머니',
+    lines: [
+      '저기 노란 독성 식물이 보이지? 삽을 들고 클릭해서 뽑아내 보렴.'
+    ]
+  },
+  phase1_complete: {
+    speaker: '할머니',
+    lines: [
+      '잘했어! 이제 텃밭이 숨을 쉴 수 있겠구나.',
+      '다음은 동반식물을 심어서 서로 도와가며 자라게 해야 해.'
+    ]
+  },
+  phase2_start: {
+    speaker: '할머니',
+    lines: [
+      '토마토와 바질은 서로 좋은 친구란다.',
+      '물뿌리개로 물을 주고, 씨앗을 심어보렴. 순서가 중요해!'
+    ]
+  },
+  phase2_complete: {
+    speaker: '할머니',
+    lines: [
+      '무당벌레가 나타났어! 진딧물을 잡아줄 거야.',
+      '동반식물 덕분에 텃밭에 활기가 돌기 시작했네.'
+    ]
+  },
+  phase3_start: {
+    speaker: '할머니',
+    lines: [
+      '고목나무 주변에 낙엽이 떨어져 있어.',
+      '낙엽 5장을 주워서 고목나무 밑동의 흙에 가져다 놓아 보렴.'
+    ]
+  },
+  phase3_complete: {
+    speaker: '할머니',
+    lines: [
+      '지렁이들이 꼼지락거리기 시작했어! 흙을 비옥하게 만들어줄 거야.',
+      '이제 나무가 회복될 준비가 된 것 같구나.'
+    ]
+  },
+  phase4_bloom: {
+    speaker: '할머니',
+    lines: [
+      '오! 고목나무에 잎사귀가 돋아나고 있어!',
+      '모든 게 연결되어 있단다 — 흙, 벌레, 식물, 동물… 다 하나란다.'
+    ]
+  },
+  level1_clear: {
+    speaker: '할머니',
+    lines: [
+      '꿀벌, 제비, 양 — 수호대가 모두 돌아왔어!',
+      '초록 마을이 다시 살아났구나. 정말 고마워, 용감한 탐험가야.'
+    ]
+  }
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  도감 카드 데이터
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+/**
+ * 생태계 정보 팝업 카드.
+ * ui.js 의 showEncyclopediaCard(cardId) 에서 참조한다.
+ *
+ * 구조: { [cardId]: { title, icon, body, tip, triggerPhase } }
+ */
+const encyclopediaCards = {
+  ancient_tree: {
+    title: '고목나무',
+    icon: '🌳',
+    body: '수백 년을 살아온 고목나무는 그 뿌리로 주변 생물을 먹여살립니다. 잎이 지면 낙엽이 쌓여 흙 속 미생물과 지렁이의 먹이가 됩니다.',
+    tip: '낙엽을 뿌리 주변에 모아주면 지렁이가 흙을 비옥하게 만들어요!',
+    triggerPhase: 3
+  },
+  earthworm: {
+    title: '지렁이',
+    icon: '🪱',
+    body: '지렁이는 흙을 먹고 배설하면서 영양분을 만들어냅니다. 지렁이가 지나간 흙은 식물이 훨씬 잘 자랍니다.',
+    tip: '지렁이가 없으면 고목나무도 살 수 없어요. 낙엽으로 지렁이를 불러오세요.',
+    triggerPhase: 3
+  },
+  honeybee: {
+    title: '토종 꿀벌',
+    icon: '🐝',
+    body: '꿀벌은 꽃가루를 옮겨 식물이 열매를 맺도록 돕습니다. 꿀벌이 없으면 사과, 딸기, 토마토도 열리지 않습니다.',
+    tip: '클로버나 해바라기 같은 꽃을 3개 이상 심으면 꿀벌이 찾아와요!',
+    triggerPhase: 0
+  },
+  swallow: {
+    title: '제비',
+    icon: '🐦',
+    body: '제비는 진흙으로 처마 아래에 둥지를 짓습니다. 강물이 깨끗해야 진흙을 구할 수 있고, 처마가 있어야 안전하게 살 수 있습니다.',
+    tip: '강 쓰레기 3개를 치우면 진흙 웅덩이가 생겨요. 그런 다음 처마를 설치하세요.',
+    triggerPhase: 0
+  },
+  companion_plant: {
+    title: '동반식물',
+    icon: '🌿',
+    body: '서로 옆에 심으면 잘 자라는 식물 조합이 있습니다. 토마토 + 바질은 대표적인 동반 관계로, 바질 향이 해충을 쫓아냅니다.',
+    tip: '물뿌리개 → 토마토 → 바질 순서로 상호작용하면 무당벌레가 나타나요!',
+    triggerPhase: 2
+  },
+  toxic_plant: {
+    title: '독성 식물',
+    icon: '☠️',
+    body: '외래 유입종인 독성 식물은 빠르게 번식하며 주변 토종 식물의 영양분과 햇빛을 빼앗습니다. 방치하면 텃밭 전체가 죽을 수 있습니다.',
+    tip: '삽으로 독성 식물을 제거해야 텃밭이 살아납니다.',
+    triggerPhase: 1
+  },
+  ladybug: {
+    title: '무당벌레',
+    icon: '🐞',
+    body: '무당벌레는 진딧물을 잡아먹는 자연의 해충 방제사입니다. 농약 없이 텃밭을 지켜주는 고마운 친구예요.',
+    tip: '동반식물을 심으면 무당벌레가 자연스럽게 찾아와요.',
+    triggerPhase: 2
+  }
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  수호대 영입 조건 메타데이터
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+/**
+ * 각 수호대 동물의 영입 달성 조건.
+ * systems.js 의 checkBeeCondition() 등 조건 리스너가 이 데이터를 참조한다.
+ *
+ * 구조: {
+ *   [animalId]: {
+ *     label,          // 수호대 이름
+ *     emoji,          // 아이콘
+ *     conditions: [   // 달성해야 할 조건 목록
+ *       { id, description, blockType?, minCount?, flag? }
+ *     ],
+ *     rewardScene,    // world.js 에서 호출할 연출 함수명
+ *     encyclopediaId  // 관련 도감 카드 ID
+ *   }
+ * }
+ */
+const protectorConditions = {
+  bee: {
+    label: '토종 꿀벌',
+    emoji: '🐝',
+    conditions: [
+      {
+        id: 'flower_count',
+        description: '꽃 블록(clover 또는 sunflower)을 3개 이상 설치',
+        blockTypes: ['plant_clover', 'plant_sunflower'],
+        minCount: 3
+      }
+    ],
+    rewardScene: 'playProtectorJoinEffect',
+    encyclopediaId: 'honeybee'
+  },
+  swallow: {
+    label: '봄을 알리는 제비',
+    emoji: '🐦',
+    conditions: [
+      {
+        id: 'mud_puddle',
+        description: '강 쓰레기 3개를 제거하여 진흙 웅덩이 생성',
+        flag: 'hasMud'
+      },
+      {
+        id: 'eave_installed',
+        description: '처마(eave) 블록을 지붕 아래에 설치',
+        blockTypes: ['eave'],
+        minCount: 1
+      }
+    ],
+    rewardScene: 'playProtectorJoinEffect',
+    encyclopediaId: 'swallow'
+  },
+  sheep: {
+    label: '점박이 양',
+    emoji: '🐑',
+    conditions: [
+      {
+        id: 'tree_bloomed',
+        description: '고목나무를 개화시켜 그늘 블록 생성',
+        flag: 'treeBlooming'
+      },
+      {
+        id: 'straw_placed',
+        description: '볏짚(straw) 블록을 그늘 범위 안에 1개 이상 설치',
+        blockTypes: ['straw'],
+        minCount: 1,
+        requiresShade: true
+      }
+    ],
+    rewardScene: 'playProtectorJoinEffect',
+    encyclopediaId: 'ancient_tree'
+  }
+};
