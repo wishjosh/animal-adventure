@@ -286,6 +286,17 @@ function saveGame(){
         phaseComplete: { ...Level2Manager.phaseComplete }
       } : null
     },
+    level3State: {
+      level3_phase:      level3_phase,
+      level3_conditions: {
+        ...level3_conditions,
+        carcassCells: level3_conditions.carcassCells.map(c => ({ ...c }))
+      },
+      level3Manager: typeof Level3Manager !== 'undefined' ? {
+        currentPhase:  Level3Manager.currentPhase,
+        phaseComplete: { ...Level3Manager.phaseComplete }
+      } : null
+    },
     level1State: {
       level_phase:             Level1Manager.currentPhase,
       yellow_orbs_collected:   ClueSystem.foundCount,
@@ -378,6 +389,15 @@ function onFileSelected(e){
           Level2Manager.phaseComplete = l2.level2Manager.phaseComplete ?? {};
         }
       }
+      if (data.level3State) {
+        const l3 = data.level3State;
+        level3_phase = l3.level3_phase ?? 0;
+        if (l3.level3_conditions) Object.assign(level3_conditions, l3.level3_conditions);
+        if (l3.level3Manager && typeof Level3Manager !== 'undefined') {
+          Level3Manager.currentPhase  = l3.level3Manager.currentPhase  ?? 0;
+          Level3Manager.phaseComplete = l3.level3Manager.phaseComplete ?? {};
+        }
+      }
       updateProtectorSlots();
 
       // phaseComplete[1]=true인데 currentPhase가 1에 머문 경우 자동 보정
@@ -415,7 +435,7 @@ function clearAll(silent=false){
   LeafSystem.meshes=[]; LeafSystem.collected=0;
 
   ClueSystem.foundCount = 0;
-  Object.assign(global_protectors, { bee: false, swallow: false, sheep: false, otter: false, bat: false });
+  Object.assign(global_protectors, { bee: false, swallow: false, sheep: false, otter: false, bat: false, fox: false, eagle: false });
   // 레벨 2 상태 초기화
   level2_phase = 0;
   if (typeof level2_conditions !== 'undefined') {
@@ -426,6 +446,22 @@ function clearAll(silent=false){
     Level2Manager.currentPhase = 0;
     Level2Manager.phaseComplete = {};
     Level2Manager.missionGuided = false;
+  }
+  // 레벨 3 상태 초기화
+  level3_phase = 0;
+  if (typeof level3_conditions !== 'undefined') {
+    level3_conditions.deerRescued = false;
+    level3_conditions.wildDogIsolated = false;
+    level3_conditions.foxFedCount = 0;
+    level3_conditions.carcassRemovedCount = 0;
+    level3_conditions.carcassCells = [];
+    level3_conditions.isDesertified = false;
+    level3_conditions.foodChainPuzzleSolved = false;
+  }
+  if (typeof Level3Manager !== 'undefined') {
+    Level3Manager.currentPhase = 0;
+    Level3Manager.phaseComplete = {};
+    Level3Manager.clearGuides();
   }
   updateProtectorSlots();
   if(!silent) {

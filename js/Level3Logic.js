@@ -311,6 +311,14 @@ const Level3Manager = {
             showNpcDialogue('l3_intro', { autoClose: 6000 });
         }
 
+        // 나침반 제목을 "연결의 평원"으로 업데이트
+        const compass = document.getElementById('nav-compass');
+        if (compass) {
+            const titleEl = compass.querySelector('.nc-title');
+            if (titleEl) titleEl.textContent = '🌾 연결의 평원';
+            compass.style.display = 'flex';
+        }
+
         // 가이드 마커 생성
         this.showDeerGuide();
         this.updateUI();
