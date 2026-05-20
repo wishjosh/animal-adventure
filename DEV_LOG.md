@@ -1420,3 +1420,200 @@ const cleared = level2_conditions.waterDamCells.every(({ x, y, z }) =>
 | `js/Level3Logic.js` | `init()` — 나침반 `.nc-title`을 "🌾 연결의 평원"으로 업데이트 |
 | `index.html` | `Level3Logic.js` 버전 `v=20260508` → `v=20260520`, `ui.js` 버전 `v=20260506` → `v=20260520` |
 
+---
+
+## 📅 2026-05-20 (레벨 4 통합 검증 및 버그 수정 — 저장/초기화/UI 완결)
+
+> **작업 배경**
+> 사용자가 직접 구현한 레벨 4(`강의 근원지`) `Level4Logic.js`를 대상으로, 레벨 3과 동일한 방식으로 게임 루프 전체 연결 상태를 전수 검증했습니다. `main.js` / `systems.js` 훅은 이미 정상 연결되어 있었으나, `ui.js`의 초기화·저장·불러오기·dev 치트 함수 및 HTML 수호대 슬롯 4개 영역에서 총 8개의 누락이 확인되어 일괄 수정했습니다.
+
+---
+
+### 1. 기존 연결 상태 검증 결과 (이상 없음 확인)
+
+전수 점검 결과 아래 항목은 이미 정상 연결되어 있었습니다.
+
+| 위치 | 연결 내용 |
+|---|---|
+| `main.js` `handleClick()` | 1.5순위에 `Level4Logic.handleClick(obj)` 분기 삽입 |
+| `main.js` `animate()` | `Level4Logic.updateRainParticles()` — 매 프레임 빗방울 파티클 갱신 |
+| `systems.js` `onBlockPlaced()` | 레벨 4 분기: 모든 블록 배치 시 `Level4Manager.check()` 호출 |
+| `systems.js` `onBlockRemoved()` | 레벨 4 분기: 모든 블록 제거 시 `Level4Manager.check()` 호출 |
+| `data.js` | `low_pollution`·`willow` 아이템, `cement_dam` 블록, NPC 대사(`l4_*`), `GUARDIAN_DATA` crane·salmon 정의 |
+| `data.js` | `BIOME_CONFIG.river_source` 바이옴 정의 |
+| `state.js` | `level4_phase`, `level4_conditions`, `global_protectors.crane/salmon` 선언 |
+| `index.html` | `Level4Logic.js?v=20260520` 로드 순서 확정, `#level4-clear` 배너 HTML 존재 |
+| `world.js` | `spawnLevel4Animals()`, `buildAnimal('mandarin_fish')`, `buildAnimal('owner_park')` 구현 |
+
+---
+
+### 2. `clearAll()` — 레벨 4 상태 미초기화 버그 수정 (`js/ui.js`)
+
+**[증상]**
+* 게임을 초기화(`🗑️`)하면 `global_protectors.crane / salmon`이 `true`인 채로 남아 다음 플레이 시 레벨 4 수호대가 처음부터 합류된 것으로 표시됨.
+* `level4_phase`·`level4_conditions` 9개 필드가 리셋되지 않아 홍수 타이머, 시멘트 보 카운터 등이 잔류함.
+* `Level4Logic.rainParticles`가 씬에 남아있는 채로 새 게임이 시작되어 전 레벨의 빗방울 파티클이 이후 레벨에서도 계속 표시됨.
+
+**[수정 내용]**
+* `global_protectors` 초기화 대상에 `crane: false, salmon: false` 추가.
+* `level4_phase = 0` 리셋 추가.
+* `level4_conditions` 9개 필드(`soyaRescued`, `ownerConvinced`, `pollutionDeviceInstalled`, `cementDamRemovedCount`, `cementDamCells`, `willowPlantedCount`, `floodTimer`, `isFlooding`, `floodDefenseScore`) 명시적 초기화 추가.
+* `Level4Manager.currentPhase = 1`, `Level4Manager.phaseComplete = { soya:false, salmon:false, crane:false, flood:false }` 리셋.
+* `Level4Logic.rainParticles`가 존재하면 `scene.remove()` 후 `null`로 정리.
+
+---
+
+### 3. `saveGame()` — 레벨 4 상태 저장 누락 수정 (`js/ui.js`)
+
+**[증상]**
+* 레벨 4 진행 중 저장 후 불러오면 `level4_phase`, `level4_conditions`, `cementDamCells` 좌표 등이 모두 초기값으로 되돌아가 레벨 4 진행도가 전부 날아감.
+
+**[수정 내용]**
+* `saveGame()`의 저장 데이터 오브젝트에 `level4State` 블록 추가:
+  ```javascript
+  level4State: {
+    level4_phase:      level4_phase,
+    level4_conditions: {
+      ...level4_conditions,
+      cementDamCells: level4_conditions.cementDamCells.map(c => ({ ...c }))
+    },
+    level4Manager: { currentPhase, phaseComplete }
+  }
+  ```
+* `cementDamCells`는 오브젝트 배열이므로 **딥카피** 적용 (레벨 3의 `carcassCells` 처리와 동일한 패턴).
+
+---
+
+### 4. `onFileSelected()` — 레벨 4 상태 복원 누락 수정 (`js/ui.js`)
+
+**[증상]**
+* 레벨 4 저장 파일을 불러와도 `level4_phase`, `level4_conditions`, `Level4Manager`의 `currentPhase`가 전혀 복원되지 않음.
+
+**[수정 내용]**
+* `data.level3State` 복원 블록 바로 다음에 `data.level4State` 복원 로직 추가:
+  ```javascript
+  if (data.level4State) {
+    level4_phase = l4.level4_phase ?? 0;
+    Object.assign(level4_conditions, l4.level4_conditions);
+    Level4Manager.currentPhase  = l4.level4Manager.currentPhase  ?? 1;
+    Level4Manager.phaseComplete = l4.level4Manager.phaseComplete ?? { ... };
+  }
+  ```
+
+---
+
+### 5. `updateProtectorSlots()` — crane/salmon 슬롯 미연결 수정 (`js/ui.js`)
+
+**[증상]**
+* 두루미(`crane`)·연어(`salmon`) 영입 완료 시 화면 하단 수호대 슬롯이 색상·애니메이션 변화 없이 그레이 상태로 남음.
+
+**[원인]**
+* `updateProtectorSlots()`의 `slotMap` 객체에 `crane`·`salmon` 항목이 없고, HTML `#protector-bar`에도 해당 슬롯 요소가 없었음.
+
+**[수정 내용]**
+* `slotMap`에 두 항목 추가:
+  ```javascript
+  crane:  { id: 'protector-slot-crane',  emoji: '🦩', label: '두루미' },
+  salmon: { id: 'protector-slot-salmon', emoji: '🐟', label: '연어'   }
+  ```
+* `index.html` `#protector-bar`에 `protector-slot-crane`·`protector-slot-salmon` 슬롯 HTML 추가 (기존 7마리 → 9마리로 주석 업데이트).
+
+---
+
+### 6. `startLevel4()` / `goLevel4()` — 레벨 진입 함수 미구현 수정 (`js/ui.js`)
+
+**[증상]**
+* 레벨 3 클리어 배너에 "레벨 4 시작" 버튼이 없어 정상 플레이 루트로 레벨 4에 진입할 수 없음.
+* 브라우저 콘솔에서 `goLevel4()` 호출 불가 — 함수 미정의.
+
+**[수정 내용]**
+* `window.startLevel4` 추가: `level3-clear` 배너 닫기 → `currentLevel = 4` → `Level4Manager.init()` 호출.
+* `window.goLevel4` 추가: 레벨 1·2·3 수호대 전원 강제 합류 처리 후 `Level4Manager.init()` 즉시 호출 (개발 테스트 치트).
+* `index.html` `#level3-clear` 배너에 `"레벨 4: 강의 근원지 →"` 기본 진입 버튼과 `"계속 탐험하기"` 선택 버튼을 레벨 2/3 배너와 동일한 구조로 추가.
+
+---
+
+### 7. 나침반 제목 오류 수정 (`js/Level4Logic.js`)
+
+**[증상]**
+* `Level4Manager.init()` 호출 시 화면 좌측 나침반(`#nav-compass`)의 목적지 제목이 이전 레벨 텍스트 그대로 표시됨. 또한 `display: 'block'`으로 설정되어 나침반 레이아웃이 깨짐.
+
+**[원인]**
+* `init()` 내에서 나침반 표시 시 `.nc-title` 텍스트 업데이트 코드가 없었고, `display` 값이 레벨 3와 다르게 `'block'`으로 설정되어 있었음 (올바른 값은 `'flex'`).
+
+**[수정 내용]**
+```javascript
+const compass = document.getElementById('nav-compass');
+if (compass) {
+    const titleEl = compass.querySelector('.nc-title');
+    if (titleEl) titleEl.textContent = '💧 강의 근원지';
+    compass.style.display = 'flex';
+}
+```
+
+---
+
+---
+
+### 8. 수정 범위 요약
+
+| 파일 | 주요 변경 내용 |
+|---|---|
+| `js/ui.js` | `clearAll()` — crane/salmon 리셋, level4 상태 9개 필드 초기화, 빗방울 파티클 씬 제거 |
+| `js/ui.js` | `saveGame()` — `level4State` 블록 추가 (cementDamCells 딥카피 포함) |
+| `js/ui.js` | `onFileSelected()` — `level4State` 복원 로직 추가 |
+| `js/ui.js` | `updateProtectorSlots()` — crane·salmon slotMap 항목 추가 |
+| `js/ui.js` | `startLevel4()` / `goLevel4()` — 레벨 4 진입·테스트 함수 신규 구현 |
+| `js/Level4Logic.js` | `init()` — 나침반 `.nc-title`을 "💧 강의 근원지"로 업데이트, `display:'flex'` 수정 |
+| `index.html` | `#protector-bar`에 crane·salmon 슬롯 2개 추가 (7마리 → 9마리) |
+| `index.html` | `#level3-clear` 배너에 "레벨 4: 강의 근원지 →" 진입 버튼 추가 |
+
+---
+
+## 📅 2026-05-20 (레벨 5 및 레벨 6 구현 완료 및 생태 순환 통합)
+
+### 1. 레벨 5: 경계 도시(Urban Border) 퀘스트 매니저 구현
+**[작업 내용]**
+* **`js/Level5Logic.js` 신규 생성:** 경계 도시의 핵심 퀘스트 프로세스(`Level5Manager`)를 설계하고 구현했습니다.
+  * 너구리 라쿤이 구출: X=-60, Z=68에 배치된 도심 쓰레기(`city_trash`) 블록 3개를 삽이나 곡괭이로 치우면 너구리가 정상 크기로 돌아오며 구출되도록 연동했습니다.
+  * 시청 공무원 박 주임 설득: 8차선 도로 확장에 대해 상생할 수 있는 친환경 생태통로 통합 대안(생태 육교 및 동물 터널)을 제시해 박 주임을 설득하는 글라스모피즘 팝업을 연동했습니다. 설득 성공 시 생태 육교, 비오톱, 동물 터널 블록을 플레이어에게 지급합니다.
+  * 생태 육교 종단 연결 BFS 알고리즘: Z=73에서 Z=79 도로 폭 전체를 viaduct 블록이 빈틈없이 이어졌는지, 다리의 최소 폭(2칸 이상) 조건을 만족했는지 검사하는 BFS 탐색을 구현했습니다.
+  * 빌딩 비오톱 검사: 빌딩 옥상정원(X=-40, Z=80, 높이 Y>=39)에 비오톱 블록 4개 이상이 설치되었을 때 황조롱이 삐루가 둥지를 지어 합류하도록 구현했습니다.
+  * 심사 검증(Audit) 보스전: 모든 조건 충족 시, 박 주임의 최종 설계 심사 30초 타이머가 작동하며 배수력, 통행율, 만족도 점수가 80점 이상 충족 시 최종 통과하도록 구성했습니다.
+
+### 2. 레벨 6: 초록별 심장부(Green Heart) 퀘스트 매니저 구현
+**[작업 내용]**
+* **`js/Level6Logic.js` 신규 생성:** 최종장 퀘스트 프로세스(`Level6Manager`)를 설계하고 구현했습니다.
+  * 지구 기후 위기 홀로그램 지도: 2D 월드맵 상에 북극 빙하, 아마존 대화재, 태평양 백화현상 등 5개의 위기 경보 노드를 띄우고 영입된 수호대를 클릭하여 파견하는 홀로그램 시스템을 구축했습니다. 5개 구역 파견 시 최종 웅이 퀘스트로 전이됩니다.
+  * 반달가슴곰 웅이 신뢰 쌓기: 웅이(X=0, Z=-80) 근처에 흙과 도토리(`acorn`) 블록을 배치하면, 웅이가 이를 인지하고 이동해 먹도록 AI를 연동하였으며, 3단 피딩 완료 시 최종 합류합니다.
+  * 심장 박동 회복 연출 및 샌드박스 해금: 12마리 수호대 합류 완료 후, 심장 박동률 게이지가 100% 충전되며 대망의 엔딩 크레딧이 노출됩니다. 완료 시 모든 지형 안개가 걷히고 자유 스폰이 가능한 "무한 자유 모드"가 활성화됩니다.
+
+### 3. 지형 빌더 및 동물 3D/AI 및 이벤트 전이 파이프라인 통합
+**[작업 내용]**
+* **`js/data.js` 업데이트:** 신규 레벨 아이템(viaduct, biotope, wildlife_tunnel, acorn 등)과 NPC 대화 스크립트, 너구리·황조롱이·반달곰의 3단계 도감 카드 세트와 수호대 영입 조건을 완벽하게 등록했습니다.
+* **`js/state.js` 업데이트:** `level5_conditions` 및 `level6_conditions` 전역 플래그를 추가하고, `global_protectors`에 raccoon, kestrel, bear의 영입 상태 필드를 바인딩했습니다.
+* **`js/world.js` 업데이트:** 
+  * `officer_city` 시청 공무원 3D 모델(정장 및 서류 가방 복셀 메쉬)을 새롭게 디자인하고 빌더에 추가했습니다.
+  * `updateRaccoon`, `updateKestrel`, `updateBear`, `updateOfficerCity` AI 업데이트 로직을 구현하여 너구리의 육교 건너가기 피난 AI, 황조롱이의 옥상 공중 선회 날갯짓 AI, 반달곰의 도토리 추적 이동 AI를 동적 렌더링 루프에 바인딩했습니다.
+  * `spawnLevel5Animals` 및 `spawnLevel6Animals`를 구현하여 도로 아스팔트 지형 도색, 고층 빌딩 3D 기둥, 반달곰 숲 및 아이템/쓰레기 블록들을 동적으로 생성하게 하였습니다.
+  * `level4Cleared`와 `level5Cleared` 수신 리스너를 연동하여 안개가 걷히는 Fog 페이드 아웃 후 다음 단계로 매끄럽게 전이되도록 연동했습니다.
+* **`js/systems.js` 및 `js/main.js` 업데이트:** 
+  * 블록 생성/제거 훅에 `x, y, z` 좌표 인자 전달 파이프라인을 구축하고 레벨 5 및 레벨 6 검증 조건을 바인딩했습니다.
+  * 3D 화면 클릭 레이캐스팅 분기 처리에 레벨 5 및 6 상호작용 검사기를 포함했습니다.
+* **`index.html` & `js/ui.js` 업데이트:** 레벨 5 및 레벨 6 비즈니스 로직 스크립트 로더 태그를 삽입하고, 레벨 4 클리어 배너에 "레벨 5 진입 버튼"을 추가했습니다. 개발자 디버그 치트(`goLevel5()`, `goLevel6()`)도 보강했습니다.
+
+### 4. 수정 범위 요약
+
+| 파일 | 주요 변경 내용 |
+|---|---|
+| `js/data.js` | 신규 레벨 아이템/바이옴 정의, NPC 대사 세트, 도감 및 영입 조건 추가 |
+| `js/state.js` | 레벨 5/6 조건 플래그 정의 및 12마리 수호대 상태 매핑 완료 |
+| `js/systems.js` | 블록 배치/제거 훅(onBlockPlaced, onBlockRemoved)에 레벨 5/6 검증 훅 연결 |
+| `js/world.js` | 시청 공무원 3D 복셀 메쉬 추가, 4개 신규 동물 AI 구현, 레벨 5/6 지형 및 퀘스트 요소를 스폰하고 레벨 클리어 전이 리스너 연동 |
+| `js/main.js` | 마우스 클릭 레이캐스팅 처리 분기에 레벨 5/6 핸들러 추가 |
+| `js/ui.js` | 레벨 5/6 진입/디버그 커맨드(`startLevel5`, `goLevel5`, `startLevel6`, `goLevel6`) 신규 정의 |
+| `index.html` | Level5Logic, Level6Logic 스크립트 로드 추가, 레벨 4 클리어 배너에 레벨 5 진입 버튼 보강 |
+| `js/Level5Logic.js` | [NEW] 경계 도시 퀘스트 매니저, 너구리/황조롱이 영입 조건 검사, 생태 육교 BFS 종단 연결 검증 알고리즘, 심사 보스전 타이머 구현 |
+| `js/Level6Logic.js` | [NEW] 초록별 심장부 퀘스트 매니저, 2D 홀로그램 세계 지도 UI, 반달곰 도토리 피딩 AI, 심장 박동 엔딩 시뮬레이션 및 무한 샌드박스 해금 구현 |
+
+

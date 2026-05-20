@@ -292,7 +292,7 @@
     </div>
   </div>
 
-  <!-- 수호대 슬롯 (7마리: 레벨1 3마리 + 레벨2 2마리 + 레벨3 2마리) -->
+  <!-- 수호대 슬롯 (9마리: 레벨1 3마리 + 레벨2 2마리 + 레벨3 2마리 + 레벨4 2마리) -->
   <div id="protector-bar">
     <div class="protector-slot slot-inactive" id="protector-slot-bee" title="🐝 꿀벌 (미합류)">
       <span>🐝</span><span class="slot-label">꿀벌</span>
@@ -314,6 +314,12 @@
     </div>
     <div class="protector-slot slot-inactive" id="protector-slot-eagle" title="🦅 독수리 (미합류)">
       <span>🦅</span><span class="slot-label">독수리</span>
+    </div>
+    <div class="protector-slot slot-inactive" id="protector-slot-crane" title="🦩 두루미 (미합류)">
+      <span>🦩</span><span class="slot-label">두루미</span>
+    </div>
+    <div class="protector-slot slot-inactive" id="protector-slot-salmon" title="🐟 연어 (미합류)">
+      <span>🐟</span><span class="slot-label">연어</span>
     </div>
   </div>
 
@@ -448,7 +454,10 @@
     <h2>연결의 평원 복원 완료!</h2>
     <div class="lv3c-icons">🦊 🦅 🦌</div>
     <p>들개 무리를 격리하고 붉은여우와 독수리가<br>수호대에 합류해 먹이사슬 고리가 복원되었습니다! 🎉</p>
-    <button onclick="document.getElementById('level3-clear').style.display='none'">계속 탐험하기</button>
+    <button onclick="window.startLevel4()">레벨 4: 강의 근원지 →</button>
+    <br>
+    <button style="background:rgba(255,255,255,0.15);color:#fff;font-size:13px;padding:8px 20px;margin-top:4px;"
+            onclick="document.getElementById('level3-clear').style.display='none'">계속 탐험하기</button>
   </div>
 
   <!-- 레벨 4 클리어 화면 -->
@@ -457,7 +466,10 @@
     <h2>강의 근원지 복원 완료!</h2>
     <div class="lv3c-icons">🦩 🐟 🐠</div>
     <p>오염을 막고 물길을 연결하며 녹색 댐을 조성해<br>100년 대홍수를 무사히 막아냈습니다! 🎉</p>
-    <button onclick="document.getElementById('level4-clear').style.display='none'">계속 탐험하기</button>
+    <button onclick="window.startLevel5()">레벨 5: 경계 도시 →</button>
+    <br>
+    <button style="background:rgba(255,255,255,0.15);color:#fff;font-size:13px;padding:8px 20px;margin-top:4px;"
+            onclick="document.getElementById('level4-clear').style.display='none'">계속 탐험하기</button>
   </div>
 
   <div id="opening-overlay">
@@ -508,6 +520,8 @@
   <script src="js/Level2Logic.js?v=20260508"></script>
   <script src="js/Level3Logic.js?v=20260520"></script>
   <script src="js/Level4Logic.js?v=20260520"></script>
+  <script src="js/Level5Logic.js?v=20260520"></script>
+  <script src="js/Level6Logic.js?v=20260520"></script>
   <script src="js/world.js?v=20260508"></script>
   <script src="js/ui.js?v=20260520"></script>
   <script src="js/main.js?v=20260506"></script>

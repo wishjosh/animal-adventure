@@ -585,9 +585,13 @@ const Level4Manager = {
             spawnLevel4Animals();
         }
 
-        // 나침반 보이기 및 마커 셋업
+        // 나침반 타이틀 업데이트 및 보이기
         const compass = document.getElementById('nav-compass');
-        if (compass) compass.style.display = 'block';
+        if (compass) {
+            const titleEl = compass.querySelector('.nc-title');
+            if (titleEl) titleEl.textContent = '💧 강의 근원지';
+            compass.style.display = 'flex';
+        }
 
         // 인벤토리에 나무 묘목(willow) 및 삽, 곡괭이 등 지급
         hotbar = [null, 'pickaxe', 'watering_can', 'shovel', 'willow', 'stone', 'grass', null, null];

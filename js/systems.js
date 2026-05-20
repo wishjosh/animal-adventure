@@ -125,7 +125,7 @@ function _scheduleL3IsolationCheck() {
  *
  * @param {string} blockType - 설치된 블록 타입
  */
-function onBlockPlaced(blockType) {
+function onBlockPlaced(blockType, x, y, z) {
   if (typeof invalidateRayCache === 'function') invalidateRayCache();
   ArrowSystem.invalidate();
   // ── 레벨 1 조건 ──────────────────────────────────────
@@ -160,13 +160,25 @@ function onBlockPlaced(blockType) {
   if (currentLevel === 4 && typeof Level4Manager !== 'undefined') {
     Level4Manager.check();
   }
+
+  // ── 레벨 5 조건 ──────────────────────────────────────
+  if (currentLevel === 5 && typeof Level5Manager !== 'undefined') {
+    if (blockType.startsWith('viaduct')) Level5Manager.checkViaductConnection();
+    if (blockType.startsWith('wildlife_tunnel')) Level5Manager.checkTunnel();
+    if (blockType.startsWith('biotope')) Level5Manager.checkBiotope();
+  }
+
+  // ── 레벨 6 조건 ──────────────────────────────────────
+  if (currentLevel === 6 && typeof Level6Manager !== 'undefined') {
+    if (blockType.startsWith('acorn')) Level6Manager.checkBearFeed(x, y, z);
+  }
 }
 
 /**
  * 블록이 제거될 때마다 레벨 2 조건을 재검사한다.
  * world.js의 removeBlock()에서 호출.
  */
-function onBlockRemoved(blockType) {
+function onBlockRemoved(blockType, x, y, z) {
   if (typeof invalidateRayCache === 'function') invalidateRayCache();
   ArrowSystem.invalidate();
   
@@ -195,5 +207,12 @@ function onBlockRemoved(blockType) {
   // ── 레벨 4 조건 ──────────────────────────────────────
   if (currentLevel === 4 && typeof Level4Manager !== 'undefined') {
     Level4Manager.check();
+  }
+
+  // ── 레벨 5 조건 ──────────────────────────────────────
+  if (currentLevel === 5 && typeof Level5Manager !== 'undefined') {
+    if (blockType.startsWith('viaduct')) Level5Manager.checkViaductConnection();
+    if (blockType.startsWith('wildlife_tunnel')) Level5Manager.checkTunnel();
+    if (blockType.startsWith('biotope')) Level5Manager.checkBiotope();
   }
 }

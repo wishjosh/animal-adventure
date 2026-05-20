@@ -62,12 +62,46 @@ const level4_conditions = {
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  레벨 5: 경계 도시 — 페이즈 및 상태 변수
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let level5_phase = 0; // 0 (시작) -> 1 (너구리 구조) -> 2 (생태통로 건설/비오톱/공무원) -> 3 (심판 보스전) -> 4 (완료)
+const level5_conditions = {
+  raccoonRescued: false,
+  officerConvinced: false,
+  viaductConnected: false,
+  tunnelBuilt: false,
+  biotopePlacedCount: 0,
+  biotopeCells: [],
+  isAuditing: false,
+  auditTimer: 30,
+  auditScore: 0
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  레벨 6: 초록별 심장부 — 페이즈 및 상태 변수
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let level6_phase = 0; // 0 (시작) -> 1 (기후 이상 정화/파견) -> 2 (반달곰 신뢰 쌓기) -> 3 (심장 박동 회복) -> 4 (엔딩) -> 5 (샌드박스)
+const level6_conditions = {
+  bridgeCutscenePlayed: false,
+  craneDispatched: false,
+  eagleDispatched: false,
+  otterSalmonDispatched: false,
+  craneSalmonDispatched: false,
+  sheepDispatched: false,
+  dispatchedCount: 0,
+  bearEncountered: false,
+  bearAcornFedCount: 0,
+  heartBeatScore: 0,
+  globalStabilized: false
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  수호대 영입 상태
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 /**
- * 레벨 1, 2 & 3 수호대 최종 합류 여부.
- * systems.js의 조건 달성 시 true로 설정.
+ * 레벨 1, 2, 3, 4, 5, 6 수호대 최종 합류 여부.
+ * systems.js 및 각 레벨 Logic의 조건 달성 시 true로 설정.
  */
 const global_protectors = {
   bee: false,   // 레벨 1: 꿀벌 — 꽃 블록 3개 이상
@@ -78,7 +112,10 @@ const global_protectors = {
   fox: false,    // 레벨 3: 붉은여우 — 먹이 주기 및 신뢰
   eagle: false,   // 레벨 3: 독수리 — 사체 제거
   crane: false,   // 레벨 4: 두루미 — 녹색 댐(나무 8그루)
-  salmon: false   // 레벨 4: 연어 — 오염 저감 장치 + 보 3개 제거
+  salmon: false,  // 레벨 4: 연어 — 오염 저감 장치 + 보 3개 제거
+  raccoon: false, // 레벨 5: 너구리 — 생태 육교 연결
+  kestrel: false, // 레벨 5: 황조롱이 — 비오톱 4개 설치
+  bear: false     // 레벨 6: 반달곰 — 도토리 신뢰 3단계
 };
 
 /**

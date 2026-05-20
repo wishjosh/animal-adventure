@@ -47,7 +47,12 @@ const ITEM_DB = {
   heal:  { category:'kit', type:'action', label:'구급상자',   icon:'🩹' },
   low_pollution:     { category:'kit', type:'action', label:'오염 저감 장치', icon:'⚙️' },
   cement_dam:        { category:'material', type:'block', label:'시멘트 보', color:'#a0a0a0', hex:0xa0a0a0, solid:true, icon:'🧱' },
-  willow:            { category:'material', type:'block', label:'버드나무', color:'#3c633a', hex:0x3c633a, solid:true, icon:'🌳' }
+  willow:            { category:'material', type:'block', label:'버드나무', color:'#3c633a', hex:0x3c633a, solid:true, icon:'🌳' },
+  viaduct:           { category:'material', type:'block', label:'생태 육교', color:'#8b5a2b', hex:0x8b5a2b, solid:true, icon:'🌉' },
+  biotope:           { category:'material', type:'block', label:'옥상 비오톱', color:'#556b2f', hex:0x556b2f, solid:true, icon:'🌱' },
+  wildlife_tunnel:   { category:'material', type:'block', label:'동물 터널', color:'#4a4a4a', hex:0x4a4a4a, solid:true, icon:'🚇' },
+  acorn:             { category:'material', type:'block', label:'도토리', color:'#a0522d', hex:0xa0522d, solid:true, icon:'🌰' },
+  city_trash:        { category:'plant', type:'block', label:'도심 쓰레기', color:'#708090', hex:0x708090, solid:false, icon:'🗑' }
 };
 
 const TERRAIN_BLOCKS = {
@@ -55,7 +60,9 @@ const TERRAIN_BLOCKS = {
   t_high:{hex:0x7a8e68,solid:true}, t_rock:{hex:0x9a8878,solid:true},
   t_dirt:{hex:0x6b5040,solid:true}, t_sub:{hex:0x888880,solid:true},
   r_sand:{hex:0xc8b47a,solid:true}, r_gravel:{hex:0x9a8868,solid:true}, r_sub:{hex:0x7a6850,solid:true},
-  carcass:{hex:0x7D5C50,solid:false}, cement_dam:{hex:0xa0a0a0,solid:true}, willow:{hex:0x3c633a,solid:true}
+  carcass:{hex:0x7D5C50,solid:false}, cement_dam:{hex:0xa0a0a0,solid:true}, willow:{hex:0x3c633a,solid:true},
+  viaduct:{hex:0x8b5a2b,solid:true}, biotope:{hex:0x556b2f,solid:true},
+  wildlife_tunnel:{hex:0x4a4a4a,solid:true}, acorn:{hex:0xa0522d,solid:true}, city_trash:{hex:0x708090,solid:false}
 };
 
 const CHUNK=8, GH=60;
@@ -126,22 +133,22 @@ const GUARDIAN_DATA = {
     hint: '연어가 올라갈 수 있는 어도를 만들어주세요.'
   },
   raccoon: {
-    id: 'raccoon', name: '먹보 너구리', title: '밤의 숲 도둑', emoji: '🦝',
-    story: '숲속 열매가 사라져 마을로 내려온 너구리 통통이. 배가 너무 고파서 쓰레기통을 뒤지다 길을 잃었어요.',
+    id: 'raccoon', name: '도심 너구리', title: '밤의 숲 도둑', emoji: '🦝',
+    story: '숲속 열매가 사라져 마을로 내려온 너구리 라쿤이. 8차선 도로로 인해 서식지가 단절되어 로드킬 위협에 시달리고 있습니다.',
     personality: '먹을 것 앞에서는 앞뒤를 가리지 않아요.',
-    hint: '숲에 과일나무를 심어 너구리의 식량을 마련해 주세요.'
+    hint: '도로 위에 생태 육교를 설치하여 안전하게 하천 숲으로 가도록 도우세요.'
   },
   kestrel: {
-    id: 'kestrel', name: '매서운 황조롱이', title: '바람의 정령', emoji: '🦉',
-    story: '도시의 빌딩 숲에서 길을 잃은 황조롱이 삐루. 쥐를 사냥할 넓은 들판이 사라져서 굶주리고 있어요.',
+    id: 'kestrel', name: '황조롱이', title: '바람의 정령', emoji: '🦅',
+    story: '도시의 빌딩 숲에서 길을 잃은 황조롱이 삐루. 둥지를 틀 넓은 들판과 안전한 고층 옥상이 사라져서 헤매고 있습니다.',
     personality: '날카로운 눈매를 가졌지만 사실 외로움을 많이 타요.',
-    hint: '들판을 복원해서 삐루의 사냥터를 만들어주세요.'
+    hint: '빌딩 옥상정원에 흙과 비오톱 블록을 설치해 둥지 환경을 조성해 주세요.'
   },
   bear: {
-    id: 'bear', name: '느긋한 반달곰', title: '숲속의 듬직한 형님', emoji: '🐻',
-    story: '밀렵꾼의 덫을 피해 도망치느라 지쳐버린 반달곰 웅이. 달콤한 꿀과 도토리를 먹고 깊은 잠을 잘 동굴이 필요해요.',
-    personality: '느릿느릿하지만 화나면 아주 무서워요. 꿀을 아주 좋아해요.',
-    hint: '꿀벌이 모은 꿀을 주고 따뜻한 쉼터를 찾아주세요.'
+    id: 'bear', name: '지리산 반달곰', title: '숲속의 듬직한 형님', emoji: '🐻',
+    story: '초록별의 중심을 지키고 있는 지리산 반달가슴곰 웅이. 지구의 이상 기후로 탄소 순환이 망가지자 심장이 약해져 기운을 잃었습니다.',
+    personality: '느릿느릿하지만 화나면 아주 무서워요. 도토리를 아주 좋아해요.',
+    hint: '웅이 근처에 맛있는 도토리 블록을 놓아 3번 유인하여 신뢰를 얻으세요.'
   }
 };
 
@@ -181,6 +188,20 @@ const BIOME_CONFIG = {
     id: 'connection_plains',
     centerX: -80, centerZ: 0, radius: 40,
     baseHeight: 33, roughness: 0.15,
+    surface: 't_low', subsurface: 't_dirt',
+    waterLevel: 30
+  },
+  urban_border: {
+    id: 'urban_border',
+    centerX: -60, centerZ: 80, radius: 35,
+    baseHeight: 35, roughness: 0.20,
+    surface: 't_rock', subsurface: 'stone',
+    waterLevel: 30
+  },
+  green_heart: {
+    id: 'green_heart',
+    centerX: 0, centerZ: -80, radius: 40,
+    baseHeight: 33, roughness: 0.10,
     surface: 't_low', subsurface: 't_dirt',
     waterLevel: 30
   }
@@ -379,6 +400,97 @@ const npcDialogues = {
       '해냈어! 녹색 댐의 울창한 숲과 튼튼히 보강한 둑 덕분에 거센 홍수를 한 줌의 피해도 없이 안전하게 이겨냈구나.',
       '수호대 두루미와 연어가 물과 숲의 순환 고리를 굳건히 지켜냈어. 정말 대단하구나!'
     ]
+  },
+  l5_intro: {
+    speaker: '할머니',
+    lines: [
+      '여기는 경계 도시란다. 인간의 회색 아스팔트 개발과 자연의 생명이 직접 부딪히는 경계 지대이지.',
+      '길 잃은 새끼 너구리 라쿤이가 하천변 쓰레기 더미 블록에 발이 묶여 울고 있단다. 삽으로 쓰레기를 파내어 라쿤이를 구출해 주렴!'
+    ]
+  },
+  l5_raccoon_rescued: {
+    speaker: '할머니',
+    lines: [
+      '너구리 라쿤이를 구했어! 정말 착하구나.',
+      '하지만 8차선 도로는 동물들이 건널 수 없는 회색 장벽이란다. 도로 위에 흙과 나무 블록으로 생태 육교를 짓고, 도로 아래에는 터널을 뚫어야 해.',
+      '또한 시청 공무원 박 주임을 설득해 생태통로 예산 승인을 얻고, 삭막한 빌딩 옥상에 비오톱 블록을 설치해 황조롱이를 위한 사냥터를 복원해 주렴!'
+    ]
+  },
+  l5_raccoon_join: {
+    speaker: '할머니',
+    lines: [
+      '너구리 통통이가 생태 육교를 건너 안전하게 하천 숲으로 이동했어! 수호대로 합류하겠다고 하는구나.'
+    ]
+  },
+  l5_kestrel_join: {
+    speaker: '할머니',
+    lines: [
+      '빌딩 옥상의 비오톱 텃밭에 황조롱이 삐루가 둥지를 틀었어! 도심 쥐를 사냥하며 도시의 생태 균형을 잡을 수호대가 합류했단다.'
+    ]
+  },
+  l5_officer_intro: {
+    speaker: '박 주임',
+    lines: [
+      '안녕하세요! 시청 도로개발과의 박 주임입니다. 8차선 도로는 도시 확장과 출퇴근 체증 해결을 위해 꼭 건설해야 합니다.',
+      '동물의 이동로가 중요하긴 하지만, 당장 도로 사업을 변경할 수는 없어요. 좋은 대안이 있나요?'
+    ]
+  },
+  l5_officer_convinced: {
+    speaker: '박 주임',
+    lines: [
+      '아하! 생태 육교와 야행성 동물 터널을 접목하면 교통 체증과 동물의 로드킬 사고를 동시에 예방할 수 있겠군요!',
+      '멋진 아이디어입니다. 생태 통로 추가 건설 예산안에 즉시 서명하여 도로 설계를 변경하겠습니다!'
+    ]
+  },
+  l5_audit_start: {
+    speaker: '할머니',
+    lines: [
+      '생태 통로와 비오톱이 모두 완성되었어! 이제 시청의 공식 승인을 위한 세 가지 테스트(우천 배수력, 야간 이용성, 시민 만족도) 심사를 시작할 게다. 준비가 되었니?'
+    ]
+  },
+  l5_clear: {
+    speaker: '할머니',
+    lines: [
+      '해냈구나! 생태 다기능 심사를 아주 높은 점수로 통과하여 최종 통로 공인 승인을 받았어.',
+      '너구리와 황조롱이가 경계 도심 속에서 공존할 수 있는 기틀을 닦았단다. 정말 자랑스럽구나!'
+    ]
+  },
+  l6_intro: {
+    speaker: '두루미 뚜루',
+    lines: [
+      '수호대 대장, 눈을 감고 느껴 보아라.',
+      '초록 마을의 작은 물방울 하나가 강을 타고 넓은 바다와 기류를 돌아, 마침내 이곳 극지방의 거대한 빙하까지 이어지는 순환을...',
+      '온 지구의 흙, 강, 바람, 생명은 단 하나로 긴밀하게 연결되어 숨 쉬고 있단다.'
+    ]
+  },
+  l6_abnormal_signals: {
+    speaker: '할머니',
+    lines: [
+      '기후 변화가 전 지구 생태 심장을 마비시키고 있어! 세계 5대 생태 거점에서 이상 고온과 연쇄 붕괴 경보가 울렸단다.',
+      '화면에 뜬 세계 홀로그램 지도를 열고, 5곳의 위기 지역에 알맞은 수호대를 드래그/파견해서 도미노 붕괴를 막아 주렴!',
+      '모든 지역을 안정화하고 나면, 12번째 수호대이자 지리산 생태계의 최고 포식자인 반달가슴곰 웅이의 흔적을 찾을 수 있을 게다.'
+    ]
+  },
+  l6_bear_encounter: {
+    speaker: '할머니',
+    lines: [
+      '온 세상의 기후 신호가 안정되자, 숲속 한가운데서 반달가슴곰 웅이의 듬직한 발자국이 발견되었구나!',
+      '웅이는 도토리를 아주 좋아하고 경계심이 많아. 도토리를 하나씩 던져 주며 조심스럽게 신뢰를 쌓아 보렴!'
+    ]
+  },
+  l6_bear_join: {
+    speaker: '할머니',
+    lines: [
+      '웅이가 도토리를 맛있게 먹고 네 손등에 코를 킁킁대며 마음을 열었어! 12번째 수호대가 합류했단다!'
+    ]
+  },
+  l6_clear: {
+    speaker: '할머니',
+    lines: [
+      '두근, 두근… 느껴지니? 마침내 12마리의 수호대 심장이 다시 맥동하기 시작하며 초록별의 오랜 심장이 힘차게 뛰고 있어.',
+      '작은 나무 한 그루, 다친 동물 한 마리를 돌보았던 서진이(대장)의 다정함이 세상을 구했단다.',
+      '고마워, 초록별 수호대 대장. 초록별이 따뜻한 바람으로 너에게 고맙다고 속삭이는구나.'
+    ]
   }
 };
 
@@ -488,6 +600,27 @@ const encyclopediaCards = {
     icon: '🐠',
     body: '쏘가리는 물의 흐름이 빠르고 자갈이 많은 깨끗한 강 상류에 사는 한국 고유종입니다. 쓰레기 더미에 막히면 생명이 위험해집니다.',
     tip: '강바닥을 막고 있는 쓰레기 블록들을 모두 파괴하여 쏘야를 구출하세요.',
+    triggerPhase: 1
+  },
+  raccoon: {
+    title: '도심 너구리',
+    icon: '🦝',
+    body: '도심 속 너구리는 하천 생태계의 다양한 먹이를 섭취하며 도시와 숲의 경계를 오가는 포유류입니다. 도로로 파편화된 서식지로 인해 로드킬 위험에 시달립니다.',
+    tip: '8차선 도로 위에 생태 육교를 지어 하천 숲으로 유도해 구출하세요.',
+    triggerPhase: 1
+  },
+  kestrel: {
+    title: '황조롱이',
+    icon: '🦅',
+    body: '황조롱이는 천연기념물로 지정된 소형 매류로, 도심 고층 빌딩에 적응해 번식합니다. 도시 생태계의 설치류와 곤충을 조절하는 공중 파수꾼입니다.',
+    tip: '빌딩 옥상에 흙과 비오톱 블록을 설치해 삐루의 둥지 자리를 조성하세요.',
+    triggerPhase: 1
+  },
+  bear: {
+    title: '반달가슴곰',
+    icon: '🐻',
+    body: '반달가슴곰은 깊은 삼림 지역에서 기후 탄소 축적 및 도토리 종자 파급을 담당하는 핵심 포식자입니다. 멸종 위기에 처해 복원 사업이 활발히 추진되고 있습니다.',
+    tip: '웅이가 좋아하는 도토리 블록을 조심스럽게 근처에 던져주고 신뢰를 쌓으세요.',
     triggerPhase: 1
   }
 };
@@ -627,6 +760,46 @@ const protectorConditions = {
     ],
     rewardScene: 'playProtectorJoinEffect',
     encyclopediaId: 'salmon'
+  },
+  raccoon: {
+    label: '도심 너구리',
+    emoji: '🦝',
+    conditions: [
+      {
+        id: 'viaduct_connection',
+        description: '도로를 가로지르는 생태 육교(viaduct) 2칸 폭 건설 완료',
+        flag: 'viaductConnected'
+      }
+    ],
+    rewardScene: 'playProtectorJoinEffect',
+    encyclopediaId: 'raccoon'
+  },
+  kestrel: {
+    label: '황조롱이',
+    emoji: '🦅',
+    conditions: [
+      {
+        id: 'biotope_count',
+        description: '빌딩 옥상에 비오톱(biotope) 블록 4개 이상 설치',
+        blockTypes: ['biotope'],
+        minCount: 4
+      }
+    ],
+    rewardScene: 'playProtectorJoinEffect',
+    encyclopediaId: 'kestrel'
+  },
+  bear: {
+    label: '반달가슴곰',
+    emoji: '🐻',
+    conditions: [
+      {
+        id: 'acorn_trust',
+        description: '웅이 근처에 도토리(acorn) 블록 3개 배치하여 신뢰 획득',
+        flag: 'bearAcornCount'
+      }
+    ],
+    rewardScene: 'playProtectorJoinEffect',
+    encyclopediaId: 'bear'
   }
 };
 

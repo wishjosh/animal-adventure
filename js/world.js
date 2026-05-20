@@ -462,7 +462,7 @@ function _place(x, y, z, type) {
   gridData[k] = type; const mesh = buildMesh(type, x, y, z); if (mesh) { meshByKey[k] = mesh; scene.add(mesh); }
   deletedBlocks.delete(k);
   // ── 수호대 조건 리스너 훅 ──
-  if (typeof onBlockPlaced === 'function') onBlockPlaced(type);
+  if (typeof onBlockPlaced === 'function') onBlockPlaced(type, x, y, z);
 }
 
 function placeBlock(x, y, z, type) {
@@ -495,7 +495,7 @@ function removeBlock(x, y, z) {
 
   QuestManager.check();
   // ── 레벨 2 조건 훅 ──────────────────────────────────
-  if (typeof onBlockRemoved === 'function') onBlockRemoved(removedType); // ← 추가
+  if (typeof onBlockRemoved === 'function') onBlockRemoved(removedType, x, y, z);
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -711,6 +711,16 @@ function buildAnimal(type, isInjured) {
     [-.1, .1].forEach(z => { const wing = new THREE.Mesh(B(.3, .04, .18), M(0x8B6914)); wing.position.set(-.04, .45, z); wing.rotation.z = -.1; g.add(wing); });
     const spwtail = new THREE.Mesh(B(.18, .03, .18), M(0x8B6914)); spwtail.position.set(-.2, .38, 0); g.add(spwtail);
     [-.06, .06].forEach(z => { const eye = new THREE.Mesh(B(.06, .06, .06), M(0x111111)); eye.position.set(.32, .56, z); g.add(eye); });
+  } else if (type === 'officer_city') {
+    // 시청 공무원 박 주임: 정장 입은 인간형 3D 모델링
+    const body = new THREE.Mesh(B(.46, .7, .38), M(0x334455)); body.position.y = .35; g.add(body);
+    const head = new THREE.Mesh(B(.32, .32, .32), M(0xffd1a9)); head.position.set(0, .88, 0); g.add(head);
+    const glasses = new THREE.Mesh(B(.35, .06, .04), M(0x111111)); glasses.position.set(.18, .9, 0); g.add(glasses);
+    const hair = new THREE.Mesh(B(.34, .1, .34), M(0x222222)); hair.position.set(0, 1.02, 0); g.add(hair);
+    const bag = new THREE.Mesh(B(.1, .28, .36), M(0x5c4033)); bag.position.set(-.28, .35, .15); g.add(bag);
+    [[-.12, -.08], [.12, -.08]].forEach(([lx, lz]) => {
+      const leg = new THREE.Mesh(B(.14, .4, .14), M(0x222222)); leg.position.set(lx, .0, lz); g.add(leg);
+    });
   } else if (type === 'owner_park') {
     // 펜션 주인 박씨: 펜션 사장님 3D 모델링
     const body = new THREE.Mesh(B(.5, .7, .4), M(0x2244aa)); body.position.y = .35; g.add(body);
@@ -806,6 +816,10 @@ function updateAnimals(t) {
     else if (a.type === 'fox') updateFox(a, t);
     else if (a.type === 'dog') updateWildDog(a, t);
     else if (a.type === 'owner_park') updateOwnerPark(a, t);
+    else if (a.type === 'raccoon') updateRaccoon(a, t);
+    else if (a.type === 'kestrel') updateKestrel(a, t);
+    else if (a.type === 'bear') updateBear(a, t);
+    else if (a.type === 'officer_city') updateOfficerCity(a, t);
     else updateDefaultAnimal(a, t);
   }
 }
@@ -813,6 +827,133 @@ function updateAnimals(t) {
 function updateOwnerPark(a, t) {
   a.group.position.set(a.x, a.y + Math.sin(t * 1.5) * 0.02, a.z);
   a.group.rotation.y = a.angle + Math.sin(t * 0.8) * 0.25;
+}
+
+function updateOfficerCity(a, t) {
+  a.group.position.set(a.x, a.y + Math.sin(t * 1.2) * 0.015, a.z);
+  a.group.rotation.y = a.angle + Math.sin(t * 0.5) * 0.15;
+}
+
+function updateRaccoon(a, t) {
+  // 쓰레기에 갇혀있을 때
+  if (typeof level5_conditions !== 'undefined' && !level5_conditions.raccoonRescued) {
+    a.group.position.set(a.x, a.y + Math.abs(Math.sin(t * 12)) * 0.15, a.z);
+    a.group.rotation.z = Math.sin(t * 15) * 0.15;
+    return;
+  }
+  
+  // 구출되었을 때
+  if (typeof level5_conditions !== 'undefined' && level5_conditions.raccoonRescued) {
+    // 생태 육교가 완성되었을 때: 다리 건너 안전지대로 이동
+    if (level5_conditions.viaductConnected) {
+      const tx = -60, tz = 95; // 생태 육교 건너 하천 숲 안전지대
+      const dx = tx - a.x, dz = tz - a.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      if (dist > 1.0) {
+        const spd = 0.025;
+        a.x += dx / dist * spd;
+        a.z += dz / dist * spd;
+        a.targetAngle = Math.atan2(-dz, dx);
+      } else {
+        // 도착: 가볍게 서성임
+        if (Math.random() < 0.01) a.targetAngle = a.angle + (Math.random() - 0.5) * 1.5;
+      }
+    } else {
+      // 생태 육교가 없을 때는 도로 근처(Z=70)를 무서워하며 배회
+      const cX = -60, cZ = 70;
+      const dist = Math.hypot(a.x - cX, a.z - cZ);
+      if (dist > 6) {
+        a.targetAngle = Math.atan2(cZ - a.z, a.x - cX);
+      } else if (Math.random() < 0.02) {
+        a.targetAngle = a.angle + (Math.random() - 0.5) * 2;
+      }
+      const spd = 0.012;
+      a.x += Math.cos(a.angle) * spd;
+      a.z -= Math.sin(a.angle) * spd;
+    }
+  }
+
+  let diff = a.targetAngle - a.angle;
+  while (diff > Math.PI) diff -= 2 * Math.PI;
+  while (diff < -Math.PI) diff += 2 * Math.PI;
+  a.angle += diff * 0.08;
+
+  const aheadY = getVisualTopY(a.x, a.z);
+  a.y += (aheadY - a.y) * 0.25;
+  a.group.position.set(a.x, a.y + Math.abs(Math.sin(t * 5.0)) * 0.05, a.z);
+  a.group.rotation.y = a.angle;
+  a.group.rotation.z = 0;
+}
+
+function updateKestrel(a, t) {
+  // 공중 선회: 빌딩 옥상정원(X: -40, Z: 80) 주변을 높이 43 부근에서 궤도 회전
+  const cX = -40, cZ = 80;
+  const radius = 6.0;
+  const targetY = 43;
+
+  // 시간에 따른 궤도 계산
+  a.x = cX + Math.cos(t * 0.6) * radius;
+  a.z = cZ + Math.sin(t * 0.6) * radius;
+  a.y = targetY + Math.sin(t * 1.5) * 0.5;
+
+  // 진행 방향(접선 방향)을 바라봄
+  a.angle = -(t * 0.6) + Math.PI; // 각도 접선
+  
+  a.group.position.set(a.x, a.y, a.z);
+  a.group.rotation.y = a.angle;
+  
+  // 날개 펄럭임 연출
+  a.group.rotation.z = Math.sin(t * 8) * 0.15;
+}
+
+function updateBear(a, t) {
+  // 반달곰: X:0, Z:-80 심장부 바이옴
+  // 근처에 도토리 블록(acorn)이 있는 경우 찾아감
+  let targetAcorn = null;
+  let minDist = 9999;
+  
+  // 도토리 블록 검색
+  for (const key in gridData) {
+    if (gridData[key].split('_')[0] === 'acorn') {
+      const [ax, ay, az] = key.split(',').map(Number);
+      const dx = ax - a.x, dz = az - a.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      if (dist < 12 && dist < minDist) {
+        minDist = dist;
+        targetAcorn = { x: ax, z: az };
+      }
+    }
+  }
+
+  if (targetAcorn && minDist > 1.2) {
+    const dx = targetAcorn.x - a.x, dz = targetAcorn.z - a.z;
+    a.targetAngle = Math.atan2(-dz, dx);
+    const spd = 0.012; // 무거운 반달곰의 느린 걸음
+    a.x += dx / minDist * spd;
+    a.z += dz / minDist * spd;
+  } else {
+    // 도토리가 없으면 대기 지점(0, -80) 근처 배회
+    const cX = 0, cZ = -80;
+    const dist = Math.hypot(a.x - cX, a.z - cZ);
+    if (dist > 6) {
+      a.targetAngle = Math.atan2(cZ - a.z, a.x - cX);
+    } else if (Math.random() < 0.008) {
+      a.targetAngle = a.angle + (Math.random() - 0.5) * 1.5;
+    }
+    const spd = 0.005;
+    a.x += Math.cos(a.angle) * spd;
+    a.z -= Math.sin(a.angle) * spd;
+  }
+
+  let diff = a.targetAngle - a.angle;
+  while (diff > Math.PI) diff -= 2 * Math.PI;
+  while (diff < -Math.PI) diff += 2 * Math.PI;
+  a.angle += diff * 0.05;
+
+  const aheadY = getVisualTopY(a.x, a.z);
+  a.y += (aheadY - a.y) * 0.15;
+  a.group.position.set(a.x, a.y + Math.sin(t * 1.5 + a.x) * 0.03, a.z);
+  a.group.rotation.y = a.angle;
 }
 
 
@@ -1415,3 +1556,121 @@ function spawnLevel4Animals() {
 
   DBG('[Level4] 스폰 완료 — 쏘야(42,20) 박씨(50,12) 연어(45,-15) 두루미(38,24)');
 }
+
+// ──────────────────────────────────────────────
+// 화이트박스용 동물 스폰 (urban_border 바이옴 내부)
+// urban_border: centerX=-60, centerZ=80, radius=35
+// ──────────────────────────────────────────────
+function spawnLevel5Animals() {
+  DBG('[Level5] spawnLevel5Animals() 실행 — 경계 도시 청크 활성화, 빌딩/도로 지형 도색 및 동물 배치');
+
+  // 경계 도시 근방 청크들을 사전 로드
+  for (let cx = -9; cx <= -4; cx++) {
+    for (let cz = 6; cz <= 11; cz++) {
+      activateChunk(cx, cz);
+    }
+  }
+
+  // 1. 너구리 라쿤이 (raccoon) — X=-60, Z=68
+  const rcY = getH(-60, 68);
+  placeAnimal(-60, rcY, 68, 'raccoon');
+  const raccoon = animalData.find(a => a.type === 'raccoon');
+  if (raccoon && raccoon.group) {
+    raccoon.group.scale.set(0.7, 0.7, 0.7); // 다쳐서 버둥거리는 아기 너구리
+  }
+
+  // 2. 황조롱이 삐루 (kestrel) — X=-40, Y=43, Z=80
+  placeAnimal(-40, 43, 80, 'kestrel');
+
+  // 3. 시청 공무원 박 주임 (officer_city) — X=-50, Z=65
+  const ofY = getH(-50, 65);
+  placeAnimal(-50, ofY, 65, 'officer_city');
+
+  DBG('[Level5] 스폰 완료 — 라쿤이(-60,68) 삐루(-40,43,80) 박 주임(-50,65)');
+
+  // ── 8차선 아스팔트 도로 도색 & 빌딩 건설 ──────────
+  // 도로: X=-60~-30, Z=74~78
+  for (let x = -60; x <= -30; x++) {
+    for (let z = 74; z <= 78; z++) {
+      const dy = getTopY(x, z) - 1;
+      _place(x, dy, z, 'stone'); // 아스팔트 대용 돌 블록
+    }
+  }
+
+  // 빌딩: X=-40, Z=80에 높이 Y=40까지 돌 기둥 건설
+  const buildY = getTopY(-40, 80);
+  for (let y = buildY; y <= 40; y++) {
+    _place(-40, y, 80, 'stone');
+    // 빌딩 외벽 느낌을 위해 주변을 돌러쌈
+    _place(-41, y, 80, 'stone');
+    _place(-39, y, 80, 'stone');
+    _place(-40, y, 81, 'stone');
+    _place(-40, y, 79, 'stone');
+  }
+
+  // ── 너구리 발을 묶고 있는 도심 쓰레기 블록 3개 생성 ──────────
+  const trashXZ = [{x:-60,z:67},{x:-59,z:68},{x:-61,z:69}];
+  for (const {x, z} of trashXZ) {
+    const dy = getTopY(x, z);
+    _place(x, dy, z, 'city_trash');
+  }
+}
+
+// ──────────────────────────────────────────────
+// 화이트박스용 동물 스폰 (green_heart 바이옴 내부)
+// green_heart: centerX=0, centerZ=-80, radius=40
+// ──────────────────────────────────────────────
+function spawnLevel6Animals() {
+  DBG('[Level6] spawnLevel6Animals() 실행 — 초록별 심장부 청크 활성화 및 반달곰 스폰');
+
+  // 심장부 근방 청크들을 사전 로드
+  for (let cx = -4; cx <= 4; cx++) {
+    for (let cz = -11; cz <= -7; cz++) {
+      activateChunk(cx, cz);
+    }
+  }
+
+  // 1. 지리산 반달가슴곰 웅이 (bear) — X=0, Z=-80
+  const beY = getH(0, -80);
+  placeAnimal(0, beY, -80, 'bear');
+
+  DBG('[Level6] 스폰 완료 — 반달가슴곰 웅이(0,-80)');
+
+  // ── 도토리 숲 환경 조성 ──────────
+  // 반달곰 둥지 주변에 버드나무(willow)와 흙 블록들 배치
+  const forestXZ = [[-5,-78], [5,-82], [-3,-84], [4,-76]];
+  for (const [x, z] of forestXZ) {
+    const dy = getTopY(x, z);
+    _place(x, dy, z, 'willow');
+  }
+}
+
+// 레벨 4 클리어 이벤트 수신 등록
+document.addEventListener('level4Cleared', () => {
+  DBG('[World] level4Cleared 이벤트 수신 — 경계 도시(Level 5) 해금');
+  clearLevelFog();
+
+  // 3.2초 후 레벨 5 시작
+  setTimeout(() => {
+    currentLevel = 5;
+    DBG('[World] currentLevel → 5, 레벨5 요소 스폰');
+    if (typeof Level5Manager !== 'undefined') {
+      Level5Manager.init();
+    }
+  }, 3200);
+});
+
+// 레벨 5 클리어 이벤트 수신 등록
+document.addEventListener('level5Cleared', () => {
+  DBG('[World] level5Cleared 이벤트 수신 — 초록별 심장부(Level 6) 해금');
+  clearLevelFog();
+
+  // 3.2초 후 레벨 6 시작
+  setTimeout(() => {
+    currentLevel = 6;
+    DBG('[World] currentLevel → 6, 레벨6 요소 스폰');
+    if (typeof Level6Manager !== 'undefined') {
+      Level6Manager.init();
+    }
+  }, 3200);
+});

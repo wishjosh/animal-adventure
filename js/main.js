@@ -318,6 +318,20 @@ function handleClick(clientX, clientY) {
   if (QuestManager.getCurrentPhase() === 3 && Phase3System.handleClick(obj)) return;
   if (currentLevel === 3 && typeof Level3Logic !== 'undefined' && Level3Logic.handleClick(obj)) return;
   if (currentLevel === 4 && typeof Level4Logic !== 'undefined' && Level4Logic.handleClick(obj)) return;
+  if (currentLevel === 5 && typeof Level5Manager !== 'undefined') {
+    const ud = getUD(obj);
+    const clickX = ud ? ud.bx : Math.round(hit.point.x);
+    const clickY = ud ? ud.by : Math.round(hit.point.y);
+    const clickZ = ud ? ud.bz : Math.round(hit.point.z);
+    if (Level5Manager.handleClick(clickX, clickY, clickZ)) return;
+  }
+  if (currentLevel === 6 && typeof Level6Manager !== 'undefined') {
+    const ud = getUD(obj);
+    const clickX = ud ? ud.bx : Math.round(hit.point.x);
+    const clickY = ud ? ud.by : Math.round(hit.point.y);
+    const clickZ = ud ? ud.bz : Math.round(hit.point.z);
+    if (Level6Manager.handleClick(clickX, clickY, clickZ)) return;
+  }
 
   // === [2순위] 도구 모드 (Tool Actions) ===
   if (toolMode === 'watering') {

@@ -297,6 +297,17 @@ function saveGame(){
         phaseComplete: { ...Level3Manager.phaseComplete }
       } : null
     },
+    level4State: {
+      level4_phase:      level4_phase,
+      level4_conditions: {
+        ...level4_conditions,
+        cementDamCells: level4_conditions.cementDamCells.map(c => ({ ...c }))
+      },
+      level4Manager: typeof Level4Manager !== 'undefined' ? {
+        currentPhase:  Level4Manager.currentPhase,
+        phaseComplete: { ...Level4Manager.phaseComplete }
+      } : null
+    },
     level1State: {
       level_phase:             Level1Manager.currentPhase,
       yellow_orbs_collected:   ClueSystem.foundCount,
@@ -398,6 +409,15 @@ function onFileSelected(e){
           Level3Manager.phaseComplete = l3.level3Manager.phaseComplete ?? {};
         }
       }
+      if (data.level4State) {
+        const l4 = data.level4State;
+        level4_phase = l4.level4_phase ?? 0;
+        if (l4.level4_conditions) Object.assign(level4_conditions, l4.level4_conditions);
+        if (l4.level4Manager && typeof Level4Manager !== 'undefined') {
+          Level4Manager.currentPhase  = l4.level4Manager.currentPhase  ?? 1;
+          Level4Manager.phaseComplete = l4.level4Manager.phaseComplete ?? { soya: false, salmon: false, crane: false, flood: false };
+        }
+      }
       updateProtectorSlots();
 
       // phaseComplete[1]=true인데 currentPhase가 1에 머문 경우 자동 보정
@@ -435,7 +455,7 @@ function clearAll(silent=false){
   LeafSystem.meshes=[]; LeafSystem.collected=0;
 
   ClueSystem.foundCount = 0;
-  Object.assign(global_protectors, { bee: false, swallow: false, sheep: false, otter: false, bat: false, fox: false, eagle: false });
+  Object.assign(global_protectors, { bee: false, swallow: false, sheep: false, otter: false, bat: false, fox: false, eagle: false, crane: false, salmon: false });
   // 레벨 2 상태 초기화
   level2_phase = 0;
   if (typeof level2_conditions !== 'undefined') {
@@ -462,6 +482,27 @@ function clearAll(silent=false){
     Level3Manager.currentPhase = 0;
     Level3Manager.phaseComplete = {};
     Level3Manager.clearGuides();
+  }
+  // 레벨 4 상태 초기화
+  level4_phase = 0;
+  if (typeof level4_conditions !== 'undefined') {
+    level4_conditions.soyaRescued = false;
+    level4_conditions.ownerConvinced = false;
+    level4_conditions.pollutionDeviceInstalled = false;
+    level4_conditions.cementDamRemovedCount = 0;
+    level4_conditions.cementDamCells = [];
+    level4_conditions.willowPlantedCount = 0;
+    level4_conditions.floodTimer = 60;
+    level4_conditions.isFlooding = false;
+    level4_conditions.floodDefenseScore = 0;
+  }
+  if (typeof Level4Manager !== 'undefined') {
+    Level4Manager.currentPhase = 1;
+    Level4Manager.phaseComplete = { soya: false, salmon: false, crane: false, flood: false };
+  }
+  if (typeof Level4Logic !== 'undefined' && Level4Logic.rainParticles) {
+    scene.remove(Level4Logic.rainParticles);
+    Level4Logic.rainParticles = null;
   }
   updateProtectorSlots();
   if(!silent) {
@@ -573,6 +614,108 @@ window.goLevel3 = function () {
   toast('🔧 레벨 3 [연결의 평원]으로 이동했어요 (개발자 모드)');
 };
 
+// 레벨 4 진입 — level3-clear 배너의 "레벨 4 시작" 버튼에서 호출
+window.startLevel4 = function () {
+  document.getElementById('level3-clear').style.display = 'none';
+  currentLevel = 4;
+  if (typeof Level4Manager !== 'undefined') {
+    Level4Manager.init();
+    QuestManager.updateUI();
+  } else {
+    toast('🚧 레벨 4: 강의 근원지 — 준비 중입니다!');
+  }
+};
+
+// 개발 테스트용 — 브라우저 콘솔에서 goLevel4() 로 레벨 4를 즉시 시작
+window.goLevel4 = function () {
+  isOpeningActive = false;
+  const overlay = document.getElementById('opening-overlay');
+  if (overlay) overlay.style.display = 'none';
+  const l3Clear = document.getElementById('level3-clear');
+  if (l3Clear) l3Clear.style.display = 'none';
+
+  global_protectors.bee = true;
+  global_protectors.swallow = true;
+  global_protectors.sheep = true;
+  global_protectors.otter = true;
+  global_protectors.bat = true;
+  global_protectors.fox = true;
+  global_protectors.eagle = true;
+
+  currentLevel = 4;
+  if (typeof Level4Manager !== 'undefined') {
+    Level4Manager.init();
+  }
+  if (typeof updateProtectorSlots === 'function') updateProtectorSlots();
+  toast('🔧 레벨 4 [강의 근원지]로 이동했어요 (개발자 모드)');
+};
+
+// 레벨 5 진입 — level4-clear 배너의 "레벨 5 시작" 버튼에서 호출
+window.startLevel5 = function () {
+  document.getElementById('level4-clear').style.display = 'none';
+  currentLevel = 5;
+  if (typeof Level5Manager !== 'undefined') {
+    Level5Manager.init();
+    QuestManager.updateUI();
+  } else {
+    toast('🚧 레벨 5: 경계 도시 — 준비 중입니다!');
+  }
+};
+
+// 개발 테스트용 — goLevel5()
+window.goLevel5 = function () {
+  isOpeningActive = false;
+  const overlay = document.getElementById('opening-overlay');
+  if (overlay) overlay.style.display = 'none';
+  const l4Clear = document.getElementById('level4-clear');
+  if (l4Clear) l4Clear.style.display = 'none';
+
+  global_protectors.bee = true;
+  global_protectors.swallow = true;
+  global_protectors.sheep = true;
+  global_protectors.otter = true;
+  global_protectors.bat = true;
+  global_protectors.fox = true;
+  global_protectors.eagle = true;
+  global_protectors.crane = true;
+  global_protectors.salmon = true;
+
+  currentLevel = 5;
+  if (typeof Level5Manager !== 'undefined') {
+    Level5Manager.init();
+  }
+  if (typeof updateProtectorSlots === 'function') updateProtectorSlots();
+  toast('🔧 레벨 5 [경계 도시]로 이동했어요 (개발자 모드)');
+};
+
+// 레벨 6 진입
+window.startLevel6 = function () {
+  currentLevel = 6;
+  if (typeof Level6Manager !== 'undefined') {
+    Level6Manager.init();
+    QuestManager.updateUI();
+  } else {
+    toast('🚧 레벨 6: 초록별 심장부 — 준비 중입니다!');
+  }
+};
+
+// 개발 테스트용 — goLevel6()
+window.goLevel6 = function () {
+  isOpeningActive = false;
+  const overlay = document.getElementById('opening-overlay');
+  if (overlay) overlay.style.display = 'none';
+
+  // 모든 수호대 획득
+  Object.keys(global_protectors).forEach(k => global_protectors[k] = true);
+
+  currentLevel = 6;
+  if (typeof Level6Manager !== 'undefined') {
+    Level6Manager.init();
+  }
+  if (typeof updateProtectorSlots === 'function') updateProtectorSlots();
+  toast('🔧 레벨 6 [초록별 심장부]로 이동했어요 (개발자 모드)');
+};
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  레벨 1 UI 함수
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -678,7 +821,9 @@ function updateProtectorSlots() {
     otter:   { id: 'protector-slot-otter',   emoji: '🦦', label: '수달' },
     bat:     { id: 'protector-slot-bat',     emoji: '🦇', label: '금비' },
     fox:     { id: 'protector-slot-fox',     emoji: '🦊', label: '여우' },
-    eagle:   { id: 'protector-slot-eagle',   emoji: '🦅', label: '독수리' }
+    eagle:   { id: 'protector-slot-eagle',   emoji: '🦅', label: '독수리' },
+    crane:   { id: 'protector-slot-crane',   emoji: '🦩', label: '두루미' },
+    salmon:  { id: 'protector-slot-salmon',  emoji: '🐟', label: '연어' }
   };
 
   for (const [key, cfg] of Object.entries(slotMap)) {
