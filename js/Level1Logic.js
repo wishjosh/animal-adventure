@@ -43,9 +43,6 @@ const ClueSystem = {
     if (clue && !clue.found) {
       clue.found = true;
       this.foundCount++;
-      // ── state.js 동기화 ──
-      yellow_orbs_collected = this.foundCount;
-      // ────────────────────
       if (clue.mesh) { scene.remove(clue.mesh); clue.mesh = null; }
       CreatureReport.show(clue.id);
       toast(`🔍 ${clue.emoji} 단서를 찾았어요! (${this.foundCount}/4)`);
@@ -97,10 +94,7 @@ const ToxicPlantSystem = {
     toast(`🗑️ 독성 식물 제거 (${this.removed}/${this.locations.length})`);
     if (this.removed >= this.locations.length) {
       Level1Manager.phase1State.toxicRemoved = true;
-      // ── state.js 동기화 ──
-      toxic_plants_removed = true;
-      if (level_phase === 1) advancePhase(2);
-      // ────────────────────
+      if (Level1Manager.currentPhase === 1) advancePhase(2);
       if (typeof showEcoPopup === 'function') showEcoPopup('🌼❌', '나쁜 노란 꽃을 뽑아<br>동물 친구들이 안전해졌어요!');
       QuestManager.check();
       setTimeout(() => toast('✅ 꽃 뽑기 완료! 다음: 토마토(🍅)와 바질(🌿) 씨앗을 나란히 심어주세요!'), 3500);
@@ -135,9 +129,6 @@ const LeafSystem = {
     scene.remove(mesh);
     this.meshes = this.meshes.filter(m => m !== mesh);
     this.collected++;
-    // ── state.js 동기화 ──
-    leaves_collected = this.collected;
-    // ────────────────────
     toast(`🍂 낙엽 수집 (${this.collected}/${this.needed})`);
     if (this.collected >= this.needed) {
       toast('🍂 낙엽을 충분히 모았어요! 고목나무 주변 흙에 덮어주세요!');
@@ -150,7 +141,7 @@ const LeafSystem = {
       return false;
     }
     // Phase 3 → Phase 4 이행
-    if (level_phase === 3) advancePhase(4);
+    if (Level1Manager.currentPhase === 3) advancePhase(4);
     WormMinigame.start(x, z);
     return true;
   }
@@ -355,14 +346,9 @@ const CompanionPlant = {
         setTimeout(() => {
           if (plantType === 'tomato') {
             _place(x, y, z, 'plant_tomato_fruit');
-            // ── state.js 동기화 ──
-            companion_plants_status.tomato = true;
-            // ────────────────────
+            Level1Manager.phase1State.tomatoFruited = true;
           } else if (pair.partner === 'tomato') {
             _place(nx, ny, nz, 'plant_tomato_fruit');
-            // ── state.js 동기화 ──
-            companion_plants_status.basil = true;
-            // ────────────────────
           }
           toast(pair.bonus);
           Level1Manager.phase1State.tomatoFruited = true;
@@ -410,9 +396,6 @@ const CreatureReport = {
 //  레벨 1 미션 관리자
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const Level1Manager = {
-  currentTheme: 1,
-  currentStep: 1,
-  themeComplete: {},
   currentPhase: 0,
   phaseComplete: {},
   injuredHealedCount: 0,
@@ -426,13 +409,10 @@ const Level1Manager = {
   init() { /* 추가 초기화 필요시 사용 */ },
 
   check() {
-    if (this.currentPhase === 0) this.checkPhase0();
-    else if (this.currentPhase === 1) this.checkPhase1();
+    if (this.currentPhase === 1) this.checkPhase1();
     else if (this.currentPhase === 2) this.checkPhase2();
     else if (this.currentPhase === 3) this.checkPhase3();
   },
-
-  checkPhase0() { },
 
   checkPhase1() {
     if (this.phaseComplete[1]) return;
@@ -473,13 +453,9 @@ const Level1Manager = {
     Phase3System.check();
   },
 
-  onTreeChopped() { },
-
   advance() {
     this.currentPhase++;
-    // ── state.js 동기화 ──
     advancePhase(this.currentPhase);
-    // ────────────────────
     toast(`새로운 퀘스트(페이즈 ${this.currentPhase})가 시작되었습니다!`);
     this.updateUI();
     showPhaseTransition(this.currentPhase);
@@ -504,7 +480,7 @@ const Level1Manager = {
       titleEl.textContent = `🦋 페이즈 2: 곤충과 새가 돌아오고 있어요`;
       if (descEl) descEl.innerHTML = `표시된 구역을 클릭해서 생태계를 복원하세요!`;
       if (statusEl) {
-        const c = phase2_conditions, e = environment_flags;
+        const c = Phase2System.conditions, e = Phase2System.envFlags;
         statusEl.innerHTML = `
           <div class="mc${c.hiveFull ? ' done' : ''}">${c.hiveFull ? '✅' : '1️⃣'} 🐝 꿀벌 귀환 <small style="opacity:0.7">→ 꽃 심기 + 나뭇가지 제거</small></div>
           <div class="mc${e.riverTrashCount === 0 ? ' done' : ''}">${e.riverTrashCount === 0 ? '✅' : '2️⃣'} 🗑️ 강 쓰레기 제거 <small style="opacity:0.7">→ 남은 ${e.riverTrashCount}개</small></div>
@@ -516,7 +492,7 @@ const Level1Manager = {
       titleEl.textContent = `🎯 동물의 보금자리 만들기`;
       if (descEl) descEl.innerHTML = `노란색 화살표(⬇️)가 가리키는 대상을 찾아 클릭하세요!`;
       if (statusEl) {
-        const c = phase3_conditions;
+        const c = Phase3System.conditions;
         statusEl.innerHTML = `
           <div class="mc${c.sheepHealed ? ' done' : ''}">${c.sheepHealed ? '✅' : '1️⃣'} 🐑 <b>양 치료:</b> 화살표를 따라 양을 그늘과 볏짚으로 옮기고 치료해 주세요!</div>
           <div class="mc${c.horseSpace ? ' done' : ''}">${c.horseSpace ? '✅' : '2️⃣'} 🐴 <b>말 돕기:</b> 말굽의 돌을 빼고, 화살표가 가리키는 붉은 울타리를 치워주세요!</div>
@@ -583,11 +559,8 @@ const OldTree = {
       this._particles = [];
       this.setState('blooming');
       Level1Manager.phase1State.treeGrowing = true;
-      // ── state.js 동기화 ──
-      tree_state = 'bloomed';
-      phase2_conditions.treeBlooming = true;
+      Phase2System.conditions.treeBlooming = true;
       checkSheepCondition();
-      // ────────────────────
       if (typeof showEcoPopup === 'function') showEcoPopup('🌳✨', '주변 흙이 건강해져서<br>나무 할아버지가 살아났어요!');
       QuestManager.check();
       toast('🌳 고목나무에 잎이 돋아나고 있어요!');
@@ -708,6 +681,22 @@ const SeedSystem = {
 const ArrowSystem = {
   pool: [],
   activeCount: 0,
+  _dirty: true,
+  _cache: {},
+
+  invalidate() { this._dirty = true; },
+
+  _rebuildCache() {
+    const out = {};
+    for (const [k, type] of Object.entries(gridData)) {
+      if (!out[type]) out[type] = [];
+      const [x, y, z] = k.split(',').map(Number);
+      out[type].push({ x, y, z });
+    }
+    this._cache = out;
+    this._dirty = false;
+  },
+
   getArrow() {
     if (this.activeCount < this.pool.length) {
       const a = this.pool[this.activeCount++];
@@ -725,37 +714,34 @@ const ArrowSystem = {
   },
   update(t) {
     this.activeCount = 0;
+    if (this._dirty) this._rebuildCache();
     if (QuestManager.getCurrentPhase() === 1) {
       const s = Level1Manager.phase1State;
+      const sin = Math.sin(t * 5) * 0.15;
       if (!s.toxicRemoved) {
-        for (const [k, type] of Object.entries(gridData)) {
-          if (type === 'toxic_plant') {
-            const [x, y, z] = k.split(',').map(Number);
-            const a = this.getArrow();
-            a.position.set(x, y + 1.2 + Math.sin(t * 5) * 0.15, z);
-          }
+        for (const { x, y, z } of (this._cache.toxic_plant || [])) {
+          const a = this.getArrow();
+          a.position.set(x, y + 1.2 + sin, z);
         }
       } else if (!s.tomatoFruited) {
-        for (const [k, type] of Object.entries(gridData)) {
-          if (type === 'dirt_rich' || type === 'dirt_moist' || type === 'sprout') {
-            const [x, y, z] = k.split(',').map(Number);
+        for (const type of ['dirt_rich', 'dirt_moist', 'sprout']) {
+          for (const { x, y, z } of (this._cache[type] || [])) {
             const a = this.getArrow();
-            a.position.set(x, y + 1.2 + Math.sin(t * 5) * 0.15, z);
+            a.position.set(x, y + 1.2 + sin, z);
           }
         }
       } else if (!s.wormDone) {
-        for (const [k, type] of Object.entries(gridData)) {
-          if (type === 'dirt_dry' || type === 't_dirt') {
-            const [x, y, z] = k.split(',').map(Number);
+        for (const type of ['dirt_dry', 't_dirt']) {
+          for (const { x, y, z } of (this._cache[type] || [])) {
             if (this.activeCount < 5 && Math.sin(x * z) > 0.8) {
               const a = this.getArrow();
-              a.position.set(x, y + 1.2 + Math.sin(t * 5) * 0.15, z);
+              a.position.set(x, y + 1.2 + sin, z);
             }
           }
         }
       }
     } else if (QuestManager.getCurrentPhase() === 3) {
-      const c = phase3_conditions;
+      const c = Phase3System.conditions;
       const p3 = Phase3System;
       // 양 미션 화살표
       if (!c.sheepHealed) {
@@ -809,16 +795,37 @@ const ArrowSystem = {
 //  페이즈 2 시스템 — 화이트박스 프로토타입
 //  (꿀벌 귀환 / 강 쓰레기 제거 / 나무의 손님들)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  페이즈 공통 헬퍼 (Phase2System / Phase3System 공유)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function _phaseBox(w, h, d, hex, x, y, z, ud = {}) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color: hex }));
+  m.position.set(x, y, z); m.castShadow = true; Object.assign(m.userData, ud); scene.add(m); return m;
+}
+function _phaseSprite(emoji, x, y, z, ud = {}) {
+  if (typeof createEmojiSprite !== 'function') return _phaseBox(1, 1, 1, 0xff0000, x, y + 0.5, z, ud);
+  const m = createEmojiSprite(emoji);
+  m.position.set(x, y + 0.8, z); Object.assign(m.userData, ud); scene.add(m); return m;
+}
+function _makeOverlay(html) {
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.65);z-index:90;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;';
+  ov.innerHTML = html;
+  return ov;
+}
+
 const Phase2System = {
   flowerZoneMeshes: [],
   branchMesh: null,
   trashMeshes: [],
   nestZoneMesh: null,
+  conditions: { hiveFull: false, nestBuilt: false, treeBlooming: false },
+  envFlags: { riverTrashCount: 3, hasMud: false, birdHoleSize: 0, toxicPlantsRemoved: true },
 
   init() {
     this._clearAll();
-    Object.assign(phase2_conditions, { hiveFull: false, nestBuilt: false, treeBlooming: false });
-    Object.assign(environment_flags, { riverTrashCount: 3, hasMud: false });
+    Object.assign(this.conditions, { hiveFull: false, nestBuilt: false, treeBlooming: false });
+    Object.assign(this.envFlags, { riverTrashCount: 3, hasMud: false });
     this._initFlowerZones();
     this._initBranch();
     this._initRiverTrash();
@@ -834,45 +841,27 @@ const Phase2System = {
     this.branchMesh = null; this.nestZoneMesh = null;
   },
 
-  _box(w, h, d, hex, x, y, z, ud) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color: hex }));
-    m.position.set(x, y, z); m.castShadow = true; Object.assign(m.userData, ud); scene.add(m); return m;
-  },
-
-  _sprite(emoji, x, y, z, ud) {
-    if (typeof createEmojiSprite !== 'function') return this._box(1, 1, 1, 0xff0000, x, y + 0.5, z, ud);
-    const m = createEmojiSprite(emoji);
-    m.position.set(x, y + 0.8, z);
-    Object.assign(m.userData, ud);
-    scene.add(m);
-    return m;
-  },
-
   _initFlowerZones() {
     [{ x: 2, z: 3 }, { x: 6, z: 3 }, { x: 2, z: 5 }, { x: 6, z: 5 }].forEach(({ x, z }) => {
-      this.flowerZoneMeshes.push(
-        this._sprite('🌸', x, getTopY(x, z), z, { isFlowerZone: true, planted: false })
-      );
+      this.flowerZoneMeshes.push(_phaseSprite('🌸', x, getTopY(x, z), z, { isFlowerZone: true, planted: false }));
     });
   },
 
   _initBranch() {
     const x = 8, z = 4;
-    this.branchMesh = this._sprite('🪵', x, getTopY(x, z), z, { isBranch: true });
+    this.branchMesh = _phaseSprite('🪵', x, getTopY(x, z), z, { isBranch: true });
   },
 
   _initRiverTrash() {
     [{ x: 3, z: 11 }, { x: 4, z: 13 }, { x: 5, z: 12 }].forEach(({ x, z }) => {
-      this.trashMeshes.push(
-        this._sprite('🗑️', x, getTopY(x, z), z, { isTrash: true })
-      );
+      this.trashMeshes.push(_phaseSprite('🗑️', x, getTopY(x, z), z, { isTrash: true }));
     });
   },
 
   _initTreeZones() {
     if (!OldTree.group) return;
     const tx = 8, tz = 8, ty = getTopY(tx, tz);
-    this.nestZoneMesh = this._sprite('🪺', tx - 1.5, ty + 2.7, tz, { isNestZone: true });
+    this.nestZoneMesh = _phaseSprite('🪺', tx - 1.5, ty + 2.7, tz, { isNestZone: true });
   },
 
   getAllMeshes() {
@@ -894,16 +883,14 @@ const Phase2System = {
   },
 
   _showFlowerUI(targetMesh) {
-    const ov = document.createElement('div');
-    ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.65);z-index:90;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;';
-    ov.innerHTML = `
+    const ov = _makeOverlay(`
       <div style="color:#FFD700;font-size:20px;font-weight:900;">🌸 어떤 꽃을 심을까요?</div>
       <div style="color:rgba(255,255,255,0.8);font-size:13px;text-align:center;">꿀벌이 좋아하는 꽃을 골라주세요!</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
         ${[['장미', '🌹', false], ['국화', '🌼', false], ['클로버', '🍀', true], ['해바라기', '🌻', true]]
         .map(([n, e, ok]) => `<button data-ok="${ok}" data-name="${n}" style="padding:12px 18px;font-size:18px;border-radius:12px;border:none;cursor:pointer;background:${ok ? '#27AE60' : '#555'};color:#fff;font-weight:700;">${e} ${n}</button>`).join('')}
       </div>
-      <button class="p2c" style="padding:8px 20px;border-radius:8px;border:none;cursor:pointer;background:#888;color:#fff;">취소</button>`;
+      <button class="p2c" style="padding:8px 20px;border-radius:8px;border:none;cursor:pointer;background:#888;color:#fff;">취소</button>`);
     document.body.appendChild(ov);
     ov.querySelectorAll('[data-ok]').forEach(btn => btn.addEventListener('click', () => {
       const ok = btn.dataset.ok === 'true';
@@ -912,11 +899,11 @@ const Phase2System = {
         targetMesh.userData.planted = true;
         targetMesh.material.color.setHex(0xF1C40F);
         toast(`🌸 ${btn.dataset.name}을/를 심었어요! 꿀벌이 좋아해요!`);
-        console.log('[Phase2] 꽃 심기 성공:', btn.dataset.name);
+        DBG('[Phase2] 꽃 심기 성공:', btn.dataset.name);
         this._checkHiveReady();
       } else {
         toast(`⚠️ ${btn.dataset.name}에는 꿀벌이 오지 않아요!`);
-        console.log('[Phase2] 부적합 꽃 선택:', btn.dataset.name);
+        DBG('[Phase2] 부적합 꽃 선택:', btn.dataset.name);
       }
     }));
     ov.querySelector('.p2c').addEventListener('click', () => document.body.removeChild(ov));
@@ -925,7 +912,7 @@ const Phase2System = {
   _checkHiveReady() {
     const planted = this.flowerZoneMeshes.filter(m => m.userData.planted).length;
     const total = this.flowerZoneMeshes.length;
-    console.log(`[Phase2] 꽃 진행: ${planted}/${total}, 나뭇가지 남음: ${!!this.branchMesh}`);
+    DBG(`[Phase2] 꽃 진행: ${planted}/${total}, 나뭇가지 남음: ${!!this.branchMesh}`);
     if (planted < total) { toast(`🌸 꽃 심기 (${planted}/${total})`); return; }
     if (this.branchMesh) { toast('🐝 꽃이 모두 피었어요! 벌집 가는 길 나뭇가지를 치워주세요!'); return; }
     this._activateHive();
@@ -934,16 +921,16 @@ const Phase2System = {
   _onBranchClick(mesh) {
     scene.remove(mesh); this.branchMesh = null;
     toast('🪵 나뭇가지를 치웠어요!');
-    console.log('[Phase2] 장애물 제거 완료');
+    DBG('[Phase2] 장애물 제거 완료');
     if (this.flowerZoneMeshes.every(m => m.userData.planted)) this._activateHive();
     else toast('🐝 꽃을 모두 심으면 벌들이 돌아올 거예요!');
   },
 
   _activateHive() {
-    if (phase2_conditions.hiveFull) return;
-    phase2_conditions.hiveFull = true;
+    if (this.conditions.hiveFull) return;
+    this.conditions.hiveFull = true;
     toast('🐝 벌집에 꿀벌이 돌아왔어요!');
-    console.log('[Phase2] hiveFull = true');
+    DBG('[Phase2] hiveFull = true');
     if (typeof showEcoPopup === 'function') showEcoPopup('🌸🐝', '꿀벌이 돌아와<br>꽃가루를 날라요!');
     if (typeof GuardianSystem !== 'undefined') GuardianSystem.updateState('bee', 3);
     // ── state.js 동기화 ──
@@ -956,13 +943,13 @@ const Phase2System = {
   _onTrashClick(mesh) {
     scene.remove(mesh);
     this.trashMeshes = this.trashMeshes.filter(m => m !== mesh);
-    environment_flags.riverTrashCount--;
-    toast(`🗑️ 쓰레기 제거 (남은: ${environment_flags.riverTrashCount}개)`);
-    console.log('[Phase2] 쓰레기 제거, 남은 수:', environment_flags.riverTrashCount);
-    if (environment_flags.riverTrashCount <= 0) {
-      environment_flags.hasMud = true;
+    this.envFlags.riverTrashCount--;
+    toast(`🗑️ 쓰레기 제거 (남은: ${this.envFlags.riverTrashCount}개)`);
+    DBG('[Phase2] 쓰레기 제거, 남은 수:', this.envFlags.riverTrashCount);
+    if (this.envFlags.riverTrashCount <= 0) {
+      this.envFlags.hasMud = true;
       toast('💧 강물 수위가 올라갔어요! 강가에 진흙이 생겼어요!');
-      console.log('[Phase2] hasMud = true — 제비 둥지 열쇠 활성화');
+      DBG('[Phase2] hasMud = true — 제비 둥지 열쇠 활성화');
       if (typeof showEcoPopup === 'function') showEcoPopup('🗑️💧', '쓰레기를 치우자<br>강물이 맑아지고 진흙이 생겼어요!');
       if (typeof GuardianSystem !== 'undefined') GuardianSystem.updateState('otter', 3);
     }
@@ -970,16 +957,16 @@ const Phase2System = {
   },
 
   _onNestZoneClick() {
-    if (phase2_conditions.nestBuilt) { toast('🪺 이미 둥지가 완성됐어요!'); return; }
-    if (!environment_flags.hasMud) {
+    if (this.conditions.nestBuilt) { toast('🪺 이미 둥지가 완성됐어요!'); return; }
+    if (!this.envFlags.hasMud) {
       toast('⚠️ 진흙이 부족합니다. 강가 쓰레기를 먼저 치워 강물을 살려주세요!');
-      console.log('[Phase2] 둥지 실패 — hasMud = false');
+      DBG('[Phase2] 둥지 실패 — hasMud = false');
       return;
     }
-    phase2_conditions.nestBuilt = true;
+    this.conditions.nestBuilt = true;
     if (this.nestZoneMesh) this.nestZoneMesh.material.color.setHex(0x27AE60);
     toast('🪺 진흙으로 제비 둥지가 완성됐어요!');
-    console.log('[Phase2] nestBuilt = true');
+    DBG('[Phase2] nestBuilt = true');
     if (typeof showEcoPopup === 'function') showEcoPopup('💧🪺', '강물이 살아나<br>진흙으로 둥지를 지었어요!');
     if (typeof GuardianSystem !== 'undefined') GuardianSystem.updateState('swallow', 3);
     // ── state.js 동기화 ──
@@ -990,12 +977,12 @@ const Phase2System = {
   },
 
   check() {
-    const { hiveFull, nestBuilt, treeBlooming } = phase2_conditions;
-    console.log('[Phase2] 조건 체크 — hiveFull:', hiveFull, '| nestBuilt:', nestBuilt);
+    const { hiveFull, nestBuilt, treeBlooming } = this.conditions;
+    DBG('[Phase2] 조건 체크 — hiveFull:', hiveFull, '| nestBuilt:', nestBuilt);
     QuestManager.updateUI();
     if (hiveFull && nestBuilt && !treeBlooming) {
-      phase2_conditions.treeBlooming = true;
-      console.log('🦋 하늘이 활기로 가득해요! 페이즈 3 시작');
+      this.conditions.treeBlooming = true;
+      DBG('🦋 하늘이 활기로 가득해요! 페이즈 3 시작');
       if (typeof showEcoPopup === 'function') showEcoPopup('🌳🦋', '생명이 돌아왔어요!<br>하늘이 활기로 가득해요!');
       setTimeout(() => {
         showPhaseTransition(3);
@@ -1027,9 +1014,11 @@ const Phase3System = {
   escapeSpheres: [], _escapeMiniActive: false,
   _escapeSphereClicked: 0, _escapeTimer: null, _goatSelected: false,
 
+  conditions: { sheepHealed: false, horseSpace: false, goatClimbed: false },
+
   init() {
     this._clearAll();
-    Object.assign(phase3_conditions, { sheepHealed: false, horseSpace: false, goatClimbed: false });
+    Object.assign(this.conditions, { sheepHealed: false, horseSpace: false, goatClimbed: false });
     this._sheepSelected = false; this._sheepOnStraw = false;
     this._escapeMiniActive = false; this._escapeSphereClicked = 0; this._goatSelected = false;
     this._initSheepZone();
@@ -1050,20 +1039,6 @@ const Phase3System = {
     if (this._escapeTimer) { clearTimeout(this._escapeTimer); this._escapeTimer = null; }
   },
 
-  _box(w, h, d, hex, x, y, z, ud) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color: hex }));
-    m.position.set(x, y, z); m.castShadow = true; Object.assign(m.userData, ud); scene.add(m); return m;
-  },
-
-  _sprite(emoji, x, y, z, ud) {
-    if (typeof createEmojiSprite !== 'function') return this._box(1, 1, 1, 0xff0000, x, y + 0.5, z, ud);
-    const m = createEmojiSprite(emoji);
-    m.position.set(x, y + 0.8, z);
-    Object.assign(m.userData, ud);
-    scene.add(m);
-    return m;
-  },
-
   _initSheepZone() {
     const sx = 3, sz = 3, sy = getVisualTopY(sx, sz);
     this.sheepMesh = buildAnimal('sheep', true); // 다친 양
@@ -1073,9 +1048,9 @@ const Phase3System = {
 
     // 그늘 = 고목나무(8,8) 바로 옆, 볏짚 = 그 근처
     const shx = 7, shz = 8;
-    this.shadeMesh = this._sprite('🌳', shx, getVisualTopY(shx, shz), shz, { isShadeZone: true });
+    this.shadeMesh = _phaseSprite('🌳', shx, getVisualTopY(shx, shz), shz, { isShadeZone: true });
     const stx = 5, stz = 8;
-    this.strawMesh = this._sprite('🌾', stx, getVisualTopY(stx, stz), stz, { isStrawZone: true });
+    this.strawMesh = _phaseSprite('🌾', stx, getVisualTopY(stx, stz), stz, { isStrawZone: true });
   },
 
   _initHorseZone() {
@@ -1086,8 +1061,8 @@ const Phase3System = {
     scene.add(this.horseMesh);
 
     this.fenceMeshes = [
-      this._box(0.15, 0.8, 1.0, 0xFF4444, hx + 1.2, hy + 0.4, hz, { isFence3: true }),
-      this._box(0.15, 0.8, 1.0, 0xFF4444, hx - 1.2, hy + 0.4, hz, { isFence3: true })
+      _phaseBox(0.15, 0.8, 1.0, 0xFF4444, hx + 1.2, hy + 0.4, hz, { isFence3: true }),
+      _phaseBox(0.15, 0.8, 1.0, 0xFF4444, hx - 1.2, hy + 0.4, hz, { isFence3: true })
     ];
   },
 
@@ -1099,7 +1074,7 @@ const Phase3System = {
     scene.add(this.goatMesh);
 
     const rx = gx + 2, rz = gz, ry = getVisualTopY(rx, rz);
-    this.rockMesh = this._box(1.5, 1.0, 1.5, 0x888888, rx, ry + 0.5, rz, { isRock3: true });
+    this.rockMesh = _phaseBox(1.5, 1.0, 1.5, 0x888888, rx, ry + 0.5, rz, { isRock3: true });
   },
 
   getAllMeshes() {
@@ -1122,7 +1097,7 @@ const Phase3System = {
 
   // ── 양 (A) ──
   _onSheepClick() {
-    if (phase3_conditions.sheepHealed) { toast('🐑 양이 건강해졌어요!'); return; }
+    if (this.conditions.sheepHealed) { toast('🐑 양이 건강해졌어요!'); return; }
     if (this._sheepOnStraw) { this._showFirstAidPopup(); return; }
     this._sheepSelected = true;
     this.sheepMesh.traverse(c => { if (c.isMesh && c.material) { c.material = c.material.clone(); c.material.emissive = new THREE.Color(0x664400); c.material.emissiveIntensity = 0.6; } });
@@ -1140,7 +1115,7 @@ const Phase3System = {
 
   _onStrawZoneClick() {
     if (!this._sheepSelected) { toast('⚠️ 노란색 화살표가 가리키는 양을 먼저 클릭해주세요!'); return; }
-    if (phase3_conditions.sheepHealed) return;
+    if (this.conditions.sheepHealed) return;
     this.sheepMesh.position.set(this.strawMesh.position.x, this.strawMesh.position.y - 0.8, this.strawMesh.position.z);
     this.strawMesh.material.color.setHex(0xF5A800);
     this._sheepOnStraw = true;
@@ -1150,21 +1125,19 @@ const Phase3System = {
   },
 
   _showFirstAidPopup() {
-    const ov = document.createElement('div');
-    ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.65);z-index:90;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;';
-    ov.innerHTML = `
+    const ov = _makeOverlay(`
       <div style="font-size:40px;">🏥</div>
       <div style="color:#FFD700;font-size:20px;font-weight:900;">응급 처치</div>
       <div style="color:rgba(255,255,255,0.85);font-size:14px;text-align:center;line-height:1.7;">양이 다리를 다쳤어요.<br>볏짚 위에서 따뜻하게 쉬게 해주면 낫는대요!</div>
       <button id="p3-heal-ok" style="padding:12px 30px;border-radius:12px;border:none;cursor:pointer;background:#E74C3C;color:#fff;font-size:17px;font-weight:700;">💖 치료하기</button>
-      <button class="p3c" style="padding:8px 20px;border-radius:8px;border:none;cursor:pointer;background:#888;color:#fff;">취소</button>`;
+      <button class="p3c" style="padding:8px 20px;border-radius:8px;border:none;cursor:pointer;background:#888;color:#fff;">취소</button>`);
     document.body.appendChild(ov);
     document.getElementById('p3-heal-ok').addEventListener('click', () => {
       document.body.removeChild(ov);
-      phase3_conditions.sheepHealed = true;
+      this.conditions.sheepHealed = true;
       this.sheepMesh.traverse(c => { if (c.isMesh && c.material) { c.material.color.setHex(0xe8e8e8); c.material.emissiveIntensity = 0; } });
       toast('💖 양이 치료되었어요! 건강을 되찾았어요!');
-      console.log('[Phase3] sheepHealed = true');
+      DBG('[Phase3] sheepHealed = true');
       if (typeof showEcoPopup === 'function') showEcoPopup('🐑💖', '볏짚 위에서 쉬게 해주니<br>양이 건강해졌어요!');
       // ── state.js 동기화 ──
       checkSheepCondition();
@@ -1178,38 +1151,36 @@ const Phase3System = {
   _onHorseClick() { this._showHoofPopup(); },
 
   _showHoofPopup() {
-    const ov = document.createElement('div');
-    ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.65);z-index:90;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;';
-    ov.innerHTML = `
+    const ov = _makeOverlay(`
       <div style="font-size:40px;">🐴</div>
       <div style="color:#FFD700;font-size:20px;font-weight:900;">발굽 돌 제거</div>
       <div style="color:rgba(255,255,255,0.85);font-size:14px;text-align:center;line-height:1.7;">말의 발굽 사이에 돌이 끼었어요.<br>조심스럽게 제거해 주세요!</div>
       <button id="p3-hoof-ok" style="padding:12px 30px;border-radius:12px;border:none;cursor:pointer;background:#8B4513;color:#fff;font-size:17px;font-weight:700;">🪨 돌 제거하기</button>
-      <button class="p3c" style="padding:8px 20px;border-radius:8px;border:none;cursor:pointer;background:#888;color:#fff;">닫기</button>`;
+      <button class="p3c" style="padding:8px 20px;border-radius:8px;border:none;cursor:pointer;background:#888;color:#fff;">닫기</button>`);
     document.body.appendChild(ov);
     document.getElementById('p3-hoof-ok').addEventListener('click', () => {
       document.body.removeChild(ov);
       toast('🐴 발굽 돌을 제거했어요! 이제 노란 화살표가 가리키는 울타리를 치워주세요!');
-      console.log('[Phase3] 말 발굽 돌 제거 완료');
+      DBG('[Phase3] 말 발굽 돌 제거 완료');
       if (typeof showEcoPopup === 'function') showEcoPopup('🐴🪨', '발굽 돌을 빼주니<br>말이 편안해졌어요!');
     });
     ov.querySelector('.p3c').addEventListener('click', () => document.body.removeChild(ov));
   },
 
   _onFenceClick(mesh) {
-    if (!environment_flags.toxicPlantsRemoved) {
+    if (!Phase2System.envFlags.toxicPlantsRemoved) {
       toast('⚠️ 독성 식물을 먼저 제거해야 울타리를 칠 수 있어요!');
-      console.log('[Phase3] 울타리 제거 실패 — toxicPlantsRemoved = false');
+      DBG('[Phase3] 울타리 제거 실패 — toxicPlantsRemoved = false');
       return;
     }
     scene.remove(mesh);
     this.fenceMeshes = this.fenceMeshes.filter(m => m !== mesh);
     toast(`🚧 울타리 제거! (남은: ${this.fenceMeshes.length}개)`);
-    console.log('[Phase3] 울타리 제거, 남은 수:', this.fenceMeshes.length);
+    DBG('[Phase3] 울타리 제거, 남은 수:', this.fenceMeshes.length);
     if (this.fenceMeshes.length === 0) {
-      phase3_conditions.horseSpace = true;
+      this.conditions.horseSpace = true;
       toast('🐴 말이 드넓은 공간을 뛸 수 있어요!');
-      console.log('[Phase3] horseSpace = true');
+      DBG('[Phase3] horseSpace = true');
       if (typeof showEcoPopup === 'function') showEcoPopup('🐴🌿', '울타리가 사라지니<br>말이 자유롭게 뛰어요!');
       this.check();
     }
@@ -1217,7 +1188,7 @@ const Phase3System = {
 
   // ── 염소 (C) ──
   _onGoatClick() {
-    if (phase3_conditions.goatClimbed) { toast('🐐 염소가 바위에 올라있어요!'); return; }
+    if (this.conditions.goatClimbed) { toast('🐐 염소가 바위에 올라있어요!'); return; }
     if (this._escapeSphereClicked >= 3 && !this._goatSelected) {
       this._goatSelected = true;
       this.goatMesh.traverse(c => { if (c.isMesh && c.material) { c.material = c.material.clone(); c.material.emissive = new THREE.Color(0x004466); c.material.emissiveIntensity = 0.6; } });
@@ -1245,7 +1216,7 @@ const Phase3System = {
       this.escapeSpheres.push(m);
     });
     toast('🐐 염소가 도망치려 해요! 파란 구슬을 모두 클릭해서 막아주세요! (10초)');
-    console.log('[Phase3] 탈출 미니게임 시작');
+    DBG('[Phase3] 탈출 미니게임 시작');
     this._escapeTimer = setTimeout(() => { if (this._escapeMiniActive) this._escapeTimerFail(); }, 10000);
   },
 
@@ -1259,7 +1230,7 @@ const Phase3System = {
       clearTimeout(this._escapeTimer); this._escapeTimer = null;
       this._escapeMiniActive = false;
       toast('🐐 구슬을 모두 막았어요! 염소를 클릭해서 바위로 데려가세요!');
-      console.log('[Phase3] 탈출 미니게임 클리어');
+      DBG('[Phase3] 탈출 미니게임 클리어');
     }
   },
 
@@ -1267,31 +1238,31 @@ const Phase3System = {
     this._escapeMiniActive = false; this._escapeSphereClicked = 0;
     this.escapeSpheres.forEach(m => scene.remove(m)); this.escapeSpheres = [];
     toast('⚠️ 염소가 도망쳤어요! 다시 클릭해서 잡아주세요!');
-    console.log('[Phase3] 탈출 미니게임 실패 — 재시도 가능');
+    DBG('[Phase3] 탈출 미니게임 실패 — 재시도 가능');
   },
 
   _onRockClick() {
     if (!this._goatSelected) { toast('⚠️ 노란색 화살표가 가리키는 염소를 먼저 클릭하세요!'); return; }
-    if (phase3_conditions.goatClimbed) return;
-    phase3_conditions.goatClimbed = true;
+    if (this.conditions.goatClimbed) return;
+    this.conditions.goatClimbed = true;
     this.goatMesh.position.set(this.rockMesh.position.x, this.rockMesh.position.y + 0.55, this.rockMesh.position.z);
     this.goatMesh.traverse(c => { if (c.isMesh && c.material) c.material.emissiveIntensity = 0; });
     this._goatSelected = false;
     toast('🐐 염소가 바위 위로 올라갔어요!');
-    console.log('[Phase3] goatClimbed = true');
-    console.log('저기 먹구름이 몰려오고 있어요! 보스전 복선 발견');
+    DBG('[Phase3] goatClimbed = true');
+    DBG('저기 먹구름이 몰려오고 있어요! 보스전 복선 발견');
     if (typeof showEcoPopup === 'function') showEcoPopup('🐐🪨', '염소가 바위에 올라<br>멀리 먹구름을 바라봐요!');
     this.check();
   },
 
   check() {
-    const c = phase3_conditions;
-    console.log('[Phase3] 조건 체크 — sheep:', c.sheepHealed, '| horse:', c.horseSpace, '| goat:', c.goatClimbed);
+    const c = this.conditions;
+    DBG('[Phase3] 조건 체크 — sheep:', c.sheepHealed, '| horse:', c.horseSpace, '| goat:', c.goatClimbed);
     Level1Manager.updateUI();
     if (c.sheepHealed && c.horseSpace && c.goatClimbed) {
       Level1Manager.phaseComplete[3] = true;
       checkLevel1Clear();
-      console.log('🎉 페이즈 3 클리어!');
+      DBG('🎉 페이즈 3 클리어!');
       setTimeout(() => { document.getElementById('mission-clear').style.display = 'block'; }, 600);
     }
   }
@@ -1303,7 +1274,7 @@ const Phase3System = {
 (function registerLevel1() {
     if (typeof QuestManager !== 'undefined') {
         QuestManager.levels[1] = Level1Manager;
-        console.log('[Level1Logic] QuestManager.levels[1] 등록 완료');
+        DBG('[Level1Logic] QuestManager.levels[1] 등록 완료');
     } else {
         console.error('[Level1Logic] QuestManager를 찾을 수 없습니다! 로드 순서를 확인하세요.');
     }

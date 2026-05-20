@@ -10,7 +10,7 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.setClearColor(0x87CEEB);
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0xc8e5f5, 0.003);
+scene.fog = new THREE.Fog(0x87CEEB, 35, 65);
 const camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 500);
 
 const ambient = new THREE.AmbientLight(0xfff0dd, 0.52); scene.add(ambient);
@@ -57,19 +57,21 @@ groundMesh.receiveShadow = true; groundMesh.userData.isGround = true; scene.add(
 const hlMesh = new THREE.Mesh(new THREE.BoxGeometry(1.02, 1.02, 1.02), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3, depthTest: true }));
 hlMesh.visible = false; scene.add(hlMesh);
 
+// 하이라이트 박스 지오메트리를 미리 생성해 두고 교체만 함 (dispose+create 반복 방지)
+const _hlGeoms = {
+  flat: new THREE.BoxGeometry(1.02, 0.22, 1.02),
+  thin: new THREE.BoxGeometry(1.02, 1.02, 0.22),
+  cube: new THREE.BoxGeometry(1.02, 1.02, 1.02)
+};
 function updateHlMesh() {
-  hlMesh.geometry.dispose();
+  let key = 'cube';
   if (toolMode === 'block' || toolMode === 'seed' || toolMode === 'resource') {
-    if (selItem === 'grass' || selItem === 'straw' || ITEM_DB[selItem]?.category === 'plant' || ITEM_DB[selItem]?.category === 'seed' || ITEM_DB[selItem]?.category === 'resource') {
-      hlMesh.geometry = new THREE.BoxGeometry(1.02, 0.22, 1.02); hlMesh.rotation.y = 0;
-    } else if (selItem === 'fence') {
-      hlMesh.geometry = new THREE.BoxGeometry(1.02, 1.02, 0.22); hlMesh.rotation.y = currentRotation * (Math.PI / 2);
-    } else {
-      hlMesh.geometry = new THREE.BoxGeometry(1.02, 1.02, 1.02); hlMesh.rotation.y = 0;
-    }
-  } else {
-    hlMesh.geometry = new THREE.BoxGeometry(1.02, 1.02, 1.02); hlMesh.rotation.y = 0;
+    const cat = ITEM_DB[selItem]?.category;
+    if (selItem === 'grass' || selItem === 'straw' || cat === 'plant' || cat === 'seed' || cat === 'resource') key = 'flat';
+    else if (selItem === 'fence') key = 'thin';
   }
+  if (hlMesh.geometry !== _hlGeoms[key]) hlMesh.geometry = _hlGeoms[key];
+  hlMesh.rotation.y = (key === 'thin') ? currentRotation * (Math.PI / 2) : 0;
 }
 
 const raycaster = new THREE.Raycaster(), mouse2D = new THREE.Vector2(-9999, -9999);
@@ -118,18 +120,25 @@ function isUIBlocking() {
     || (crEl && crEl.style.display === 'flex');
 }
 
+// getRayTargets 는 mousemove마다 호출되므로 프레임당 최대 1회만 재구성
+let _rtStamp = -1, _rtCache = [];
+function invalidateRayCache() { _rtStamp = -1; }
+
 function getRayTargets() {
+  const now = performance.now();
+  if (now - _rtStamp < 14) return _rtCache;  // ~1 frame
+  _rtStamp = now;
+
   const am = []; for (const a of animalData) if(a.group.parent) a.group.traverse(c => { if (c.isMesh) am.push(c); });
   const pm = []; for (const g of Object.values(chunkGroups)) if(g.parent) g.traverse(c => { if (c.isMesh) pm.push(c); });
   const ot = []; if (OldTree.group && OldTree.group.parent) OldTree.group.traverse(c => { if (c.isMesh) ot.push(c); });
   const cm = []; for (const m of ClueSystem.meshes) if(m.parent) cm.push(m, ...m.children);
-  
+
   const bm = []; for (const obj of Object.values(meshByKey)) {
     if(!obj.parent) continue;
     if (obj.isMesh || obj.isSprite) bm.push(obj);
     else if (obj.isGroup) obj.traverse(c => { if (c.isMesh || c.isSprite) bm.push(c); });
   }
-  // 낙엽도 동일하게 traverse
   const lm = []; for (const m of LeafSystem.meshes) {
     if (m.isMesh || m.isSprite) lm.push(m);
     else if (m.isGroup) m.traverse(c => { if (c.isMesh || c.isSprite) lm.push(c); });
@@ -143,7 +152,8 @@ function getRayTargets() {
       else if (m.isGroup) m.traverse(c => { if (c.isMesh || c.isSprite) p3m.push(c); });
     });
   }
-  return [groundMesh, ...bm, ...am, ...pm, ...ot, ...cm, ...lm, ...p2m, ...p3m];
+  _rtCache = [groundMesh, ...bm, ...am, ...pm, ...ot, ...cm, ...lm, ...p2m, ...p3m];
+  return _rtCache;
 }
 function castRay(cx, cy) {
   const r = canvas.getBoundingClientRect();
@@ -306,6 +316,7 @@ function handleClick(clientX, clientY) {
 
   if (QuestManager.getCurrentPhase() === 2 && Phase2System.handleClick(obj)) return;
   if (QuestManager.getCurrentPhase() === 3 && Phase3System.handleClick(obj)) return;
+  if (currentLevel === 3 && typeof Level3Logic !== 'undefined' && Level3Logic.handleClick(obj)) return;
 
   // === [2순위] 도구 모드 (Tool Actions) ===
   if (toolMode === 'watering') {
@@ -391,23 +402,57 @@ function handleClick(clientX, clientY) {
 }
 
 function pickUpAnimal(entry) {
+  // 영입 전 안기 불가 수호대 동물 차단
+  if (NO_CARRY_BEFORE_RECRUIT.has(entry.type) && !global_protectors[entry.type]) {
+    const label = (GUARDIAN_DATA[entry.type]?.name) || '이 동물';
+    toast(`⚠️ ${label}은/는 아직 수호대에 합류하지 않았어요!`);
+    return;
+  }
   pickedAnimal = { entry };
-  entry.group.traverse(c => { if (c.isMesh && c.material) { c.material = c.material.clone(); c.material.emissive = new THREE.Color(0x886600); c.material.emissiveIntensity = .6; } });
+  entry.group.traverse(c => {
+    if (c.isMesh && c.material && c.material.emissive !== undefined) {
+      c.material.emissive.setHex(0x886600);
+      c.material.emissiveIntensity = 0.6;
+    }
+  });
   document.getElementById('carry-indicator').style.display = 'block';
 }
+
 function dropAnimal(x, y, z) {
   if (!pickedAnimal) return;
   const { entry } = pickedAnimal; pickedAnimal = null;
   document.getElementById('carry-indicator').style.display = 'none';
-  const i = animalData.indexOf(entry); if (i !== -1) { scene.remove(entry.group); animalData.splice(i, 1); }
-  placeAnimal(x, y, z, entry.type, entry.isInjured);
+  // emissive 복원
+  entry.group.traverse(c => {
+    if (c.isMesh && c.material && c.material.emissive !== undefined) {
+      c.material.emissive.setHex(0);
+      c.material.emissiveIntensity = 0;
+    }
+  });
+  // getH()+1: getTopY가 preview 청크에서 0을 반환하는 버그 방지
+  const correctedY = getH(x, z) + 1;
+  entry.x = x; entry.y = correctedY; entry.z = z;
+  entry.group.position.set(x, correctedY, z);
+  if (entry.type === 'toad' && typeof Level2Manager !== 'undefined') {
+    Level2Manager.onToadDropped(x, z);
+  }
+  if (entry.type === 'deer' && typeof Level3Manager !== 'undefined') {
+    Level3Manager.onAnimalDropped(x, z, entry);
+  }
 }
+
 function cancelCarry() {
   if (!pickedAnimal) return;
   const { entry } = pickedAnimal;
-  entry.group.traverse(c => { if (c.isMesh && c.material) { c.material.emissive = new THREE.Color(0); c.material.emissiveIntensity = 0; } });
+  entry.group.traverse(c => {
+    if (c.isMesh && c.material && c.material.emissive !== undefined) {
+      c.material.emissive.setHex(0);
+      c.material.emissiveIntensity = 0;
+    }
+  });
   entry.group.position.set(entry.x, entry.y, entry.z);
-  pickedAnimal = null; document.getElementById('carry-indicator').style.display = 'none';
+  pickedAnimal = null;
+  document.getElementById('carry-indicator').style.display = 'none';
 }
 
 canvas.addEventListener('mousemove', () => {
@@ -461,8 +506,8 @@ function animate() {
   if (camMoved) syncCam();
 
   const wL = typeof BiomeSystem !== 'undefined' ? BiomeSystem.getDominantBiome(orbitTarget.x, orbitTarget.z).waterLevel : 30;
-  if (camera.position.y < wL) { scene.fog.color.setHex(0x021b3a); scene.fog.density = 0.08; renderer.setClearColor(0x021b3a); }
-  else { scene.fog.color.setHex(0xc8e5f5); scene.fog.density = 0.008; renderer.setClearColor(0x87CEEB); }
+  if (camera.position.y < wL) { scene.fog.color.setHex(0x021b3a); scene.fog.near = 2; scene.fog.far = 12; renderer.setClearColor(0x021b3a); }
+  else { scene.fog.color.setHex(0x87CEEB); scene.fog.near = 35; scene.fog.far = 65; renderer.setClearColor(0x87CEEB); }
 
   waterVolume.position.y = wL + Math.sin(t * 1.5) * 0.04;
   waterDeep.position.y = wL - 0.5 + Math.sin(t * 1.5) * 0.02;
@@ -475,6 +520,24 @@ function animate() {
   SeedSystem.update(t);
   OldTree.updateParticles();
   if (typeof ArrowSystem !== 'undefined') ArrowSystem.update(t);
+  // 레벨 2 화살표 애니메이션 (두꾸 위치 표시)
+  if (currentLevel === 2 && typeof Level2Manager !== 'undefined' && Level2Manager.updateArrows) {
+    Level2Manager.updateArrows(t);
+  }
+  // 레벨 3 화살표 애니메이션
+  if (currentLevel === 3 && typeof Level3Manager !== 'undefined' && Level3Manager.updateArrows) {
+    Level3Manager.updateArrows(t);
+  }
+
+  // ── 방위 나침반 업데이트 ────────────────────────
+  // 좌표계: +X=동(E), -X=서(W), -Z=북(N), +Z=남(S)
+  // 카메라가 바라보는 방향의 방위각 계산
+  //   atan2(dx, -dz) → 0°=북, 90°=동, 180°=남, -90°=서
+  const _camDx = orbitTarget.x - camera.position.x;
+  const _camDz = orbitTarget.z - camera.position.z;
+  const _azimuth = Math.atan2(_camDx, -_camDz) * (180 / Math.PI);
+  const _rose = document.getElementById('compass-rose');
+  if (_rose) _rose.style.transform = `rotate(${(-_azimuth).toFixed(1)}deg)`;
 
   for (const c of cloudGroups) { c.mesh.position.x = c.bx + Math.sin(t * .035 + c.bz * .1) * 4; c.mesh.position.z = c.bz + Math.cos(t * .025 + c.bx * .08) * 3; }
   renderer.render(scene, camera);

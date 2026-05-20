@@ -19,38 +19,6 @@ let toastTimer;
 
 let currentLevel = 1;
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  레벨 1: 초록 마을 — 페이즈 진행 상태
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-/** 현재 진행 중인 레벨 1의 메인 페이즈 (0 ~ 4) */
-let level_phase = 0;
-
-/** Phase 0: 노란 구슬(단서) 수집 카운트 (목표: 4개) */
-let yellow_orbs_collected = 0;
-
-/** Phase 1: 독성 식물 제거 완료 여부 */
-let toxic_plants_removed = false;
-
-/** Phase 2: 동반식물 심기 & 물주기 상태 */
-const companion_plants_status = {
-  tomato: false,   // 토마토 씨앗 심기 완료
-  basil: false,   // 바질 씨앗 심기 완료
-  watered: false    // 물뿌리개로 물주기 완료
-};
-
-/** Phase 3: 낙엽 드래그 수집 카운트 (목표: 5개) */
-let leaves_collected = 0;
-
-/** Phase 4: 고목나무 상태 — "withered" → "bloomed" */
-let tree_state = 'withered';
-
-// --- 하위 호환: 기존 시스템이 참조하는 레거시 플래그 ---
-// (systems.js / world.js 리팩터링 전까지 유지)
-const phase2_conditions = { hiveFull: false, nestBuilt: false, treeBlooming: false };
-const environment_flags = { riverTrashCount: 3, hasMud: false, birdHoleSize: 0, toxicPlantsRemoved: true };
-const phase3_conditions = { sheepHealed: false, horseSpace: false, goatClimbed: false };
-// -------------------------------------------------------
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  레벨 2: 다양성의 숲 — 페이즈 및 상태 변수
@@ -58,7 +26,23 @@ const phase3_conditions = { sheepHealed: false, horseSpace: false, goatClimbed: 
 let level2_phase = 0; // 0 (시작) -> 1 (두꺼비 구출) -> 2 (격리 미션 진행) -> 3 (완료)
 const level2_conditions = {
   bullfrogIsolated: false,
-  toadRescued: false
+  toadRescued: false,
+  waterDamPlaced: false,   // spawnLevel2WhiteBoxElements() 호출 후 true
+  waterDamCells: []        // [{x, y, z}] — 실제 배치된 댐 블록 좌표 (Y 포함)
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  레벨 3: 연결의 평원 — 페이즈 및 상태 변수
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let level3_phase = 0; // 0 (시작) -> 1 (노루 구출) -> 2 (여우/독수리 미션) -> 3 (사막화 연출 & 퍼즐) -> 4 (완료)
+const level3_conditions = {
+  deerRescued: false,
+  wildDogIsolated: false,
+  foxFedCount: 0,
+  carcassRemovedCount: 0,
+  carcassCells: [],
+  isDesertified: false,
+  foodChainPuzzleSolved: false
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -66,7 +50,7 @@ const level2_conditions = {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 /**
- * 레벨 1 & 2 수호대 최종 합류 여부.
+ * 레벨 1, 2 & 3 수호대 최종 합류 여부.
  * systems.js의 조건 달성 시 true로 설정.
  */
 const global_protectors = {
@@ -74,7 +58,9 @@ const global_protectors = {
   swallow: false,   // 레벨 1: 제비 — 진흙 웅덩이 + 처마 설치
   sheep: false,   // 레벨 1: 양   — 그늘(나무 개화) + 볏짚 설치
   otter: false,   // 레벨 2: 수달 — 강물 연결
-  bat: false    // 레벨 2: 황금박쥐 — 동굴 빛 차단
+  bat: false,    // 레벨 2: 황금박쥐 — 동굴 빛 차단
+  fox: false,    // 레벨 3: 붉은여우 — 먹이 주기 및 신뢰
+  eagle: false    // 레벨 3: 독수리 — 사체 제거
 };
 
 /**
@@ -98,14 +84,13 @@ let guardianState = {
  * @param {number} [targetPhase] - 지정 시 해당 페이즈로 점프, 생략 시 +1 이행
  */
 function advancePhase(targetPhase) {
-  const prev = level_phase;
-  level_phase = (targetPhase !== undefined) ? targetPhase : level_phase + 1;
+  const prev = Level1Manager.currentPhase;
+  if (targetPhase !== undefined) Level1Manager.currentPhase = targetPhase;
 
-  console.log(`[State] Phase ${prev} → ${level_phase}`);
+  DBG(`[State] Phase ${prev} → ${Level1Manager.currentPhase}`);
 
-  // 다른 모듈이 document 이벤트로 반응할 수 있도록 신호 발행
   document.dispatchEvent(new CustomEvent('phaseAdvanced', {
-    detail: { prev, next: level_phase }
+    detail: { prev, next: Level1Manager.currentPhase }
   }));
 }
 
@@ -116,12 +101,16 @@ function advancePhase(targetPhase) {
  * @returns {boolean}
  */
 function checkLevel1Clear() {
+  const phase3Done = typeof Level1Manager !== 'undefined'
+    && !!Level1Manager.phaseComplete[3];
+
   const cleared = global_protectors.bee
     && global_protectors.swallow
-    && global_protectors.sheep;
+    && global_protectors.sheep
+    && phase3Done;
 
   if (cleared) {
-    console.log('[State] 🎉 Level 1 Clear! 수호대 전원 합류 완료.');
+    DBG('[State] 🎉 Level 1 Clear! 수호대 전원 합류 완료.');
     document.dispatchEvent(new CustomEvent('level1Cleared'));
   }
 

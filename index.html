@@ -1,265 +1,507 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🐾 애니멀 어드벤쳐: 생태계 수호자</title>
-<link rel="icon" href="data:,">
-<link rel="stylesheet" href="css/style.css">
-<style>
-/* ── 수호대 슬롯 ── */
-#protector-bar {
-  position: fixed;
-  bottom: 90px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 10px;
-  z-index: 25;
-  pointer-events: none;
-}
-.protector-slot {
-  width: 52px; height: 52px;
-  border-radius: 14px;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  font-size: 24px;
-  border: 2px solid rgba(255,255,255,0.15);
-  background: rgba(0,0,0,0.55);
-  backdrop-filter: blur(6px);
-  transition: border-color 0.4s, background 0.4s, transform 0.3s;
-  pointer-events: auto;
-}
-.protector-slot .slot-label {
-  font-size: 9px;
-  color: rgba(255,255,255,0.45);
-  margin-top: 2px;
-  letter-spacing: 0.3px;
-}
-.protector-slot.slot-inactive { opacity: 0.45; }
-.protector-slot.slot-active {
-  border-color: #FFD700;
-  background: rgba(255,215,0,0.15);
-  opacity: 1;
-  box-shadow: 0 0 12px rgba(255,215,0,0.5);
-}
-@keyframes protector-join-pulse {
-  0%   { transform: scale(1); box-shadow: 0 0 0 rgba(255,215,0,0); }
-  50%  { transform: scale(1.25); box-shadow: 0 0 20px rgba(255,215,0,0.9); }
-  100% { transform: scale(1); box-shadow: 0 0 12px rgba(255,215,0,0.5); }
-}
-/* ── 클리어 배너 ── */
-#protector-clear-banner {
-  position: fixed;
-  top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 100;
-  display: none;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  background: linear-gradient(135deg, rgba(10,40,10,0.97), rgba(0,20,0,0.97));
-  border: 2px solid #4caf50;
-  border-radius: 24px;
-  padding: 32px 40px;
-  color: #fff;
-  text-align: center;
-  animation: protector-join-pulse 0.8s ease-out;
-}
-#protector-clear-banner h2 { margin: 0; font-size: 22px; color: #a5d6a7; }
-#protector-clear-banner p  { margin: 0; font-size: 14px; color: rgba(255,255,255,0.8); }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🐾 애니멀 어드벤쳐: 생태계 수호자</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* ── 수호대 슬롯 ── */
+    #protector-bar {
+      position: fixed;
+      bottom: 90px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      z-index: 25;
+      pointer-events: none;
+    }
+
+    .protector-slot {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      border: 2px solid rgba(255, 255, 255, 0.15);
+      background: rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(6px);
+      transition: border-color 0.4s, background 0.4s, transform 0.3s;
+      pointer-events: auto;
+    }
+
+    .protector-slot .slot-label {
+      font-size: 9px;
+      color: rgba(255, 255, 255, 0.45);
+      margin-top: 2px;
+      letter-spacing: 0.3px;
+    }
+
+    .protector-slot.slot-inactive {
+      opacity: 0.45;
+    }
+
+    .protector-slot.slot-active {
+      border-color: #FFD700;
+      background: rgba(255, 215, 0, 0.15);
+      opacity: 1;
+      box-shadow: 0 0 12px rgba(255, 215, 0, 0.5);
+    }
+
+    @keyframes protector-join-pulse {
+      0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 rgba(255, 215, 0, 0);
+      }
+
+      50% {
+        transform: scale(1.25);
+        box-shadow: 0 0 20px rgba(255, 215, 0, 0.9);
+      }
+
+      100% {
+        transform: scale(1);
+        box-shadow: 0 0 12px rgba(255, 215, 0, 0.5);
+      }
+    }
+
+    /* ── 클리어 배너 ── */
+    #protector-clear-banner {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 100;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      background: linear-gradient(135deg, rgba(10, 40, 10, 0.97), rgba(0, 20, 0, 0.97));
+      border: 2px solid #4caf50;
+      border-radius: 24px;
+      padding: 32px 40px;
+      color: #fff;
+      text-align: center;
+      animation: protector-join-pulse 0.8s ease-out;
+    }
+
+    #protector-clear-banner h2 {
+      margin: 0;
+      font-size: 22px;
+      color: #a5d6a7;
+    }
+
+    #protector-clear-banner p {
+      margin: 0;
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.8);
+    }
+    /* ── 다양성의 숲 이동 나침반 (화면 왼쪽 중앙) ── */
+    #nav-compass {
+      display: none;
+      position: fixed;
+      left: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 30;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(8px);
+      border: 1.5px solid rgba(255, 215, 0, 0.5);
+      border-radius: 18px;
+      padding: 14px 12px;
+      color: #fff;
+      text-align: center;
+      pointer-events: none;
+      min-width: 68px;
+    }
+
+    #nav-compass .nc-label {
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.55);
+      letter-spacing: 0.5px;
+      line-height: 1.3;
+      white-space: nowrap;
+    }
+
+    #nav-compass .nc-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #FFD700;
+      line-height: 1.2;
+    }
+
+    #nav-compass .nc-dist {
+      font-size: 10px;
+      color: rgba(255,255,255,0.6);
+      margin-top: 2px;
+    }
+
+    #nav-compass .nc-arrow-wrap {
+      width: 42px;
+      height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    #nav-arrow {
+      font-size: 30px;
+      display: block;
+      transform-origin: center center;
+      transition: transform 0.15s linear;
+      filter: drop-shadow(0 0 4px rgba(255,215,0,0.7));
+    }
+
+    @keyframes nc-pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.6; }
+    }
+
+    #nav-compass.nc-nearby {
+      border-color: rgba(100, 255, 100, 0.6);
+      animation: nc-pulse 1.5s infinite;
+    }
+
+    /* ── 방위 나침반 로즈 (항상 표시) ── */
+    #world-compass {
+      position: fixed;
+      top: 70px;
+      right: 20px;
+      z-index: 28;
+      pointer-events: none;
+    }
+
+    #compass-rose {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(6px);
+      border: 1.5px solid rgba(255,255,255,0.2);
+      position: relative;
+      transition: transform 0.1s linear;
+    }
+
+    /* 나침반 참조선 */
+    #compass-rose::before {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 1px; height: 70%;
+      background: rgba(255,255,255,0.12);
+      transform: translate(-50%, -50%);
+    }
+    #compass-rose::after {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 70%; height: 1px;
+      background: rgba(255,255,255,0.12);
+      transform: translate(-50%, -50%);
+    }
+
+    .compass-dir {
+      position: absolute;
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1;
+      transform: translate(-50%, -50%);
+    }
+    /* 북 — 빨간색 */
+    .compass-dir.cn { top: 14%; left: 50%; color: #ff4444; font-size: 11px; }
+    /* 남 */
+    .compass-dir.cs { top: 86%; left: 50%; color: rgba(255,255,255,0.7); }
+    /* 동 */
+    .compass-dir.ce { top: 50%; left: 86%; color: rgba(255,255,255,0.7); }
+    /* 서 */
+    .compass-dir.cw { top: 50%; left: 14%; color: rgba(255,255,255,0.7); }
+
+    /* 북쪽 바늘 (빨간) + 남쪽 바늘 (희정) */
+    .compass-needle {
+      position: absolute;
+      left: 50%;
+      width: 4px;
+      transform: translateX(-50%);
+      border-radius: 2px;
+    }
+    .compass-needle.north {
+      top: 18%;
+      height: 26px;
+      background: linear-gradient(to bottom, #ff4444, #ff8888);
+    }
+    .compass-needle.south {
+      top: 50%;
+      height: 22px;
+      background: rgba(255,255,255,0.25);
+    }
+  </style>
 </head>
+
 <body>
-<canvas id="canvas"></canvas>
+  <canvas id="canvas"></canvas>
 
-<div id="water-gauge" style="position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:20;display:none;background:rgba(0,0,0,0.7);border:2px solid #4fc3f7;border-radius:20px;padding:6px 16px;color:#fff;font-size:13px;font-weight:800;white-space:nowrap;">
-  💧 수분 게이지: <span id="gauge-bar">░░░░░░░░░░</span>
-</div>
-
-<div id="topbar">
-  <div id="title-text">🐾 생태계 수호자</div>
-  <div id="mission-box" onclick="this.classList.toggle('open')">
-    <div id="mission-header">
-      <div id="mission-title">🎯 미션 로딩 중...</div>
-      <div id="mission-chevron">▼</div>
-    </div>
-    <div id="mission-detail">
-      <div id="mission-desc"></div>
-      <div id="mission-status"></div>
+  <!-- 방위 나침반 로즈 (항상 표시) -->
+  <!-- 좌표 정의: +X=동(東) | -X=서(西) | -Z=북(北) | +Z=남(南) -->
+  <div id="world-compass">
+    <div id="compass-rose">
+      <span class="compass-dir cn">북<br><small style="font-size:8px;opacity:.6">N</small></span>
+      <span class="compass-dir cs">남<br><small style="font-size:8px;opacity:.6">S</small></span>
+      <span class="compass-dir ce">동<br><small style="font-size:8px;opacity:.6">E</small></span>
+      <span class="compass-dir cw">서<br><small style="font-size:8px;opacity:.6">W</small></span>
+      <div class="compass-needle north"></div>
+      <div class="compass-needle south"></div>
     </div>
   </div>
-</div>
 
-<!-- 수호대 슬롯 (3마리) -->
-<div id="protector-bar">
-  <div class="protector-slot slot-inactive" id="protector-slot-bee" title="🐝 꿀벌 (미합류)">
-    <span>🐝</span><span class="slot-label">꿀벌</span>
+  <!-- 레벨 2 이동 방향 나침반 -->
+  <div id="nav-compass">
+    <div class="nc-label">목적지</div>
+    <div class="nc-title">🌿 다양성의 숲</div>
+    <div class="nc-arrow-wrap">
+      <span id="nav-arrow">⬆️</span>
+    </div>
+    <div class="nc-dist" id="nav-dist">— 칸</div>
+    <div class="nc-label" id="nav-hint" style="color:#a5f5a5;">이 방향으로<br>탐험하세요!</div>
   </div>
-  <div class="protector-slot slot-inactive" id="protector-slot-swallow" title="🐦 제비 (미합류)">
-    <span>🐦</span><span class="slot-label">제비</span>
+  <div id="water-gauge"
+    style="position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:20;display:none;background:rgba(0,0,0,0.7);border:2px solid #4fc3f7;border-radius:20px;padding:6px 16px;color:#fff;font-size:13px;font-weight:800;white-space:nowrap;">
+    💧 수분 게이지: <span id="gauge-bar">░░░░░░░░░░</span>
   </div>
-  <div class="protector-slot slot-inactive" id="protector-slot-sheep" title="🐑 양 (미합류)">
-    <span>🐑</span><span class="slot-label">양</span>
-  </div>
-</div>
 
-<!-- 수호대 전원 합류 클리어 배너 -->
-<div id="protector-clear-banner">
-  <div style="font-size:52px;">🌟</div>
-  <h2>수호대가 모두 합류했어요!</h2>
-  <p>꿀벌 · 제비 · 양이 초록 마을을 지켜줘요 💚</p>
-  <button onclick="document.getElementById('protector-clear-banner').style.display='none'" style="
+  <div id="topbar">
+    <div id="title-text">🐾 생태계 수호자</div>
+    <div id="mission-box" onclick="this.classList.toggle('open')">
+      <div id="mission-header">
+        <div id="mission-title">🎯 미션 로딩 중...</div>
+        <div id="mission-chevron">▼</div>
+      </div>
+      <div id="mission-detail">
+        <div id="mission-desc"></div>
+        <div id="mission-status"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 수호대 슬롯 (7마리: 레벨1 3마리 + 레벨2 2마리 + 레벨3 2마리) -->
+  <div id="protector-bar">
+    <div class="protector-slot slot-inactive" id="protector-slot-bee" title="🐝 꿀벌 (미합류)">
+      <span>🐝</span><span class="slot-label">꿀벌</span>
+    </div>
+    <div class="protector-slot slot-inactive" id="protector-slot-swallow" title="🐦 제비 (미합류)">
+      <span>🐦</span><span class="slot-label">제비</span>
+    </div>
+    <div class="protector-slot slot-inactive" id="protector-slot-sheep" title="🐑 양 (미합류)">
+      <span>🐑</span><span class="slot-label">양</span>
+    </div>
+    <div class="protector-slot slot-inactive" id="protector-slot-otter" title="🦦 수달 (미합류)">
+      <span>🦦</span><span class="slot-label">수달</span>
+    </div>
+    <div class="protector-slot slot-inactive" id="protector-slot-bat" title="🦇 황금박쥐 (미합류)">
+      <span>🦇</span><span class="slot-label">금비</span>
+    </div>
+    <div class="protector-slot slot-inactive" id="protector-slot-fox" title="🦊 붉은여우 (미합류)">
+      <span>🦊</span><span class="slot-label">여우</span>
+    </div>
+    <div class="protector-slot slot-inactive" id="protector-slot-eagle" title="🦅 독수리 (미합류)">
+      <span>🦅</span><span class="slot-label">독수리</span>
+    </div>
+  </div>
+
+  <!-- 수호대 전원 합류 클리어 배너 -->
+  <div id="protector-clear-banner">
+    <div style="font-size:52px;">🌟</div>
+    <h2>수호대가 모두 합류했어요!</h2>
+    <p>꿀벌 · 제비 · 양이 초록 마을을 지켜줘요 💚</p>
+    <button onclick="document.getElementById('protector-clear-banner').style.display='none'" style="
     margin-top:8px; padding:10px 26px;
     background:#4caf50; color:#fff; font-weight:700;
     border:none; border-radius:10px; cursor:pointer; font-size:15px;
   ">계속 탐험하기 →</button>
-</div>
+  </div>
 
-<div id="hotbar-wrapper">
-  <div id="hotbar-label">도구 선택</div>
-  <div id="hotbar-row">
-    <div id="hotbar-container"></div>
-    <div id="hotbar-actions">
-      <button class="action-btn" onclick="toggleRotation()" title="방향 회전 (R)">🔄</button>
-      <button class="action-btn" onclick="toggleInventory()" title="가방 (E)">🎒</button>
-      <button class="action-btn" onclick="toggleGuardianBook()" title="수호대 도감 (B)" style="color:#f2c94c;">📖</button>
-      <button class="action-btn" onclick="openMap()" title="지도 (M)">🗺️</button>
-      <button class="action-btn" onclick="toggleMessageLog()" title="알림 기록 (L)" style="color:#a8d0e6;">📩</button>
-      <button class="action-btn" onclick="saveGame()" title="저장" style="color:#6fcf97;">💾</button>
-      <button class="action-btn" onclick="loadGame()" title="불러오기">📂</button>
-      <button class="action-btn" onclick="clearAll()" title="초기화" style="color:#eb5757;">🗑️</button>
+  <div id="hotbar-wrapper">
+    <div id="hotbar-label">도구 선택</div>
+    <div id="hotbar-row">
+      <div id="hotbar-container"></div>
+      <div id="hotbar-actions">
+        <button class="action-btn" onclick="toggleRotation()" title="방향 회전 (R)">🔄</button>
+        <button class="action-btn" onclick="toggleInventory()" title="가방 (E)">🎒</button>
+        <button class="action-btn" onclick="toggleGuardianBook()" title="수호대 도감 (B)" style="color:#f2c94c;">📖</button>
+        <button class="action-btn" onclick="openMap()" title="지도 (M)">🗺️</button>
+        <button class="action-btn" onclick="toggleMessageLog()" title="알림 기록 (L)" style="color:#a8d0e6;">📩</button>
+        <button class="action-btn" onclick="saveGame()" title="저장" style="color:#6fcf97;">💾</button>
+        <button class="action-btn" onclick="loadGame()" title="불러오기">📂</button>
+        <button class="action-btn" onclick="clearAll()" title="초기화" style="color:#eb5757;">🗑️</button>
+      </div>
     </div>
   </div>
-</div>
 
-<div id="inventory-overlay">
-  <div class="inv-header">
-    <h2>🎒 내 가방 (인벤토리)</h2>
-    <button class="close-btn" onclick="toggleInventory()">✖</button>
-  </div>
-  <div class="inv-hotbar-preview">
-    <h3>👇 단축키(1~9) 슬롯 설정</h3>
-    <p>아래에서 아이템을 골라 핫바에 등록하세요.</p>
-    <div class="inv-grid" id="inv-hotbar-grid"></div>
-    <button class="btn-clear-slot" onclick="clearSelectedSlot()">🆑 현재 슬롯 비우기</button>
-  </div>
-  <div class="inv-category"><h3>🛠️ 도구</h3><div class="inv-grid" id="inv-tools"></div></div>
-  <div class="inv-category"><h3>🌱 씨앗</h3><div class="inv-grid" id="inv-seeds"></div></div>
-  <div class="inv-category"><h3>🍂 자원</h3><div class="inv-grid" id="inv-resources"></div></div>
-  <div class="inv-category"><h3>🧱 건축 재료</h3><div class="inv-grid" id="inv-materials"></div></div>
-  <div class="inv-category"><h3>🌳 자연 재료 (복원용)</h3><div class="inv-grid" id="inv-nature"></div></div>
-  <div class="inv-category"><h3>💖 구조 키트</h3><div class="inv-grid" id="inv-kits"></div></div>
-</div>
-
-<div id="guardian-book-overlay">
-  <div class="inv-header">
-    <h2 id="guardian-book-title">📖 초록별 수호대 모으기: 0 / 12</h2>
-    <button class="close-btn" onclick="toggleGuardianBook()">✖</button>
-  </div>
-  <div class="guardian-book-content">
-    <div class="guardian-grid" id="guardian-grid"></div>
-    <div class="guardian-detail" id="guardian-detail" style="display:none;">
-      <div id="gd-emoji"></div>
-      <h3 id="gd-name"></h3>
-      <div id="gd-title"></div>
-      <div id="gd-story"></div>
-      <div id="gd-personality"></div>
-      <div id="gd-hint" style="margin-top:10px; color:#f2c94c; font-weight:bold;"></div>
+  <div id="inventory-overlay">
+    <div class="inv-header">
+      <h2>🎒 내 가방 (인벤토리)</h2>
+      <button class="close-btn" onclick="toggleInventory()">✖</button>
+    </div>
+    <div class="inv-hotbar-preview">
+      <h3>👇 단축키(1~9) 슬롯 설정</h3>
+      <p>아래에서 아이템을 골라 핫바에 등록하세요.</p>
+      <div class="inv-grid" id="inv-hotbar-grid"></div>
+      <button class="btn-clear-slot" onclick="clearSelectedSlot()">🆑 현재 슬롯 비우기</button>
+    </div>
+    <div class="inv-category">
+      <h3>🛠️ 도구</h3>
+      <div class="inv-grid" id="inv-tools"></div>
+    </div>
+    <div class="inv-category">
+      <h3>🌱 씨앗</h3>
+      <div class="inv-grid" id="inv-seeds"></div>
+    </div>
+    <div class="inv-category">
+      <h3>🍂 자원</h3>
+      <div class="inv-grid" id="inv-resources"></div>
+    </div>
+    <div class="inv-category">
+      <h3>🧱 건축 재료</h3>
+      <div class="inv-grid" id="inv-materials"></div>
+    </div>
+    <div class="inv-category">
+      <h3>🌳 자연 재료 (복원용)</h3>
+      <div class="inv-grid" id="inv-nature"></div>
+    </div>
+    <div class="inv-category">
+      <h3>💖 구조 키트</h3>
+      <div class="inv-grid" id="inv-kits"></div>
     </div>
   </div>
-</div>
 
-<div id="hint">💡 단축키 1~9: 슬롯 교체 | 파기: 1번 클릭 (연속 파기: 더블클릭 꾹~) | 카메라 이동: 화면 드래그</div>
-<input type="file" id="file-input" accept=".json" style="display:none" onchange="onFileSelected(event)">
-<div id="carry-indicator">✋ 동물을 안고 있어요 — 눕힐 곳에 클릭!</div>
-<div id="toast-container"></div>
-
-<div id="message-log-overlay" style="display:none;">
-  <div class="inv-header">
-    <h2 id="message-log-title">📩 알림 기록</h2>
-    <button class="close-btn" onclick="toggleMessageLog()">✖</button>
+  <div id="guardian-book-overlay">
+    <div class="inv-header">
+      <h2 id="guardian-book-title">📖 초록별 수호대 모으기: 0 / 12</h2>
+      <button class="close-btn" onclick="toggleGuardianBook()">✖</button>
+    </div>
+    <div class="guardian-book-content">
+      <div class="guardian-grid" id="guardian-grid"></div>
+      <div class="guardian-detail" id="guardian-detail" style="display:none;">
+        <div id="gd-emoji"></div>
+        <h3 id="gd-name"></h3>
+        <div id="gd-title"></div>
+        <div id="gd-story"></div>
+        <div id="gd-personality"></div>
+        <div id="gd-hint" style="margin-top:10px; color:#f2c94c; font-weight:bold;"></div>
+      </div>
+    </div>
   </div>
-  <div class="message-log-content" id="message-log-content">
-    <!-- 메시지 목록이 들어갈 공간 -->
+
+  <div id="hint">💡 단축키 1~9: 슬롯 교체 | 파기: 1번 클릭 (연속 파기: 더블클릭 꾹~) | 카메라 이동: 화면 드래그</div>
+  <input type="file" id="file-input" accept=".json" style="display:none" onchange="onFileSelected(event)">
+  <div id="carry-indicator">✋ 동물을 안고 있어요 — 눕힐 곳에 클릭!</div>
+  <div id="toast-container"></div>
+
+  <div id="message-log-overlay" style="display:none;">
+    <div class="inv-header">
+      <h2 id="message-log-title">📩 알림 기록</h2>
+      <button class="close-btn" onclick="toggleMessageLog()">✖</button>
+    </div>
+    <div class="message-log-content" id="message-log-content">
+      <!-- 메시지 목록이 들어갈 공간 -->
+    </div>
   </div>
-</div>
 
-<div id="map-overlay">
-  <h3>🗺️ 세계 지도</h3>
-  <p>🟢 탐험 완료 &nbsp;|&nbsp; 🟠 클릭하면 탐험 &nbsp;|&nbsp; ⬛ 미탐험</p>
-  <div id="map-grid"></div>
-  <button id="map-close" onclick="closeMap()">닫기</button>
-</div>
+  <div id="map-overlay">
+    <h3>🗺️ 세계 지도</h3>
+    <p>🟢 탐험 완료 &nbsp;|&nbsp; 🟠 클릭하면 탐험 &nbsp;|&nbsp; ⬛ 미탐험</p>
+    <div id="map-grid"></div>
+    <button id="map-close" onclick="closeMap()">닫기</button>
+  </div>
 
-<div id="mission-clear">
-  <div class="mc-star">🌟</div>
-  <h2>퀘스트 완료!</h2>
-  <p>동물들이 다시 건강을 되찾고 있어요! 🎉</p>
-  <button onclick="document.getElementById('mission-clear').style.display='none'">계속 탐험하기 →</button>
-</div>
+  <div id="mission-clear">
+    <div class="mc-star">🌟</div>
+    <h2>퀘스트 완료!</h2>
+    <p>동물들이 다시 건강을 되찾고 있어요! 🎉</p>
+    <button onclick="document.getElementById('mission-clear').style.display='none'">계속 탐험하기 →</button>
+  </div>
 
-<div id="opening-overlay">
-  <div id="opening-emoji">🗺️</div>
-  <div id="opening-text">낡은 상자 안에서 이상한 지도를 발견했어요.<br>지도 위로 빨간 경보등이 깜빡이고 있어요.</div>
-  <button id="opening-btn" onclick="nextScene()">다음 →</button>
-</div>
+  <!-- 레벨 2 클리어 화면 -->
+  <div id="level2-clear">
+    <div class="lv2c-star">🌿</div>
+    <h2>다양성의 숲 복원 완료!</h2>
+    <div class="lv2c-icons">🐸 🦦 🦇</div>
+    <p>외래종을 격리하고 수달·황금박쥐가<br>수호대에 합류했어요! 숲의 균형이 돌아왔습니다 🎊</p>
+    <button onclick="window.startLevel3()">레벨 3: 연결의 평원 →</button>
+    <br>
+    <button style="background:rgba(255,255,255,0.15);color:#fff;font-size:13px;padding:8px 20px;margin-top:4px;"
+            onclick="document.getElementById('level2-clear').style.display='none'">계속 탐험하기</button>
+  </div>
 
-<div id="creature-report" onclick="this.style.display='none'">
-  <div class="cr-title" id="cr-name"></div>
-  <div class="cr-row"><span class="lbl">✨ 특기:</span> <span id="cr-skill"></span></div>
-  <div class="cr-row"><span class="lbl">⚠️ 취약점:</span> <span id="cr-weak"></span></div>
-  <div class="cr-row"><span class="lbl">📖 팩트:</span> <span id="cr-fact"></span></div>
-  <div class="cr-hint">💡 <span id="cr-hint"></span></div>
-  <div style="text-align:center;font-size:10px;color:rgba(255,255,255,0.5);margin-top:5px;">클릭하면 닫힙니다</div>
-</div>
+  <!-- 레벨 3 클리어 화면 -->
+  <div id="level3-clear" style="display:none;">
+    <div class="lv3c-star">🌾</div>
+    <h2>연결의 평원 복원 완료!</h2>
+    <div class="lv3c-icons">🦊 🦅 🦌</div>
+    <p>들개 무리를 격리하고 붉은여우와 독수리가<br>수호대에 합류해 먹이사슬 고리가 복원되었습니다! 🎉</p>
+    <button onclick="document.getElementById('level3-clear').style.display='none'">계속 탐험하기</button>
+  </div>
 
-<div id="grandma-popup">
-  <div style="font-size:40px;margin-bottom:10px;">👵</div>
-  <div id="grandma-text">맞아. 모든 게 연결되어 있단다.<br>흙이 죽으면 나무가 죽고...<br>뿌리부터 살려야 해.</div>
-</div>
+  <div id="opening-overlay">
+    <div id="opening-emoji">🗺️</div>
+    <div id="opening-text">낡은 상자 안에서 이상한 지도를 발견했어요.<br>지도 위로 빨간 경보등이 깜빡이고 있어요.</div>
+    <button id="opening-btn" onclick="nextScene()">다음 →</button>
+  </div>
 
-<div id="phase-transition">
-  <div id="pt-emoji">🌱</div>
-  <div id="pt-text">식물과 흙이 살아났어요!</div>
-</div>
+  <div id="creature-report" onclick="this.style.display='none'">
+    <div class="cr-title" id="cr-name"></div>
+    <div class="cr-row"><span class="lbl">✨ 특기:</span> <span id="cr-skill"></span></div>
+    <div class="cr-row"><span class="lbl">⚠️ 취약점:</span> <span id="cr-weak"></span></div>
+    <div class="cr-row"><span class="lbl">📖 팩트:</span> <span id="cr-fact"></span></div>
+    <div class="cr-hint">💡 <span id="cr-hint"></span></div>
+    <div style="text-align:center;font-size:10px;color:rgba(255,255,255,0.5);margin-top:5px;">클릭하면 닫힙니다</div>
+  </div>
 
-<div id="eco-popup">
-  <div id="eco-emoji"></div>
-  <div id="eco-text"></div>
-</div>
+  <div id="grandma-popup">
+    <div style="font-size:40px;margin-bottom:10px;">👵</div>
+    <div id="grandma-text">맞아. 모든 게 연결되어 있단다.<br>흙이 죽으면 나무가 죽고...<br>뿌리부터 살려야 해.</div>
+  </div>
 
-<div id="mobile-cam-controls" style="display: none;">
-  <button id="cam-up-btn" class="cam-btn">▲<br><small>상승</small></button>
-  <button id="cam-down-btn" class="cam-btn">▼<br><small>잠수</small></button>
-</div>
+  <div id="phase-transition">
+    <div id="pt-emoji">🌱</div>
+    <div id="pt-text">식물과 흙이 살아났어요!</div>
+  </div>
+
+  <div id="eco-popup">
+    <div id="eco-emoji"></div>
+    <div id="eco-text"></div>
+  </div>
+
+  <div id="mobile-cam-controls" style="display: none;">
+    <button id="cam-up-btn" class="cam-btn">▲<br><small>상승</small></button>
+    <button id="cam-down-btn" class="cam-btn">▼<br><small>잠수</small></button>
+  </div>
 
 
-<!-- 외부 라이브러리 (Three.js 및 Stats.js) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/r17/Stats.min.js"></script>
+  <!-- 외부 라이브러리 (Three.js 및 Stats.js) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/r17/Stats.min.js"></script>
 
-<!-- 게임 스크립트 모듈 (순서 중요) -->
-<script src="js/data.js?v=20260506"></script>
-<script src="js/state.js?v=20260506"></script>
-<script src="js/systems.js?v=20260506"></script>
-<script src="js/world.js?v=20260506"></script>
-<script src="js/ui.js?v=20260506"></script>
-<script src="js/main.js?v=20260506"></script>
-<script>
-window.goPhase = function(n) {
-  isOpeningActive = false;
-  document.getElementById('opening-overlay').style.display = 'none';
-  Level1Manager.phaseComplete = {};
-  for(let i = 1; i < n; i++) Level1Manager.phaseComplete[i] = true;
-  Level1Manager.phase1State = { toxicRemoved:true, tomatoFruited:true, wormDone:true, treeGrowing:true };
-  Level1Manager.currentPhase = n;
-  if(n === 2) Phase2System.init();
-  else if(n >= 3) { Phase2System._clearAll(); Phase3System.init(); }
-  QuestManager.updateUI();
-  toast('🔧 페이즈 ' + n + '로 이동했어요 (개발자 모드)');
-};
-</script>
+  <!-- 게임 스크립트 모듈 (순서 중요) -->
+  <script src="js/data.js?v=20260506"></script>
+  <script src="js/state.js?v=20260506"></script>
+  <script src="js/systems.js?v=20260507"></script>
+  <script src="js/Level1Logic.js?v=20260507"></script>
+  <script src="js/Level2Logic.js?v=20260508"></script>
+  <script src="js/Level3Logic.js?v=20260508"></script>
+  <script src="js/world.js?v=20260508"></script>
+  <script src="js/ui.js?v=20260506"></script>
+  <script src="js/main.js?v=20260506"></script>
 
 </body>
+
 </html>

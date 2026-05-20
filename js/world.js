@@ -1,12 +1,12 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  지형 계산 및 블록 함수
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-function vn(x,z){
-  const h=n=>{let v=Math.sin(n*127.1+311.7)*43758.5453;return v-Math.floor(v);};
-  const ix=Math.floor(x),iz=Math.floor(z),fx=x-ix,fz=z-iz;
-  const ux=fx*fx*(3-2*fx),uz=fz*fz*(3-2*fz);
-  const a=h(ix+iz*57),b=h(ix+1+iz*57),c=h(ix+(iz+1)*57),d=h(ix+1+(iz+1)*57);
-  return a+(b-a)*ux+(c-a)*uz+(a-b-c+d)*ux*uz;
+function vn(x, z) {
+  const h = n => { let v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
+  const ix = Math.floor(x), iz = Math.floor(z), fx = x - ix, fz = z - iz;
+  const ux = fx * fx * (3 - 2 * fx), uz = fz * fz * (3 - 2 * fz);
+  const a = h(ix + iz * 57), b = h(ix + 1 + iz * 57), c = h(ix + (iz + 1) * 57), d = h(ix + 1 + (iz + 1) * 57);
+  return a + (b - a) * ux + (c - a) * uz + (a - b - c + d) * ux * uz;
 }
 
 const BiomeSystem = {
@@ -22,7 +22,7 @@ const BiomeSystem = {
       } else if (dist < biome.radius + 15) {
         weight = 1.0 - ((dist - biome.radius) / 15);
       }
-      
+
       if (weight > 0) {
         weights[key] = weight;
         totalWeight += weight;
@@ -51,33 +51,34 @@ const BiomeSystem = {
 function getH(wx, wz) {
   const nx = wx * 0.03, nz = wz * 0.03;
   const weights = BiomeSystem.getBiomeWeights(wx, wz);
-  
+
   let finalH = 0;
 
   for (const [bKey, weight] of Object.entries(weights)) {
-    let bH = 15; // default ocean
-    let bRough = 0.5;
-    
-    if(bKey !== 'ocean') {
+    // 바이옴 밖 기본 지형: 구릉지(33) — 수면(30) 위에 항상 위치
+    let bH = 33, bRough = 0.2;
+
+    if (bKey !== 'ocean') {
       const conf = BIOME_CONFIG[bKey];
       bH = conf.baseHeight;
       bRough = conf.roughness;
     }
 
-    // 초기 시작 지점(0,0 주변)의 기존 지형과 유사한 고도를 유지하기 위한 오프셋 조정
-    let noise = vn(nx + bKey.length, nz + bKey.length); 
-    if(bKey === 'green_village') noise = vn(wx*0.012+100, wz*0.012+100);
-    
-    let mountains = Math.pow(vn(nx*0.5+100, nz*0.5+100), 2.0) * (vn(nx*2.0, nz*2.0)*18.0) * bRough;
-    
-    let localH = bH + (noise * 5.0) + mountains;
+    let noise = vn(nx + bKey.length, nz + bKey.length);
+    if (bKey === 'green_village') noise = vn(wx * 0.012 + 100, wz * 0.012 + 100);
+
+    // 산악 기여 축소: 18→7, 완만한 구릉지 형성
+    let hills = Math.pow(vn(nx * 0.5 + 100, nz * 0.5 + 100), 2.0) * (vn(nx * 2.0, nz * 2.0) * 7.0) * bRough;
+
+    let localH = bH + (noise * 4.0) + hills;
     finalH += localH * weight;
   }
 
-  // 강줄기 깎기
-  const riverNoise = Math.abs(vn(nx*0.6+50, nz*0.6+50)*2 - 1);
-  const riverCarve = Math.max(0, 1.0 - riverNoise*3.5);
-  if (riverCarve > 0) finalH -= (riverCarve * 16.0);
+  // 강줄기 깎기: 넓은 하폭(×2.0) + 중앙 깊은 수로(carve² × 7 + carve × 2)
+  // 중심부 최대 깎기 9블록 → 바닥 ~24, 수면(30) 대비 수심 약 6블록
+  const riverNoise = Math.abs(vn(nx * 0.6 + 50, nz * 0.6 + 50) * 2 - 1);
+  const riverCarve = Math.max(0, 1.0 - riverNoise * 2.0);
+  if (riverCarve > 0) finalH -= (riverCarve * riverCarve * 7.0 + riverCarve * 2.0);
 
   if (finalH > 50.0) finalH = 50.0 + Math.sqrt(finalH - 50.0) * 1.5;
   return Math.min(GH, Math.max(5, Math.round(finalH)));
@@ -86,11 +87,11 @@ function getH(wx, wz) {
 function terrainType(wx, y, wz, sh) {
   const dominant = BiomeSystem.getDominantBiome(wx, wz);
   const underwater = sh < dominant.waterLevel;
-  
+
   if (sh - y === 0) {
     if (underwater) return dominant.surface === 'r_sub' ? 'r_sub' : 'r_sand';
     if (sh >= 44) return 't_rock';
-    return dominant.surface; 
+    return dominant.surface;
   }
   if (underwater) return sh - y <= 3 ? 'r_sub' : 'stone';
   return sh - y <= 4 ? dominant.subsurface : 'stone';
@@ -98,7 +99,7 @@ function terrainType(wx, y, wz, sh) {
 
 function colColor(wx, wz, h) {
   const dominant = BiomeSystem.getDominantBiome(wx, wz);
-  if (h < dominant.waterLevel) return 0x1565c0; 
+  if (h < dominant.waterLevel) return 0x1565c0;
   if (h >= 44) return 0x9a8878;
   return ITEM_DB[dominant.surface]?.hex || 0x6aaa5a;
 }
@@ -106,43 +107,39 @@ function colColor(wx, wz, h) {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  청크 시스템
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-const ck=(cx,cz)=>`${cx},${cz}`;
-const w2c=(wx,wz)=>[Math.floor(wx/CHUNK),Math.floor(wz/CHUNK)];
-const isActive=(wx,wz)=>chunkState[ck(...w2c(wx,wz))]==='active';
+const ck = (cx, cz) => `${cx},${cz}`;
+const w2c = (wx, wz) => [Math.floor(wx / CHUNK), Math.floor(wz / CHUNK)];
+const isActive = (wx, wz) => chunkState[ck(...w2c(wx, wz))] === 'active';
 
-function spawnAnimalsInChunk(cx,cz){
-  const x0=cx*CHUNK,z0=cz*CHUNK;
-  const count=1+Math.floor(Math.random()*2);
-  for(let i=0;i<count;i++){
-    const wx=x0+Math.floor(Math.random()*CHUNK),wz=z0+Math.floor(Math.random()*CHUNK);
-    const sh=getH(wx,wz);
+function spawnAnimalsInChunk(cx, cz) {
+  const x0 = cx * CHUNK, z0 = cz * CHUNK;
+  const count = 1 + Math.floor(Math.random() * 2);
+  for (let i = 0; i < count; i++) {
+    const wx = x0 + Math.floor(Math.random() * CHUNK), wz = z0 + Math.floor(Math.random() * CHUNK);
+    const sh = getH(wx, wz);
     const dominant = BiomeSystem.getDominantBiome(wx, wz);
-    if(sh<dominant.waterLevel-1){ if(Math.random()<0.6) placeAnimal(wx,sh+0.5,wz,'fish'); }
+    if (sh < dominant.waterLevel - 1) { if (Math.random() < 0.6) placeAnimal(wx, sh + 0.5, wz, 'fish'); }
     // 육지 동물 무작위 생성 중단 (페이즈 3 지정 동물에 집중)
   }
 }
 
-function spawnLevelAnimals() {
-  // 사용 안 함: 페이즈 3 시스템에서 직접 말, 염소, 양을 생성함.
-}
+function bldActive(cx, cz) {
+  const x0 = cx * CHUNK, z0 = cz * CHUNK;
+  for (let lx = 0; lx < CHUNK; lx++) for (let lz = 0; lz < CHUNK; lz++) {
+    const wx = x0 + lx, wz = z0 + lz, sh = getH(wx, wz);
 
-function bldActive(cx,cz){
-  const x0=cx*CHUNK,z0=cz*CHUNK;
-  for(let lx=0;lx<CHUNK;lx++) for(let lz=0;lz<CHUNK;lz++){
-    const wx=x0+lx,wz=z0+lz,sh=getH(wx,wz);
-    
-    const minH = Math.min(getH(wx-1,wz), getH(wx+1,wz), getH(wx,wz-1), getH(wx,wz+1));
+    const minH = Math.min(getH(wx - 1, wz), getH(wx + 1, wz), getH(wx, wz - 1), getH(wx, wz + 1));
     const visibleStartY = Math.min(sh, minH);
 
-    for(let y=0;y<=sh;y++) {
-      const k=bk(wx,y,wz);
-      if(!deletedBlocks.has(k)) {
+    for (let y = 0; y <= sh; y++) {
+      const k = bk(wx, y, wz);
+      if (!deletedBlocks.has(k)) {
         const type = terrainType(wx, y, wz, sh);
         gridData[k] = type;
-        if(y >= visibleStartY) {
-          if(!meshByKey[k]) {
-            const mesh=buildMesh(type,wx,y,wz);
-            if(mesh){meshByKey[k]=mesh;scene.add(mesh);}
+        if (y >= visibleStartY) {
+          if (!meshByKey[k]) {
+            const mesh = buildMesh(type, wx, y, wz);
+            if (mesh) { meshByKey[k] = mesh; scene.add(mesh); }
           }
         }
       }
@@ -150,52 +147,112 @@ function bldActive(cx,cz){
   }
 }
 
-function bldPreview(cx,cz){
-  const k=ck(cx,cz); if(chunkGroups[k]) scene.remove(chunkGroups[k]);
-  const g=new THREE.Group(),x0=cx*CHUNK,z0=cz*CHUNK;
-  for(let lx=0;lx<CHUNK;lx++) for(let lz=0;lz<CHUNK;lz++){
-    const wx=x0+lx,wz=z0+lz,sh=getH(wx,wz);
+function bldPreview(cx, cz) {
+  const k = ck(cx, cz); if (chunkGroups[k]) scene.remove(chunkGroups[k]);
+  const g = new THREE.Group(), x0 = cx * CHUNK, z0 = cz * CHUNK;
+  for (let lx = 0; lx < CHUNK; lx++) for (let lz = 0; lz < CHUNK; lz++) {
+    const wx = x0 + lx, wz = z0 + lz, sh = getH(wx, wz);
     const dominant = BiomeSystem.getDominantBiome(wx, wz);
-    const visH=sh<dominant.waterLevel?Math.ceil(dominant.waterLevel):sh;
-    const col=colColor(wx, wz, sh);
-    const geo=new THREE.BoxGeometry(1,1,1);
-    const mesh=new THREE.Mesh(geo,new THREE.MeshLambertMaterial({color:col,transparent:true,opacity:0.15}));
-    mesh.position.set(wx,visH+0.5,wz);
+    const visH = sh < dominant.waterLevel ? Math.ceil(dominant.waterLevel) : sh;
+    const col = colColor(wx, wz, sh);
+    const geo = new THREE.BoxGeometry(1, 1, 1);
+    const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: col, transparent: true, opacity: 0.15 }));
+    mesh.position.set(wx, visH + 0.5, wz);
     mesh.add(new THREE.LineSegments(
       new THREE.EdgesGeometry(geo),
-      new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0.25})
+      new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.25 })
     ));
-    mesh.userData={isPreview:true,cx,cz}; g.add(mesh);
+    mesh.userData = { isPreview: true, cx, cz }; g.add(mesh);
   }
-  scene.add(g); chunkGroups[k]=g;
+  scene.add(g); chunkGroups[k] = g;
 }
 
-function rmVisible(cx,cz){ const k=ck(cx,cz); if(chunkGroups[k]){scene.remove(chunkGroups[k]);delete chunkGroups[k];} }
+function rmVisible(cx, cz) { const k = ck(cx, cz); if (chunkGroups[k]) { scene.remove(chunkGroups[k]); delete chunkGroups[k]; } }
 
-let gridHelperMesh=null;
-function rebuildGrid(){
-  if(gridHelperMesh) scene.remove(gridHelperMesh);
-  let mnX=Infinity,mxX=-Infinity,mnZ=Infinity,mxZ=-Infinity;
-  for(const[k,s] of Object.entries(chunkState)){
-    if(s==='active'){const[cx,cz]=k.split(',').map(Number);mnX=Math.min(mnX,cx);mxX=Math.max(mxX,cx);mnZ=Math.min(mnZ,cz);mxZ=Math.max(mxZ,cz);}
+let gridHelperMesh = null;
+let terrainOverviewMesh = null;
+let terrainOverviewMat = null;
+
+// HALF=80블록(반경), STEP=4(4블록 간격) → 41×41=1681 버텍스, 재생성 비용 매우 낮음
+function buildTerrainOverview(centerX = 0, centerZ = 0) {
+  const HALF = 80, STEP = 4;
+  const X0 = centerX - HALF, Z0 = centerZ - HALF;
+  const cols = HALF * 2 / STEP + 1, rows = HALF * 2 / STEP + 1;
+
+  const positions = new Float32Array(cols * rows * 3);
+  const colors    = new Float32Array(cols * rows * 3);
+  const indices   = [];
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const wx = X0 + c * STEP, wz = Z0 + r * STEP;
+      const h  = getH(wx, wz);
+      const i  = r * cols + c;
+      positions[i * 3]     = wx;
+      positions[i * 3 + 1] = h + 0.5;
+      positions[i * 3 + 2] = wz;
+      const col = new THREE.Color(colColor(wx, wz, h));
+      colors[i * 3]     = col.r;
+      colors[i * 3 + 1] = col.g;
+      colors[i * 3 + 2] = col.b;
+    }
   }
-  if(mxX<mnX) return;
-  const maxDim=Math.max(mxX-mnX+1,mxZ-mnZ+1);
-  gridHelperMesh=new THREE.GridHelper(maxDim*CHUNK,maxDim*CHUNK,0x000000,0x000000);
-  gridHelperMesh.material.opacity=0.07; gridHelperMesh.material.transparent=true;
-  gridHelperMesh.position.set(((mnX+mxX+1)/2)*CHUNK-.5,.02,((mnZ+mxZ+1)/2)*CHUNK-.5);
+
+  for (let r = 0; r < rows - 1; r++) {
+    for (let c = 0; c < cols - 1; c++) {
+      const a = r * cols + c, b = a + 1, d = a + cols, e = d + 1;
+      indices.push(a, d, b, b, d, e);
+    }
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute('color',    new THREE.BufferAttribute(colors, 3));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+
+  if (terrainOverviewMesh) {
+    terrainOverviewMesh.geometry.dispose();
+    terrainOverviewMesh.geometry = geo;
+  } else {
+    if (!terrainOverviewMat) {
+      terrainOverviewMat = new THREE.MeshLambertMaterial({
+        vertexColors: true,
+        polygonOffset: true,
+        polygonOffsetFactor: 2,
+        polygonOffsetUnits: 2
+      });
+    }
+    terrainOverviewMesh = new THREE.Mesh(geo, terrainOverviewMat);
+    terrainOverviewMesh.receiveShadow = true;
+    terrainOverviewMesh.visible = false;
+    scene.add(terrainOverviewMesh);
+  }
+}
+
+function rebuildGrid() {
+  if (gridHelperMesh) scene.remove(gridHelperMesh);
+  let mnX = Infinity, mxX = -Infinity, mnZ = Infinity, mxZ = -Infinity;
+  for (const [k, s] of Object.entries(chunkState)) {
+    if (s === 'active') { const [cx, cz] = k.split(',').map(Number); mnX = Math.min(mnX, cx); mxX = Math.max(mxX, cx); mnZ = Math.min(mnZ, cz); mxZ = Math.max(mxZ, cz); }
+  }
+  if (mxX < mnX) return;
+  const maxDim = Math.max(mxX - mnX + 1, mxZ - mnZ + 1);
+  gridHelperMesh = new THREE.GridHelper(maxDim * CHUNK, maxDim * CHUNK, 0x000000, 0x000000);
+  gridHelperMesh.material.opacity = 0.07; gridHelperMesh.material.transparent = true;
+  gridHelperMesh.position.set(((mnX + mxX + 1) / 2) * CHUNK - .5, .02, ((mnZ + mxZ + 1) / 2) * CHUNK - .5);
   scene.add(gridHelperMesh);
 }
 
-function activateChunk(cx,cz,isInit=false){
-  if(chunkState[ck(cx,cz)]==='active') return;
-  rmVisible(cx,cz); chunkState[ck(cx,cz)]='active'; bldActive(cx,cz);
-  if(!isInit) spawnAnimalsInChunk(cx,cz);
-  const viewRadius=4;
-  for(let dx=-viewRadius;dx<=viewRadius;dx++) for(let dz=-viewRadius;dz<=viewRadius;dz++){
-    if(dx===0&&dz===0) continue;
-    const nx=cx+dx,nz=cz+dz,nk=ck(nx,nz);
-    if(!chunkState[nk]||chunkState[nk]==='hidden'){chunkState[nk]='visible';bldPreview(nx,nz);}
+function activateChunk(cx, cz, isInit = false) {
+  if (chunkState[ck(cx, cz)] === 'active') return;
+  rmVisible(cx, cz); chunkState[ck(cx, cz)] = 'active'; bldActive(cx, cz);
+  if (!isInit) spawnAnimalsInChunk(cx, cz);
+  const viewRadius = 4;
+  for (let dx = -viewRadius; dx <= viewRadius; dx++) for (let dz = -viewRadius; dz <= viewRadius; dz++) {
+    if (dx === 0 && dz === 0) continue;
+    const nx = cx + dx, nz = cz + dz, nk = ck(nx, nz);
+    if (!chunkState[nk] || chunkState[nk] === 'hidden') { chunkState[nk] = 'visible'; bldPreview(nx, nz); }
   }
   rebuildGrid(); updateMapOverlay();
 }
@@ -204,33 +261,57 @@ let lastCenterCx = null;
 let lastCenterCz = null;
 
 function updateVisibleChunks(orbitTarget) {
-  if(!orbitTarget) return;
+  if (!orbitTarget) return;
   const centerCx = Math.floor(orbitTarget.x / CHUNK);
   const centerCz = Math.floor(orbitTarget.z / CHUNK);
-  
+
   if (lastCenterCx === centerCx && lastCenterCz === centerCz) return;
   lastCenterCx = centerCx;
   lastCenterCz = centerCz;
-  
-  const R = 4; // 가시 반경 (4청크)
-  
-  // 활성 블록 최적화
+
+  // terrain overview 메시를 카메라 중심으로 재생성 (80블록 반경, STEP=4)
+  buildTerrainOverview(centerCx * CHUNK, centerCz * CHUNK);
+
+  const R        = 5;  // 활성+프리뷰 표시 반경 (청크, fog near=35 ≈ 4.4청크)
+  const R_PREV   = 7;  // 프리뷰 자동 생성 반경
+  const R_UNLOAD = 10; // 이 거리 밖 프리뷰는 메모리 해제
+
+  // ── 미탐험 영역 자동 프리뷰 생성 ──
+  for (let dx = -R_PREV; dx <= R_PREV; dx++) {
+    for (let dz = -R_PREV; dz <= R_PREV; dz++) {
+      const nx = centerCx + dx, nz = centerCz + dz, nk = ck(nx, nz);
+      if (!chunkState[nk] || chunkState[nk] === 'hidden') {
+        chunkState[nk] = 'visible';
+        bldPreview(nx, nz);
+      }
+    }
+  }
+
+  // ── 활성 블록 표시/숨김 ──
   for (const [k, mesh] of Object.entries(meshByKey)) {
-    const [x, y, z] = k.split(',').map(Number);
-    const cx = Math.floor(x / CHUNK);
-    const cz = Math.floor(z / CHUNK);
+    const [x, , z] = k.split(',').map(Number);
+    const cx = Math.floor(x / CHUNK), cz = Math.floor(z / CHUNK);
     if (Math.abs(cx - centerCx) <= R && Math.abs(cz - centerCz) <= R) {
       if (!mesh.parent) scene.add(mesh);
     } else {
       if (mesh.parent) scene.remove(mesh);
     }
   }
-  
-  // 미탐험(프리뷰) 청크 최적화
+
+  // ── 프리뷰 청크 표시/숨김 및 원거리 해제 ──
   for (const [k, group] of Object.entries(chunkGroups)) {
     const [cx, cz] = k.split(',').map(Number);
-    if (Math.abs(cx - centerCx) <= R && Math.abs(cz - centerCz) <= R) {
+    const distX = Math.abs(cx - centerCx), distZ = Math.abs(cz - centerCz);
+    if (distX <= R && distZ <= R) {
       if (!group.parent) scene.add(group);
+    } else if (distX > R_UNLOAD || distZ > R_UNLOAD) {
+      if (group.parent) scene.remove(group);
+      group.traverse(c => {
+        if (c.geometry) c.geometry.dispose();
+        if (c.material) c.material.dispose();
+      });
+      delete chunkGroups[k];
+      chunkState[k] = 'hidden';
     } else {
       if (group.parent) scene.remove(group);
     }
@@ -238,63 +319,63 @@ function updateVisibleChunks(orbitTarget) {
 }
 
 function initOldTree() {
-  if(OldTree.group) scene.remove(OldTree.group);
-  const g=new THREE.Group();
-  const tx=8,tz=8,ty=getTopY(tx,tz);
-  g.position.set(tx,ty,tz);
-  const M=(hex)=>new THREE.MeshLambertMaterial({color:hex});
-  const trunkMat=M(0x5C3D1A);
-  for(let i=0;i<3;i++){
-    const mesh=new THREE.Mesh(new THREE.BoxGeometry(0.8,1,0.8),trunkMat);
-    mesh.position.y=i+0.5; mesh.castShadow=true; mesh.receiveShadow=true;
-    mesh.userData={isOldTree:true}; g.add(mesh);
+  if (OldTree.group) scene.remove(OldTree.group);
+  const g = new THREE.Group();
+  const tx = 8, tz = 8, ty = getTopY(tx, tz);
+  g.position.set(tx, ty, tz);
+  const M = (hex) => new THREE.MeshLambertMaterial({ color: hex });
+  const trunkMat = M(0x5C3D1A);
+  for (let i = 0; i < 3; i++) {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1, 0.8), trunkMat);
+    mesh.position.y = i + 0.5; mesh.castShadow = true; mesh.receiveShadow = true;
+    mesh.userData = { isOldTree: true }; g.add(mesh);
   }
-  OldTree.branches=[]; OldTree.leaves=[]; OldTree.fruits=[];
-  const branchDirs=[{y:2.2,r:0},{y:2.5,r:Math.PI/2},{y:2.8,r:Math.PI},{y:2.4,r:-Math.PI/2},{y:3.0,r:Math.PI/4}];
-  branchDirs.forEach(dir=>{
-    const bg=new THREE.Group(); bg.position.set(0,dir.y,0); bg.rotation.y=dir.r;
-    const branch=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.3,1.2),trunkMat);
-    branch.position.z=0.6; branch.castShadow=true; branch.userData={isOldTree:true};
+  OldTree.branches = []; OldTree.leaves = []; OldTree.fruits = [];
+  const branchDirs = [{ y: 2.2, r: 0 }, { y: 2.5, r: Math.PI / 2 }, { y: 2.8, r: Math.PI }, { y: 2.4, r: -Math.PI / 2 }, { y: 3.0, r: Math.PI / 4 }];
+  branchDirs.forEach(dir => {
+    const bg = new THREE.Group(); bg.position.set(0, dir.y, 0); bg.rotation.y = dir.r;
+    const branch = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 1.2), trunkMat);
+    branch.position.z = 0.6; branch.castShadow = true; branch.userData = { isOldTree: true };
     bg.add(branch); OldTree.branches.push(bg);
-    const leaf=new THREE.Mesh(new THREE.BoxGeometry(1.2,1.2,1.2),M(0x888888));
-    leaf.position.z=1.2; leaf.castShadow=true; leaf.userData={isOldTree:true};
+    const leaf = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 1.2), M(0x888888));
+    leaf.position.z = 1.2; leaf.castShadow = true; leaf.userData = { isOldTree: true };
     bg.add(leaf); OldTree.leaves.push(leaf);
-    const fruit=new THREE.Mesh(new THREE.SphereGeometry(0.15,8,8),M(0xff0000));
-    fruit.position.set(0,-0.6,1.2); fruit.visible=false;
+    const fruit = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 8), M(0xff0000));
+    fruit.position.set(0, -0.6, 1.2); fruit.visible = false;
     bg.add(fruit); OldTree.fruits.push(fruit);
     g.add(bg);
   });
-  [{x:0,y:3.5,z:0},{x:0.5,y:3.2,z:0.5},{x:-0.5,y:3.2,z:-0.5}].forEach(pos=>{
-    const leaf=new THREE.Mesh(new THREE.BoxGeometry(1.3,1.3,1.3),M(0x888888));
-    leaf.position.set(pos.x,pos.y,pos.z); leaf.castShadow=true; leaf.userData={isOldTree:true};
+  [{ x: 0, y: 3.5, z: 0 }, { x: 0.5, y: 3.2, z: 0.5 }, { x: -0.5, y: 3.2, z: -0.5 }].forEach(pos => {
+    const leaf = new THREE.Mesh(new THREE.BoxGeometry(1.3, 1.3, 1.3), M(0x888888));
+    leaf.position.set(pos.x, pos.y, pos.z); leaf.castShadow = true; leaf.userData = { isOldTree: true };
     g.add(leaf); OldTree.leaves.push(leaf);
   });
-  OldTree.group=g; scene.add(g); OldTree.updateVisual();
+  OldTree.group = g; scene.add(g); OldTree.updateVisual();
 }
 
-function initWorld(){
-  activateChunk(0,0,true); activateChunk(1,0,true);
-  activateChunk(0,1,true); activateChunk(1,1,true);
+function initWorld() {
+  buildTerrainOverview();
+  activateChunk(0, 0, true); activateChunk(1, 0, true);
+  activateChunk(0, 1, true); activateChunk(1, 1, true);
   initOldTree();
   ClueSystem.init();
   ToxicPlantSystem.init();
   LeafSystem.init();
-  spawnLevelAnimals();
   initInventoryUI(); applyCurrentTool();
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  블록 함수
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-const bk=(x,y,z)=>`${x},${y},${z}`;
-function getTopY(x,z){for(let y=GH;y>=0;y--){if(gridData[bk(x,y,z)]) return y+1;}return 0;}
+const bk = (x, y, z) => `${x},${y},${z}`;
+function getTopY(x, z) { for (let y = GH; y >= 0; y--) { if (gridData[bk(x, y, z)]) return y + 1; } return 0; }
 
 function getBlockData(rawType) {
-  if(!rawType) return null;
-  if(ITEM_DB[rawType]) return ITEM_DB[rawType];
-  if(TERRAIN_BLOCKS[rawType]) return TERRAIN_BLOCKS[rawType];
-  const baseType=rawType.split('_')[0];
-  return ITEM_DB[baseType]||TERRAIN_BLOCKS[baseType];
+  if (!rawType) return null;
+  if (ITEM_DB[rawType]) return ITEM_DB[rawType];
+  if (TERRAIN_BLOCKS[rawType]) return TERRAIN_BLOCKS[rawType];
+  const baseType = rawType.split('_')[0];
+  return ITEM_DB[baseType] || TERRAIN_BLOCKS[baseType];
 }
 
 const spriteCache = {};
@@ -307,7 +388,7 @@ function createEmojiSprite(emoji) {
   const canvas = document.createElement('canvas');
   canvas.width = 128; canvas.height = 128;
   const ctx = canvas.getContext('2d');
-  
+
   ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
   ctx.shadowBlur = 10; ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 4;
   ctx.fillStyle = '#ffffff';
@@ -327,245 +408,565 @@ function createEmojiSprite(emoji) {
   const texture = new THREE.CanvasTexture(canvas);
   texture.minFilter = THREE.LinearFilter;
   spriteCache[emoji] = texture;
-  
+
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture }));
   sprite.scale.set(1.2, 1.2, 1);
   return sprite;
 }
 
-function buildMesh(rawType,x,y,z){
-  const def=getBlockData(rawType);
-  if(!def) return null;
-  let type=rawType, rot=0;
-  if(rawType.startsWith('fence_')){ type='fence'; rot=parseInt(rawType.split('_')[1]); }
-  const mat=def.transparent?new THREE.MeshLambertMaterial({color:def.hex,transparent:true,opacity:def.opacity}):new THREE.MeshLambertMaterial({color:def.hex});
-  
-  if(def.category==='plant' || def.category==='seed' || def.category==='resource') {
+function buildMesh(rawType, x, y, z) {
+  const def = getBlockData(rawType);
+  if (!def) return null;
+  let type = rawType, rot = 0;
+  if (rawType.startsWith('fence_')) { type = 'fence'; rot = parseInt(rawType.split('_')[1]); }
+  const mat = def.transparent ? new THREE.MeshLambertMaterial({ color: def.hex, transparent: true, opacity: def.opacity }) : new THREE.MeshLambertMaterial({ color: def.hex });
+
+  if (def.category === 'plant' || def.category === 'seed' || def.category === 'resource') {
     let emoji = def.icon || '🌱';
-    if(rawType === 'seed_tomato' || rawType.startsWith('plant_tomato')) emoji = '🍅';
-    else if(rawType === 'seed_basil' || rawType.startsWith('plant_basil')) emoji = '🌿';
-    else if(rawType === 'seed_clover' || rawType.startsWith('plant_clover')) emoji = '🍀';
-    else if(rawType === 'seed_sunflower' || rawType.startsWith('plant_sunflower')) emoji = '🌻';
-    else if(rawType === 'fallen_leaf') emoji = '🍂';
-    else if(rawType === 'toxic_plant') emoji = '🥀';
-    else if(rawType === 'sprout') emoji = '🌱';
-    else if(rawType === 'seed_pine') emoji = '🌲';
-    
+    if (rawType === 'seed_tomato' || rawType.startsWith('plant_tomato')) emoji = '🍅';
+    else if (rawType === 'seed_basil' || rawType.startsWith('plant_basil')) emoji = '🌿';
+    else if (rawType === 'seed_clover' || rawType.startsWith('plant_clover')) emoji = '🍀';
+    else if (rawType === 'seed_sunflower' || rawType.startsWith('plant_sunflower')) emoji = '🌻';
+    else if (rawType === 'fallen_leaf') emoji = '🍂';
+    else if (rawType === 'toxic_plant') emoji = '🥀';
+    else if (rawType === 'sprout') emoji = '🌱';
+    else if (rawType === 'seed_pine') emoji = '🌲';
+
     const sprite = createEmojiSprite(emoji);
     sprite.position.set(x, y + 0.8, z);
     sprite.userData = { isBlock: true, bx: x, by: y, bz: z };
     return sprite;
   }
 
-  let geo, py=y+0.5;
-  if(type==='grass'||type==='straw'){
-    geo=new THREE.BoxGeometry(1,0.2,1); py=y+0.1;
-  } else if(type==='fence'){
-    geo=new THREE.BoxGeometry(1,1,0.2);
+  let geo, py = y + 0.5;
+  if (type === 'grass' || type === 'straw') {
+    geo = new THREE.BoxGeometry(1, 0.2, 1); py = y + 0.1;
+  } else if (type === 'fence') {
+    geo = new THREE.BoxGeometry(1, 1, 0.2);
   } else {
-    geo=new THREE.BoxGeometry(1,1,1);
+    geo = new THREE.BoxGeometry(1, 1, 1);
   }
-  const mesh=new THREE.Mesh(geo,mat);
-  mesh.position.set(x,py,z);
-  if(type==='fence') mesh.rotation.y=rot*(Math.PI/2);
-  mesh.castShadow=mesh.receiveShadow=true;
-  mesh.userData={isBlock:true,bx:x,by:y,bz:z};
-  mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo),new THREE.LineBasicMaterial({color:0x000000,transparent:true,opacity:0.14})));
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(x, py, z);
+  if (type === 'fence') mesh.rotation.y = rot * (Math.PI / 2);
+  mesh.castShadow = mesh.receiveShadow = true;
+  mesh.userData = { isBlock: true, bx: x, by: y, bz: z };
+  mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.14 })));
   return mesh;
 }
 
-function _place(x,y,z,type){
-  if(y<0||y>=GH) return;
-  const k=bk(x,y,z);
-  if(gridData[k]){if(meshByKey[k])scene.remove(meshByKey[k]);delete meshByKey[k];delete gridData[k];}
-  gridData[k]=type; const mesh=buildMesh(type,x,y,z); if(mesh){meshByKey[k]=mesh;scene.add(mesh);}
+function _place(x, y, z, type) {
+  if (y < 0 || y >= GH) return;
+  const k = bk(x, y, z);
+  if (gridData[k]) { if (meshByKey[k]) scene.remove(meshByKey[k]); delete meshByKey[k]; delete gridData[k]; }
+  gridData[k] = type; const mesh = buildMesh(type, x, y, z); if (mesh) { meshByKey[k] = mesh; scene.add(mesh); }
   deletedBlocks.delete(k);
   // ── 수호대 조건 리스너 훅 ──
   if (typeof onBlockPlaced === 'function') onBlockPlaced(type);
 }
 
-function placeBlock(x,y,z,type){
-  if(!isActive(x,z)){toast('⚠️ 희미한 지역을 먼저 탐험해주세요!');return;}
-  let finalType=type;
-  if(type==='fence') finalType=type+'_'+currentRotation;
-  _place(x,y,z,finalType); QuestManager.check();
+function placeBlock(x, y, z, type) {
+  if (!isActive(x, z)) { toast('⚠️ 희미한 지역을 먼저 탐험해주세요!'); return; }
+  let finalType = type;
+  if (type === 'fence') finalType = type + '_' + currentRotation;
+  _place(x, y, z, finalType); QuestManager.check();
 }
 
-function removeBlock(x,y,z){
-  const k=bk(x,y,z); if(!gridData[k]) return;
-  if(meshByKey[k]){scene.remove(meshByKey[k]); delete meshByKey[k];}
+function removeBlock(x, y, z) {
+  const k = bk(x, y, z); if (!gridData[k]) return;
+  const removedType = gridData[k]; // ← 추가: 제거 전 타입 저장
+  if (meshByKey[k]) { scene.remove(meshByKey[k]); delete meshByKey[k]; }
   delete gridData[k];
-  deletedBlocks.add(k); 
-  
+  deletedBlocks.add(k);
+
   const neighbors = [
-    [x, y-1, z], [x, y+1, z],
-    [x-1, y, z], [x+1, y, z],
-    [x, y, z-1], [x, y, z+1]
+    [x, y - 1, z], [x, y + 1, z],
+    [x - 1, y, z], [x + 1, y, z],
+    [x, y, z - 1], [x, y, z + 1]
   ];
-  for(const [nx,ny,nz] of neighbors) {
-    const nk = bk(nx,ny,nz);
-    if(gridData[nk] && !meshByKey[nk]) {
+  for (const [nx, ny, nz] of neighbors) {
+    const nk = bk(nx, ny, nz);
+    if (gridData[nk] && !meshByKey[nk]) {
       const type = gridData[nk];
-      const mesh = buildMesh(type,nx,ny,nz);
-      if(mesh){ meshByKey[nk]=mesh; scene.add(mesh); }
+      const mesh = buildMesh(type, nx, ny, nz);
+      if (mesh) { meshByKey[nk] = mesh; scene.add(mesh); }
     }
   }
 
   QuestManager.check();
+  // ── 레벨 2 조건 훅 ──────────────────────────────────
+  if (typeof onBlockRemoved === 'function') onBlockRemoved(removedType); // ← 추가
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  동물 함수
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-function buildAnimal(type,isInjured){
-  const g=new THREE.Group(), M=hex=>new THREE.MeshLambertMaterial({color:hex}), B=(w,h,d)=>new THREE.BoxGeometry(w,h,d);
-  const woolColor=isInjured?0x999999:0xe8e8e8;
-  if(type==='sheep'){
-    const b=new THREE.Mesh(B(.75,.55,.55),M(woolColor)); b.position.y=.45; g.add(b);
-    const hd=new THREE.Mesh(B(.38,.35,.38),M(0xcccccc)); hd.position.set(.44,.65,0); g.add(hd);
-    [[-.22,-.18],[.22,-.18],[-.22,.18],[.22,.18]].forEach(([lx,lz])=>{const l=new THREE.Mesh(B(.14,.28,.14),M(0xaaaaaa));l.position.set(lx,.14,lz);g.add(l);});
-    [[-.08],[.08]].forEach(([ez])=>{const e=new THREE.Mesh(B(.07,.07,.07),M(0x111111));e.position.set(.6,.68,ez);g.add(e);});
-  } else if(type==='fish'){
-    const b=new THREE.Mesh(B(.6,.35,.28),M(0xff6b35)); b.position.y=.5; g.add(b);
-    const t=new THREE.Mesh(B(.24,.3,.12),M(0xff4500)); t.position.set(-.38,.5,0); g.add(t);
-    const f=new THREE.Mesh(B(.18,.18,.06),M(0xff8c00)); f.position.set(.05,.68,0); g.add(f);
-    const e=new THREE.Mesh(B(.09,.09,.09),M(0x111111)); e.position.set(.28,.56,.15); g.add(e);
-  } else if(type==='horse'){
-    const b=new THREE.Mesh(B(1.0,0.6,0.5),M(0x8B4513)); b.position.y=.5; g.add(b);
-    const hd=new THREE.Mesh(B(0.4,0.4,0.35),M(0x8B4513)); hd.position.set(.6,.8,0); g.add(hd);
-    [[-.35,-.15],[.35,-.15],[-.35,.15],[.35,.15]].forEach(([lx,lz])=>{const l=new THREE.Mesh(B(.15,.5,.15),M(0x5C2E00));l.position.set(lx,.25,lz);g.add(l);});
-    const mane=new THREE.Mesh(B(.3,.1,.1),M(0x111111)); mane.position.set(.4,1.0,0); g.add(mane);
-    const tail=new THREE.Mesh(B(.1,.4,.1),M(0x111111)); tail.position.set(-.55,.5,0); tail.rotation.z=0.2; g.add(tail);
-  } else if(type==='goat'){
-    const b=new THREE.Mesh(B(0.7,0.5,0.45),M(0xEEEEEE)); b.position.y=.4; g.add(b);
-    const hd=new THREE.Mesh(B(0.3,0.3,0.3),M(0xEEEEEE)); hd.position.set(.4,.65,0); g.add(hd);
-    [[-.2,-.15],[.2,-.15],[-.2,.15],[.2,.15]].forEach(([lx,lz])=>{const l=new THREE.Mesh(B(.12,.4,.12),M(0xAAAAAA));l.position.set(lx,.2,lz);g.add(l);});
-    [[.08],[-.08]].forEach(([ez])=>{const horn=new THREE.Mesh(new THREE.ConeGeometry(0.04,0.2,4),M(0xAAAAAA));horn.position.set(.4,.85,ez);g.add(horn);});
-    const beard=new THREE.Mesh(B(.05,.15,.1),M(0xEEEEEE)); beard.position.set(.5,.45,0); g.add(beard);
+function buildAnimal(type, isInjured) {
+  const g = new THREE.Group();
+  const M = hex => new THREE.MeshLambertMaterial({ color: hex });
+  const B = (w, h, d) => new THREE.BoxGeometry(w, h, d);
+  const woolColor = isInjured ? 0x999999 : 0xe8e8e8;
+
+  if (type === 'sheep') {
+    const b = new THREE.Mesh(B(.75, .55, .55), M(woolColor)); b.position.y = .45; g.add(b);
+    const hd = new THREE.Mesh(B(.38, .35, .38), M(0xcccccc)); hd.position.set(.44, .65, 0); g.add(hd);
+    [[-.22, -.18], [.22, -.18], [-.22, .18], [.22, .18]].forEach(([lx, lz]) => { const l = new THREE.Mesh(B(.14, .28, .14), M(0xaaaaaa)); l.position.set(lx, .14, lz); g.add(l); });
+    [[-.08], [.08]].forEach(([ez]) => { const e = new THREE.Mesh(B(.07, .07, .07), M(0x111111)); e.position.set(.6, .68, ez); g.add(e); });
+
+  } else if (type === 'fish') {
+    const b = new THREE.Mesh(B(.6, .35, .28), M(0xff6b35)); b.position.y = .5; g.add(b);
+    const t = new THREE.Mesh(B(.24, .3, .12), M(0xff4500)); t.position.set(-.38, .5, 0); g.add(t);
+    const f = new THREE.Mesh(B(.18, .18, .06), M(0xff8c00)); f.position.set(.05, .68, 0); g.add(f);
+    const e = new THREE.Mesh(B(.09, .09, .09), M(0x111111)); e.position.set(.28, .56, .15); g.add(e);
+
+  } else if (type === 'horse') {
+    const b = new THREE.Mesh(B(1.0, 0.6, 0.5), M(0x8B4513)); b.position.y = .5; g.add(b);
+    const hd = new THREE.Mesh(B(0.4, 0.4, 0.35), M(0x8B4513)); hd.position.set(.6, .8, 0); g.add(hd);
+    [[-.35, -.15], [.35, -.15], [-.35, .15], [.35, .15]].forEach(([lx, lz]) => { const l = new THREE.Mesh(B(.15, .5, .15), M(0x5C2E00)); l.position.set(lx, .25, lz); g.add(l); });
+    const mane = new THREE.Mesh(B(.3, .1, .1), M(0x111111)); mane.position.set(.4, 1.0, 0); g.add(mane);
+    const tail = new THREE.Mesh(B(.1, .4, .1), M(0x111111)); tail.position.set(-.55, .5, 0); tail.rotation.z = 0.2; g.add(tail);
+
+  } else if (type === 'goat') {
+    const b = new THREE.Mesh(B(0.7, 0.5, 0.45), M(0xEEEEEE)); b.position.y = .4; g.add(b);
+    const hd = new THREE.Mesh(B(0.3, 0.3, 0.3), M(0xEEEEEE)); hd.position.set(.4, .65, 0); g.add(hd);
+    [[-.2, -.15], [.2, -.15], [-.2, .15], [.2, .15]].forEach(([lx, lz]) => { const l = new THREE.Mesh(B(.12, .4, .12), M(0xAAAAAA)); l.position.set(lx, .2, lz); g.add(l); });
+    [[.08], [-.08]].forEach(([ez]) => { const horn = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.2, 4), M(0xAAAAAA)); horn.position.set(.4, .85, ez); g.add(horn); });
+    const beard = new THREE.Mesh(B(.05, .15, .1), M(0xEEEEEE)); beard.position.set(.5, .45, 0); g.add(beard);
+
+  } else if (type === 'bee') {
+    // 꿀벌: 황색 몸통 + 검은 줄무늬 + 반투명 날개
+    const body = new THREE.Mesh(B(.38, .22, .22), M(0xFFD000)); body.position.set(0, .42, 0); g.add(body);
+    [-.06, .06].forEach(x => { const s = new THREE.Mesh(B(.09, .24, .24), M(0x111111)); s.position.set(x, .42, 0); g.add(s); });
+    [-.1, .1].forEach(z => { const w = new THREE.Mesh(B(.26, .03, .26), new THREE.MeshLambertMaterial({ color: 0xCCEEFF, transparent: true, opacity: .65 })); w.position.set(0, .56, z); w.rotation.x = z > 0 ? -.3 : .3; g.add(w); });
+    [-.08, .08].forEach(z => { const ant = new THREE.Mesh(B(.04, .18, .04), M(0x111111)); ant.position.set(.14, .6, z); g.add(ant); });
+    const beye = new THREE.Mesh(B(.06, .06, .06), M(0x111111)); beye.position.set(.19, .44, 0); g.add(beye);
+
+  } else if (type === 'swallow') {
+    // 제비: 진청 몸통 + 흰 배 + 갈래꼬리
+    const body = new THREE.Mesh(B(.45, .2, .24), M(0x1A237E)); body.position.set(0, .45, 0); g.add(body);
+    const belly = new THREE.Mesh(B(.3, .16, .22), M(0xFFF8E7)); belly.position.set(.04, .4, 0); g.add(belly);
+    const head = new THREE.Mesh(B(.22, .2, .2), M(0x1A237E)); head.position.set(.28, .58, 0); g.add(head);
+    const beak = new THREE.Mesh(B(.12, .06, .06), M(0xFF6F00)); beak.position.set(.43, .58, 0); g.add(beak);
+    [-.12, .12].forEach(z => { const w = new THREE.Mesh(B(.38, .04, .2), M(0x0D2080)); w.position.set(-.04, .5, z); w.rotation.z = -.2; g.add(w); });
+    [-.14, .14].forEach(z => { const t = new THREE.Mesh(B(.2, .04, .07), M(0x1A237E)); t.position.set(-.3, .38, z); t.rotation.z = .3; g.add(t); });
+
+  } else if (type === 'bullfrog') {
+    // 황소개구리: 올리브 넓적 몸통 + 볼록 눈
+    const body = new THREE.Mesh(B(.65, .28, .6), M(0x3D6B22)); body.position.set(0, .22, 0); g.add(body);
+    const head = new THREE.Mesh(B(.52, .18, .5), M(0x3D6B22)); head.position.set(.16, .38, 0); g.add(head);
+    [-.17, .17].forEach(z => {
+      const eye = new THREE.Mesh(B(.16, .17, .16), M(0x5A9E38)); eye.position.set(.18, .5, z); g.add(eye);
+      const pupil = new THREE.Mesh(B(.1, .12, .06), M(0x111111)); pupil.position.set(.27, .5, z); g.add(pupil);
+    });
+    [[-1, -.25], [1, -.25], [-1, .25], [1, .25]].forEach(([sx, sz]) => {
+      const leg = new THREE.Mesh(B(.16, .08, .22), M(0x2A4A15)); leg.position.set(sx * .2, .08, sz); g.add(leg);
+    });
+
+  } else if (type === 'toad') {
+    // 두꺼비: 갈색 소형 + 혹 + 볼록 눈
+    const body = new THREE.Mesh(B(.5, .24, .46), M(0x6B5C22)); body.position.set(0, .18, 0); g.add(body);
+    const head = new THREE.Mesh(B(.38, .16, .36), M(0x6B5C22)); head.position.set(.13, .33, 0); g.add(head);
+    [-.14, .14].forEach(z => { const eye = new THREE.Mesh(B(.13, .15, .13), M(0x8FA84A)); eye.position.set(.16, .44, z); g.add(eye); });
+    [[-.1, 0], [.1, .06], [0, -.12]].forEach(([bx, bz]) => { const bump = new THREE.Mesh(B(.1, .08, .1), M(0x5A4D1A)); bump.position.set(bx, .3, bz); g.add(bump); });
+    [[-1, -.18], [1, -.18], [-1, .18], [1, .18]].forEach(([sx, sz]) => {
+      const leg = new THREE.Mesh(B(.13, .07, .16), M(0x4D4010)); leg.position.set(sx * .15, .07, sz * .5); g.add(leg);
+    });
+
+  } else if (type === 'otter') {
+    // 수달: 긴 갈색 몸통 + 납작 꼬리 + 크림 배
+    const body = new THREE.Mesh(B(.82, .26, .32), M(0x4A2E0D)); body.position.set(0, .33, 0); g.add(body);
+    const belly = new THREE.Mesh(B(.55, .22, .28), M(0xD4AC6E)); belly.position.set(0, .32, 0); g.add(belly);
+    const head = new THREE.Mesh(B(.32, .28, .3), M(0x4A2E0D)); head.position.set(.48, .46, 0); g.add(head);
+    const snout = new THREE.Mesh(B(.14, .14, .18), M(0x7A5A3A)); snout.position.set(.64, .42, 0); g.add(snout);
+    const tail = new THREE.Mesh(B(.35, .1, .2), M(0x3B2409)); tail.position.set(-.56, .24, 0); tail.rotation.z = -.2; g.add(tail);
+    [[-1, -.12], [1, -.12], [-1, .12], [1, .12]].forEach(([sx, sz]) => {
+      const paw = new THREE.Mesh(B(.14, .08, .18), M(0x3B2409)); paw.position.set(sx * .28, .12, sz); g.add(paw);
+    });
+    [-.1, .1].forEach(z => { const eye = new THREE.Mesh(B(.07, .07, .07), M(0x111111)); eye.position.set(.56, .52, z); g.add(eye); });
+
+  } else if (type === 'bat') {
+    // 황금박쥐: 진갈색 소형 + 큰 날개 + 뾰족 귀
+    const body = new THREE.Mesh(B(.3, .28, .26), M(0x2D1A0D)); body.position.set(0, .45, 0); g.add(body);
+    const head = new THREE.Mesh(B(.22, .2, .2), M(0x2D1A0D)); head.position.set(.14, .62, 0); g.add(head);
+    [-.08, .08].forEach(z => { const ear = new THREE.Mesh(new THREE.ConeGeometry(.06, .2, 4), M(0x2D1A0D)); ear.position.set(.1, .8, z); g.add(ear); });
+    [-.24, .24].forEach(z => { const wing = new THREE.Mesh(B(.5, .04, .38), M(0x1A0D05)); wing.position.set(-.1, .5, z); wing.rotation.z = z > 0 ? -.15 : .15; g.add(wing); });
+    [-.08, .08].forEach(z => { const eye = new THREE.Mesh(B(.06, .06, .06), M(0xFF2222)); eye.position.set(.22, .64, z); g.add(eye); });
+
+  } else if (type === 'fox') {
+    // 붉은여우: 주황 몸통 + 크림 배 + 뾰족 귀 + 흰 꼬리 끝
+    const body = new THREE.Mesh(B(.68, .42, .4), M(0xCC4400)); body.position.set(0, .4, 0); g.add(body);
+    const belly = new THREE.Mesh(B(.5, .38, .32), M(0xFFE4C4)); belly.position.set(.04, .38, 0); g.add(belly);
+    const head = new THREE.Mesh(B(.38, .34, .36), M(0xCC4400)); head.position.set(.46, .7, 0); g.add(head);
+    const snout = new THREE.Mesh(B(.2, .2, .24), M(0xCC4400)); snout.position.set(.64, .65, 0); g.add(snout);
+    [-.14, .14].forEach(z => {
+      const ear = new THREE.Mesh(B(.1, .22, .08), M(0xCC4400)); ear.position.set(.4, .96, z); g.add(ear);
+      const earIn = new THREE.Mesh(B(.06, .14, .04), M(0xFF8888)); earIn.position.set(.4, .97, z); g.add(earIn);
+    });
+    const tail = new THREE.Mesh(B(.2, .4, .28), M(0xCC4400)); tail.position.set(-.48, .5, 0); tail.rotation.z = .25; g.add(tail);
+    const tailTip = new THREE.Mesh(B(.14, .18, .22), M(0xFFFFFF)); tailTip.position.set(-.56, .32, 0); g.add(tailTip);
+    [[-1, -.14], [1, -.14], [-1, .14], [1, .14]].forEach(([sx, sz]) => {
+      const leg = new THREE.Mesh(B(.12, .38, .12), M(0x8B2200)); leg.position.set(sx * .22, .2, sz); g.add(leg);
+    });
+    [-.1, .1].forEach(z => { const eye = new THREE.Mesh(B(.08, .08, .08), M(0xFFAA00)); eye.position.set(.64, .73, z); g.add(eye); });
+
+  } else if (type === 'eagle') {
+    // 독수리: 진갈색 큰 몸통 + 펼친 날개 + 노란 갈고리 부리
+    const body = new THREE.Mesh(B(.62, .4, .48), M(0x2C1810)); body.position.set(0, .44, 0); g.add(body);
+    const head = new THREE.Mesh(B(.28, .28, .26), M(0x2C1810)); head.position.set(.38, .76, 0); g.add(head);
+    const beak = new THREE.Mesh(B(.16, .1, .08), M(0xFFAA00)); beak.position.set(.54, .73, 0); beak.rotation.z = -.3; g.add(beak);
+    [-.28, .28].forEach(z => { const wing = new THREE.Mesh(B(.6, .06, .3), M(0x2C1810)); wing.position.set(0, .5, z); wing.rotation.z = -.15; g.add(wing); });
+    const tail = new THREE.Mesh(B(.24, .05, .4), M(0x1A0F08)); tail.position.set(-.38, .36, 0); g.add(tail);
+    [-.1, .1].forEach(z => { const leg = new THREE.Mesh(B(.1, .28, .1), M(0xFFAA00)); leg.position.set(0, .2, z); g.add(leg); });
+    [-.1, .1].forEach(z => { const eye = new THREE.Mesh(B(.08, .08, .08), M(0xFFCC44)); eye.position.set(.47, .8, z); g.add(eye); });
+
+  } else if (type === 'deer') {
+    // 노루: 황갈색 날씬한 몸 + 긴 다리 + 작은 뿔 + 흰 엉덩이
+    const body = new THREE.Mesh(B(.65, .48, .42), M(0xC9874A)); body.position.set(0, .5, 0); g.add(body);
+    const neck = new THREE.Mesh(B(.2, .34, .22), M(0xC9874A)); neck.position.set(.28, .8, 0); g.add(neck);
+    const head = new THREE.Mesh(B(.3, .27, .25), M(0xC9874A)); head.position.set(.38, 1.05, 0); g.add(head);
+    const snout = new THREE.Mesh(B(.18, .17, .16), M(0xB87842)); snout.position.set(.52, 1.0, 0); g.add(snout);
+    const rump = new THREE.Mesh(B(.14, .18, .24), M(0xFFFFFF)); rump.position.set(-.34, .6, 0); g.add(rump);
+    [[-1, -.14], [1, -.14], [-1, .14], [1, .14]].forEach(([sx, sz]) => {
+      const leg = new THREE.Mesh(B(.12, .48, .12), M(0x8B5E3C)); leg.position.set(sx * .22, .25, sz); g.add(leg);
+    });
+    [-.08, .08].forEach(z => { const eye = new THREE.Mesh(B(.07, .07, .07), M(0x111111)); eye.position.set(.53, 1.08, z); g.add(eye); });
+    [-.07, .07].forEach(z => {
+      const ant = new THREE.Mesh(B(.05, .22, .05), M(0x8B5E3C)); ant.position.set(.32, 1.24, z); g.add(ant);
+      const branch = new THREE.Mesh(B(.05, .14, .05), M(0x8B5E3C)); branch.position.set(.25, 1.3, z); branch.rotation.z = .5; g.add(branch);
+    });
+
+  } else if (type === 'dog') {
+    // 들개: 회갈색 중형견
+    const body = new THREE.Mesh(B(.65, .4, .42), M(0x7B6F5A)); body.position.set(0, .4, 0); g.add(body);
+    const head = new THREE.Mesh(B(.34, .34, .32), M(0x7B6F5A)); head.position.set(.46, .7, 0); g.add(head);
+    const snout = new THREE.Mesh(B(.2, .2, .22), M(0x9A8870)); snout.position.set(.63, .65, 0); g.add(snout);
+    [-.12, .12].forEach(z => { const ear = new THREE.Mesh(B(.12, .18, .08), M(0x5A4E3A)); ear.position.set(.36, .92, z); ear.rotation.z = z > 0 ? .2 : -.2; g.add(ear); });
+    const tail = new THREE.Mesh(B(.1, .04, .32), M(0x7B6F5A)); tail.position.set(-.36, .55, 0); tail.rotation.z = .3; g.add(tail);
+    [[-1, -.14], [1, -.14], [-1, .14], [1, .14]].forEach(([sx, sz]) => {
+      const leg = new THREE.Mesh(B(.13, .36, .13), M(0x5A4E3A)); leg.position.set(sx * .22, .2, sz); g.add(leg);
+    });
+    [-.09, .09].forEach(z => { const eye = new THREE.Mesh(B(.08, .08, .08), M(0x332200)); eye.position.set(.63, .73, z); g.add(eye); });
+
+  } else if (type === 'crane') {
+    // 두루미: 흰 큰 몸통 + 긴 목 + 긴 다리 + 빨간 왕관
+    const body = new THREE.Mesh(B(.5, .46, .42), M(0xF5F5F5)); body.position.set(0, .68, 0); g.add(body);
+    const neck = new THREE.Mesh(B(.13, .52, .13), M(0xF5F5F5)); neck.position.set(.2, 1.05, 0); g.add(neck);
+    const head = new THREE.Mesh(B(.2, .18, .18), M(0xF5F5F5)); head.position.set(.22, 1.4, 0); g.add(head);
+    const crown = new THREE.Mesh(B(.14, .1, .12), M(0xFF2222)); crown.position.set(.2, 1.54, 0); g.add(crown);
+    const beak = new THREE.Mesh(B(.24, .06, .06), M(0x556655)); beak.position.set(.36, 1.4, 0); g.add(beak);
+    [-.2, .2].forEach(z => { const wingTip = new THREE.Mesh(B(.18, .04, .38), M(0x111111)); wingTip.position.set(-.12, .78, z); g.add(wingTip); });
+    [-.1, .1].forEach(z => { const leg = new THREE.Mesh(B(.07, .65, .07), M(0x8B1A1A)); leg.position.set(0, .3, z); g.add(leg); });
+    [-.08, .08].forEach(z => { const eye = new THREE.Mesh(B(.07, .07, .07), M(0x111111)); eye.position.set(.32, 1.43, z); g.add(eye); });
+
+  } else if (type === 'salmon') {
+    // 연어: 은분홍 대형 어류 + 반점
+    const body = new THREE.Mesh(B(.75, .38, .32), M(0xC8A0A0)); body.position.set(0, .5, 0); g.add(body);
+    const head = new THREE.Mesh(B(.3, .34, .28), M(0xAA8888)); head.position.set(.46, .5, 0); g.add(head);
+    const tail = new THREE.Mesh(B(.28, .34, .14), M(0xBB9090)); tail.position.set(-.5, .5, 0); g.add(tail);
+    const dorsal = new THREE.Mesh(B(.22, .22, .06), M(0xAA8888)); dorsal.position.set(.05, .72, 0); g.add(dorsal);
+    [[-.1, .14], [.12, .14]].forEach(([bx, bz]) => { const spot = new THREE.Mesh(B(.1, .1, .06), M(0x882222)); spot.position.set(bx, .56, bz); g.add(spot); });
+    const seye = new THREE.Mesh(B(.09, .09, .09), M(0x111111)); seye.position.set(.58, .55, .15); g.add(seye);
+
+  } else if (type === 'raccoon') {
+    // 너구리: 회색 + 검은 눈 마스크 + 줄무늬 꼬리
+    const body = new THREE.Mesh(B(.56, .4, .46), M(0x9E9E9E)); body.position.set(0, .38, 0); g.add(body);
+    const head = new THREE.Mesh(B(.34, .3, .32), M(0xBBBBBB)); head.position.set(.4, .66, 0); g.add(head);
+    [-.1, .1].forEach(z => { const mask = new THREE.Mesh(B(.16, .14, .06), M(0x2C2C2C)); mask.position.set(.55, .68, z); g.add(mask); });
+    const snout = new THREE.Mesh(B(.14, .14, .22), M(0xDDDDDD)); snout.position.set(.56, .63, 0); g.add(snout);
+    [-.12, .12].forEach(z => { const ear = new THREE.Mesh(B(.12, .16, .08), M(0xBBBBBB)); ear.position.set(.32, .88, z); g.add(ear); });
+    const rtail = new THREE.Mesh(B(.12, .04, .35), M(0x9E9E9E)); rtail.position.set(-.32, .42, 0); rtail.rotation.z = .35; g.add(rtail);
+    [.04, -.04].forEach(dy => { const stripe = new THREE.Mesh(B(.14, .05, .16), M(0x333333)); stripe.position.set(-.32, .42 + dy, 0); stripe.rotation.z = .35; g.add(stripe); });
+    [[-1, -.14], [1, -.14], [-1, .14], [1, .14]].forEach(([sx, sz]) => {
+      const leg = new THREE.Mesh(B(.12, .3, .12), M(0x777777)); leg.position.set(sx * .2, .18, sz); g.add(leg);
+    });
+    [-.09, .09].forEach(z => { const eye = new THREE.Mesh(B(.08, .08, .08), M(0x111111)); eye.position.set(.56, .7, z); g.add(eye); });
+
+  } else if (type === 'kestrel') {
+    // 황조롱이: 주황갈색 날개 + 회색 머리 + 갈고리 부리
+    const body = new THREE.Mesh(B(.42, .28, .32), M(0xBF6030)); body.position.set(0, .43, 0); g.add(body);
+    const head = new THREE.Mesh(B(.22, .22, .2), M(0x8090A0)); head.position.set(.3, .64, 0); g.add(head);
+    const beak = new THREE.Mesh(B(.1, .08, .07), M(0xFFDD00)); beak.position.set(.42, .65, 0); beak.rotation.z = -.2; g.add(beak);
+    [-.16, .16].forEach(z => { const wing = new THREE.Mesh(B(.46, .04, .22), M(0xBF6030)); wing.position.set(0, .46, z); wing.rotation.z = -.1; g.add(wing); });
+    [-.1, .1].forEach(z => { const tip = new THREE.Mesh(B(.14, .04, .14), M(0x222222)); tip.position.set(.05, .42, z > 0 ? .2 : -.2); g.add(tip); });
+    const ktail = new THREE.Mesh(B(.18, .04, .28), M(0xBF6030)); ktail.position.set(-.3, .38, 0); g.add(ktail);
+    [-.08, .08].forEach(z => { const eye = new THREE.Mesh(B(.07, .07, .07), M(0x111111)); eye.position.set(.4, .67, z); g.add(eye); });
+
+  } else if (type === 'bear') {
+    // 반달가슴곰: 대형 검은 몸통 + 흰 초승달 가슴 + 갈색 코
+    const body = new THREE.Mesh(B(.85, .58, .7), M(0x111111)); body.position.set(0, .48, 0); g.add(body);
+    const chest = new THREE.Mesh(B(.5, .2, .14), M(0xFFFFFF)); chest.position.set(.1, .7, 0); g.add(chest);
+    const head = new THREE.Mesh(B(.5, .44, .48), M(0x111111)); head.position.set(.42, .92, 0); g.add(head);
+    const snout = new THREE.Mesh(B(.28, .22, .28), M(0x5C3D2E)); snout.position.set(.62, .86, 0); g.add(snout);
+    [-.18, .18].forEach(z => { const ear = new THREE.Mesh(B(.18, .18, .1), M(0x111111)); ear.position.set(.3, 1.22, z); g.add(ear); });
+    [[-1, -.18], [1, -.18], [-1, .18], [1, .18]].forEach(([sx, sz]) => {
+      const leg = new THREE.Mesh(B(.2, .38, .2), M(0x111111)); leg.position.set(sx * .28, .2, sz); g.add(leg);
+    });
+    [-.1, .1].forEach(z => { const eye = new THREE.Mesh(B(.1, .1, .1), M(0x331100)); eye.position.set(.58, .98, z); g.add(eye); });
+
+  } else if (type === 'sparrow') {
+    // 참새: 작은 갈색 새
+    const body = new THREE.Mesh(B(.35, .18, .22), M(0xA0722A)); body.position.set(0, .42, 0); g.add(body);
+    const head = new THREE.Mesh(B(.2, .18, .18), M(0x8B6914)); head.position.set(.22, .54, 0); g.add(head);
+    const beak = new THREE.Mesh(B(.1, .05, .05), M(0xDDAA00)); beak.position.set(.34, .56, 0); g.add(beak);
+    [-.1, .1].forEach(z => { const wing = new THREE.Mesh(B(.3, .04, .18), M(0x8B6914)); wing.position.set(-.04, .45, z); wing.rotation.z = -.1; g.add(wing); });
+    const spwtail = new THREE.Mesh(B(.18, .03, .18), M(0x8B6914)); spwtail.position.set(-.2, .38, 0); g.add(spwtail);
+    [-.06, .06].forEach(z => { const eye = new THREE.Mesh(B(.06, .06, .06), M(0x111111)); eye.position.set(.32, .56, z); g.add(eye); });
   }
-  g.traverse(c=>{if(c.isMesh){c.castShadow=c.receiveShadow=true;c.userData.agr=g;}});
+
+  g.traverse(c => { if (c.isMesh) { c.castShadow = c.receiveShadow = true; c.userData.agr = g; } });
   return g;
 }
 
-function placeAnimal(x,y,z,type,isInjured=false){
-  const group=buildAnimal(type,isInjured);
-  group.position.set(x,y,z); scene.add(group);
-  const angle=Math.random()*Math.PI*2;
-  animalData.push({type,x,y,z,group,isInjured,angle,targetAngle:angle});
+function placeAnimal(x, y, z, type, isInjured = false) {
+  const group = buildAnimal(type, isInjured);
+  group.position.set(x, y, z); scene.add(group);
+  const angle = Math.random() * Math.PI * 2;
+  animalData.push({ type, x, y, z, group, isInjured, angle, targetAngle: angle });
   QuestManager.check();
 }
 
-function removeAnimalAt(a){
-  const i=animalData.indexOf(a);
-  if(i!==-1){scene.remove(animalData[i].group);animalData.splice(i,1);QuestManager.check();}
+function removeAnimalAt(a) {
+  const i = animalData.indexOf(a);
+  if (i !== -1) { scene.remove(animalData[i].group); animalData.splice(i, 1); QuestManager.check(); }
 }
 
-function getVisualTopY(x,z){
-  const gy=getTopY(Math.round(x),Math.round(z));
-  const underBlock=gridData[bk(Math.round(x),gy-1,Math.round(z))];
-  if(underBlock){
-    const t=underBlock.split('_')[0];
-    if(t==='grass'||t==='straw'||getBlockData(t)?.category==='plant'||getBlockData(t)?.category==='seed'||getBlockData(t)?.category==='resource') return (gy-1)+0.2;
+function getVisualTopY(x, z) {
+  const gy = getTopY(Math.round(x), Math.round(z));
+  const underBlock = gridData[bk(Math.round(x), gy - 1, Math.round(z))];
+  if (underBlock) {
+    const t = underBlock.split('_')[0];
+    if (t === 'grass' || t === 'straw' || getBlockData(t)?.category === 'plant' || getBlockData(t)?.category === 'seed' || getBlockData(t)?.category === 'resource') return (gy - 1) + 0.2;
   }
   return gy;
 }
 
-function isSolid(rawType){
-  if(!rawType) return false;
-  const base=rawType.split('_')[0];
-  const def=ITEM_DB[base]||TERRAIN_BLOCKS[base];
-  return def&&def.solid;
+function isSolid(rawType) {
+  if (!rawType) return false;
+  const base = rawType.split('_')[0];
+  const def = ITEM_DB[base] || TERRAIN_BLOCKS[base];
+  return def && def.solid;
 }
 
-function analyzeHabitat(sx,sz){
-  const v=new Set(),q=[[sx,sz]]; v.add(`${sx},${sz}`);
-  let count=0,grassCount=0;
-  while(q.length){
-    count++; if(count>2000) return {enclosed:false,grass:0};
-    const[cx,cz]=q.shift();
-    const topY=getTopY(cx,cz)-1;
-    const rawType=gridData[bk(cx,topY,cz)];
-    const floorType=rawType?rawType.split('_')[0]:'';
-    if(floorType==='grass'||floorType==='t_low'||floorType==='t_mid') grassCount++;
-    for(const[nx,nz] of[[cx+1,cz],[cx-1,cz],[cx,cz+1],[cx,cz-1]]){
-      const nk=`${nx},${nz}`; if(v.has(nk)) continue;
-      const blocked=[0,1].some(hy=>{ const b=gridData[bk(nx,topY+1+hy,nz)]; return isSolid(b); });
-      if(!blocked){v.add(nk);q.push([nx,nz]);}
+function analyzeHabitat(sx, sz) {
+  const v = new Set(), q = [[sx, sz]]; v.add(`${sx},${sz}`);
+  let count = 0, grassCount = 0;
+  while (q.length) {
+    count++; if (count > 2000) return { enclosed: false, grass: 0 };
+    const [cx, cz] = q.shift();
+    const topY = getTopY(cx, cz) - 1;
+    const rawType = gridData[bk(cx, topY, cz)];
+    const floorType = rawType ? rawType.split('_')[0] : '';
+    if (floorType === 'grass' || floorType === 't_low' || floorType === 't_mid') grassCount++;
+    for (const [nx, nz] of [[cx + 1, cz], [cx - 1, cz], [cx, cz + 1], [cx, cz - 1]]) {
+      const nk = `${nx},${nz}`; if (v.has(nk)) continue;
+      const blocked = [0, 1].some(hy => { const b = gridData[bk(nx, topY + 1 + hy, nz)]; return isSolid(b); });
+      if (!blocked) { v.add(nk); q.push([nx, nz]); }
     }
   }
-  return {enclosed:true,grass:grassCount};
+  return { enclosed: true, grass: grassCount };
 }
 
-function updateAnimals(t){
-  for(const a of animalData){
-    if(pickedAnimal&&pickedAnimal.entry===a){ a.group.position.y=a.y+1.5+Math.sin(t*4)*.12; a.group.rotation.y=t*1.5; continue; }
-    if(a.type==='fish') updateFish(a,t);
-    else if(a.type==='sheep') updateSheep(a,t);
-    else if(a.type==='horse') updateHorse(a,t);
-    else if(a.type==='goat') updateGoat(a,t);
-    else updateDefaultAnimal(a,t);
+function updateAnimals(t) {
+  for (const a of animalData) {
+    if (pickedAnimal && pickedAnimal.entry === a) {
+      // 들고 있는 동물: orbitTarget 추종, 지면에서 정확히 1블록 위 부유
+      const ox = orbitTarget.x, oz = orbitTarget.z;
+      a.group.position.set(ox, getH(Math.round(ox), Math.round(oz)) + 1, oz);
+      a.group.rotation.y = t * 2;
+      continue;
+    }
+    if (a.type === 'fish' || a.type === 'salmon') updateFish(a, t);
+    else if (a.type === 'sheep') updateSheep(a, t);
+    else if (a.type === 'horse') updateHorse(a, t);
+    else if (a.type === 'goat') updateGoat(a, t);
+    else if (a.type === 'bullfrog' || a.type === 'toad') updateFrog(a, t);
+    else if (a.type === 'bat') updateBat(a, t);
+    else if (a.type === 'bee') updateBee(a, t);
+    else if (a.type === 'crane') updateCrane(a, t);
+    else if (a.type === 'fox') updateFox(a, t);
+    else if (a.type === 'dog') updateWildDog(a, t);
+    else updateDefaultAnimal(a, t);
   }
 }
 
-function updateFish(a,t){
+
+function updateFish(a, t) {
   const wL = BiomeSystem.getDominantBiome(a.x, a.z).waterLevel;
-  const curTopY=getVisualTopY(a.x,a.z);
-  if(curTopY<wL){
-    const spd=0.022,look=3.5;
-    const fwdY=getTopY(Math.round(a.x+Math.cos(a.angle)*look),Math.round(a.z-Math.sin(a.angle)*look));
-    if(fwdY>=wL-0.5){ const la=a.angle+Math.PI*0.6,ra=a.angle-Math.PI*0.6; const lY=getTopY(Math.round(a.x+Math.cos(la)*look),Math.round(a.z-Math.sin(la)*look)); const rY=getTopY(Math.round(a.x+Math.cos(ra)*look),Math.round(a.z-Math.sin(ra)*look)); a.targetAngle=(lY<rY?la:ra)+(Math.random()-0.5)*0.5; }
-    else if(Math.random()<0.012){ a.targetAngle=a.angle+(Math.random()-0.5)*1.0; }
-    let diff=a.targetAngle-a.angle; while(diff>Math.PI)diff-=2*Math.PI; while(diff<-Math.PI)diff+=2*Math.PI; a.angle+=diff*0.07;
-    const nx=a.x+Math.cos(a.angle)*spd,nz=a.z-Math.sin(a.angle)*spd;
-    const nY=getTopY(Math.round(nx),Math.round(nz));
-    if(nY<wL){a.x=nx;a.z=nz;}else{a.targetAngle=a.angle+Math.PI+(Math.random()-0.5)*0.8;}
-    const depth=Math.max(0.4,wL-curTopY);
-    a.group.position.set(a.x,curTopY+depth*0.35+Math.sin(t*1.8+a.x)*0.12,a.z);
-    a.group.rotation.y=a.angle; a.group.rotation.z=Math.sin(t*2)*0.04;
+  const curTopY = getVisualTopY(a.x, a.z);
+  if (curTopY < wL) {
+    const spd = 0.022, look = 3.5;
+    const fwdY = getTopY(Math.round(a.x + Math.cos(a.angle) * look), Math.round(a.z - Math.sin(a.angle) * look));
+    if (fwdY >= wL - 0.5) { const la = a.angle + Math.PI * 0.6, ra = a.angle - Math.PI * 0.6; const lY = getTopY(Math.round(a.x + Math.cos(la) * look), Math.round(a.z - Math.sin(la) * look)); const rY = getTopY(Math.round(a.x + Math.cos(ra) * look), Math.round(a.z - Math.sin(ra) * look)); a.targetAngle = (lY < rY ? la : ra) + (Math.random() - 0.5) * 0.5; }
+    else if (Math.random() < 0.012) { a.targetAngle = a.angle + (Math.random() - 0.5) * 1.0; }
+    let diff = a.targetAngle - a.angle; while (diff > Math.PI) diff -= 2 * Math.PI; while (diff < -Math.PI) diff += 2 * Math.PI; a.angle += diff * 0.07;
+    const nx = a.x + Math.cos(a.angle) * spd, nz = a.z - Math.sin(a.angle) * spd;
+    const nY = getTopY(Math.round(nx), Math.round(nz));
+    if (nY < wL) { a.x = nx; a.z = nz; } else { a.targetAngle = a.angle + Math.PI + (Math.random() - 0.5) * 0.8; }
+    const depth = Math.max(0.4, wL - curTopY);
+    a.group.position.set(a.x, curTopY + depth * 0.35 + Math.sin(t * 1.8 + a.x) * 0.12, a.z);
+    a.group.rotation.y = a.angle; a.group.rotation.z = Math.sin(t * 2) * 0.04;
   } else {
-    a.group.position.set(a.x,curTopY+0.2+Math.abs(Math.sin(t*15))*0.3,a.z);
-    a.group.rotation.z=Math.sin(t*20)*0.5;
+    a.group.position.set(a.x, curTopY + 0.2 + Math.abs(Math.sin(t * 15)) * 0.3, a.z);
+    a.group.rotation.z = Math.sin(t * 20) * 0.5;
   }
 }
 
-function updateSheep(a,t){
-  if(toolMode==='action'&&selItem==='lure'&&hlMesh.visible){
-    const dx=hlMesh.position.x-a.x,dz=hlMesh.position.z-a.z;
-    const dist=Math.sqrt(dx*dx+dz*dz);
-    if(dist>1.5&&dist<12){ const ws=a.isInjured?0.015:0.04; a.x+=dx/dist*ws; a.z+=dz/dist*ws; a.targetAngle=Math.atan2(-dz,dx); }
+function updateSheep(a, t) {
+  if (toolMode === 'action' && selItem === 'lure' && hlMesh.visible) {
+    const dx = hlMesh.position.x - a.x, dz = hlMesh.position.z - a.z;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+    if (dist > 1.5 && dist < 12) { const ws = a.isInjured ? 0.015 : 0.04; a.x += dx / dist * ws; a.z += dz / dist * ws; a.targetAngle = Math.atan2(-dz, dx); }
   }
-  let diff=a.targetAngle-a.angle; while(diff>Math.PI)diff-=2*Math.PI; while(diff<-Math.PI)diff+=2*Math.PI; a.angle+=diff*0.1;
-  const aheadY=getVisualTopY(a.x+Math.cos(a.angle)*0.4,a.z-Math.sin(a.angle)*0.4);
-  a.y+=(aheadY-a.y)*0.25;
-  a.group.position.set(a.x,a.y+Math.sin(t*2.5+a.x)*0.06,a.z); a.group.rotation.y=a.angle; a.group.rotation.z=0;
+  let diff = a.targetAngle - a.angle; while (diff > Math.PI) diff -= 2 * Math.PI; while (diff < -Math.PI) diff += 2 * Math.PI; a.angle += diff * 0.1;
+  const aheadY = getVisualTopY(a.x + Math.cos(a.angle) * 0.4, a.z - Math.sin(a.angle) * 0.4);
+  a.y += (aheadY - a.y) * 0.25;
+  a.group.position.set(a.x, a.y + Math.sin(t * 2.5 + a.x) * 0.06, a.z); a.group.rotation.y = a.angle; a.group.rotation.z = 0;
 }
 
-function updateHorse(a,t){
-  let clearPath=0;
-  for(let i=1;i<=10;i++){ if(isFenced(Math.round(a.x+Math.cos(a.angle)*i),Math.round(a.z-Math.sin(a.angle)*i))) break; clearPath=i; }
-  if(clearPath>=8){ a.x+=Math.cos(a.angle)*0.08; a.z-=Math.sin(a.angle)*0.08; a.group.rotation.y=a.angle; }
-  else{ a.group.rotation.y=a.angle+Math.sin(t*8)*0.05; if(Math.random()<0.02) a.angle+=0.5; }
-  const aheadY=getVisualTopY(a.x+Math.cos(a.angle)*0.4,a.z-Math.sin(a.angle)*0.4);
-  a.y+=(aheadY-a.y)*0.25;
-  a.group.position.set(a.x,a.y+Math.sin(t*4.0)*0.08,a.z); a.group.rotation.z=0;
+function updateHorse(a, t) {
+  let clearPath = 0;
+  for (let i = 1; i <= 10; i++) { if (isFenced(Math.round(a.x + Math.cos(a.angle) * i), Math.round(a.z - Math.sin(a.angle) * i))) break; clearPath = i; }
+  if (clearPath >= 8) { a.x += Math.cos(a.angle) * 0.08; a.z -= Math.sin(a.angle) * 0.08; a.group.rotation.y = a.angle; }
+  else { a.group.rotation.y = a.angle + Math.sin(t * 8) * 0.05; if (Math.random() < 0.02) a.angle += 0.5; }
+  const aheadY = getVisualTopY(a.x + Math.cos(a.angle) * 0.4, a.z - Math.sin(a.angle) * 0.4);
+  a.y += (aheadY - a.y) * 0.25;
+  a.group.position.set(a.x, a.y + Math.sin(t * 4.0) * 0.08, a.z); a.group.rotation.z = 0;
 }
 
-function updateGoat(a,t){
-  if(!a.escapeTimer) a.escapeTimer=0;
-  a.escapeTimer+=0.016;
-  if(a.escapeTimer>30){ a.escapeTimer=0; const ea=Math.random()*Math.PI*2; const tx=a.x+Math.cos(ea)*3,tz=a.z-Math.sin(ea)*3; if(!isFenced(Math.round(tx),Math.round(tz))){ a.x=tx;a.z=tz;toast('🐐 염소가 탈출했어요!'); } }
-  if(Math.random()<0.01) a.targetAngle=a.angle+(Math.random()-0.5)*2;
-  let diff=a.targetAngle-a.angle; while(diff>Math.PI)diff-=2*Math.PI; while(diff<-Math.PI)diff+=2*Math.PI; a.angle+=diff*0.1;
-  const aheadY=getVisualTopY(a.x+Math.cos(a.angle)*0.4,a.z-Math.sin(a.angle)*0.4);
-  a.y+=(aheadY-a.y)*0.25;
-  a.group.position.set(a.x,a.y+Math.sin(t*2.5+a.x)*0.06,a.z); a.group.rotation.y=a.angle; a.group.rotation.z=0;
+function updateGoat(a, t) {
+  if (!a.escapeTimer) a.escapeTimer = 0;
+  a.escapeTimer += 0.016;
+  if (a.escapeTimer > 30) { a.escapeTimer = 0; const ea = Math.random() * Math.PI * 2; const tx = a.x + Math.cos(ea) * 3, tz = a.z - Math.sin(ea) * 3; if (!isFenced(Math.round(tx), Math.round(tz))) { a.x = tx; a.z = tz; toast('🐐 염소가 탈출했어요!'); } }
+  if (Math.random() < 0.01) a.targetAngle = a.angle + (Math.random() - 0.5) * 2;
+  let diff = a.targetAngle - a.angle; while (diff > Math.PI) diff -= 2 * Math.PI; while (diff < -Math.PI) diff += 2 * Math.PI; a.angle += diff * 0.1;
+  const aheadY = getVisualTopY(a.x + Math.cos(a.angle) * 0.4, a.z - Math.sin(a.angle) * 0.4);
+  a.y += (aheadY - a.y) * 0.25;
+  a.group.position.set(a.x, a.y + Math.sin(t * 2.5 + a.x) * 0.06, a.z); a.group.rotation.y = a.angle; a.group.rotation.z = 0;
 }
 
-function updateDefaultAnimal(a,t){
-  let diff=a.targetAngle-a.angle; while(diff>Math.PI)diff-=2*Math.PI; while(diff<-Math.PI)diff+=2*Math.PI; a.angle+=diff*0.1;
-  const aheadY=getVisualTopY(a.x+Math.cos(a.angle)*0.4,a.z-Math.sin(a.angle)*0.4);
-  a.y+=(aheadY-a.y)*0.25;
-  a.group.position.set(a.x,a.y+Math.sin(t*2.5+a.x)*0.06,a.z); a.group.rotation.y=a.angle; a.group.rotation.z=0;
+function updateDefaultAnimal(a, t) {
+  let diff = a.targetAngle - a.angle; while (diff > Math.PI) diff -= 2 * Math.PI; while (diff < -Math.PI) diff += 2 * Math.PI; a.angle += diff * 0.1;
+  const aheadY = getVisualTopY(a.x + Math.cos(a.angle) * 0.4, a.z - Math.sin(a.angle) * 0.4);
+  a.y += (aheadY - a.y) * 0.25;
+  a.group.position.set(a.x, a.y + Math.sin(t * 2.5 + a.x) * 0.06, a.z); a.group.rotation.y = a.angle; a.group.rotation.z = 0;
+}
+
+function updateFox(a, t) {
+  if (typeof level3_conditions !== 'undefined' && level3_conditions.wildDogIsolated) {
+    if (typeof orbitTarget !== 'undefined') {
+      const dx = orbitTarget.x - a.x, dz = orbitTarget.z - a.z;
+      a.targetAngle = Math.atan2(-dz, dx);
+    }
+  } else {
+    if (typeof orbitTarget !== 'undefined') {
+      const dx = orbitTarget.x - a.x, dz = orbitTarget.z - a.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      if (dist < 8) {
+        a.targetAngle = Math.atan2(dz, -dx) + (Math.random() - 0.5) * 0.4;
+        const spd = 0.05;
+        const nx = a.x + Math.cos(a.targetAngle) * spd;
+        const nz = a.z - Math.sin(a.targetAngle) * spd;
+        if (nx > -100 && nx < -60 && nz > -20 && nz < 20) {
+          a.x = nx; a.z = nz;
+        }
+      }
+    }
+    if (Math.random() < 0.015) {
+      a.targetAngle = a.angle + (Math.random() - 0.5) * 1.5;
+    }
+  }
+
+  let diff = a.targetAngle - a.angle;
+  while (diff > Math.PI) diff -= 2 * Math.PI;
+  while (diff < -Math.PI) diff += 2 * Math.PI;
+  a.angle += diff * 0.08;
+
+  const aheadY = getVisualTopY(a.x, a.z);
+  a.y += (aheadY - a.y) * 0.25;
+  a.group.position.set(a.x, a.y + Math.sin(t * 3.5 + a.x) * 0.04, a.z);
+  a.group.rotation.y = a.angle;
+}
+
+function updateWildDog(a, t) {
+  const cX = -70, cZ = -16;
+  const distFromCenter = Math.hypot(a.x - cX, a.z - cZ);
+
+  if (distFromCenter > 7) {
+    a.targetAngle = Math.atan2(cZ - a.z, a.x - cX);
+  } else if (Math.random() < 0.02) {
+    a.targetAngle = a.angle + (Math.random() - 0.5) * 2;
+  }
+
+  let diff = a.targetAngle - a.angle;
+  while (diff > Math.PI) diff -= 2 * Math.PI;
+  while (diff < -Math.PI) diff += 2 * Math.PI;
+  a.angle += diff * 0.08;
+
+  const spd = 0.015;
+  const nx = a.x + Math.cos(a.angle) * spd;
+  const nz = a.z - Math.sin(a.angle) * spd;
+
+  const curTopY = getTopY(Math.round(nx), Math.round(nz));
+  const block = gridData[bk(Math.round(nx), curTopY, Math.round(nz))];
+  const isBlocked = isSolid(block) || (block && (block.startsWith('fence') || block.startsWith('bush')));
+
+  if (!isBlocked) {
+    a.x = nx; a.z = nz;
+  } else {
+    a.targetAngle = a.angle + Math.PI + (Math.random() - 0.5) * 0.8;
+  }
+
+  const aheadY = getVisualTopY(a.x, a.z);
+  a.y += (aheadY - a.y) * 0.25;
+  a.group.position.set(a.x, a.y + Math.abs(Math.sin(t * 8)) * 0.08, a.z);
+  a.group.rotation.y = a.angle;
+}
+
+function updateFrog(a, t) {
+  if (!a._frogTimer) a._frogTimer = Math.random() * 4;
+  a._frogTimer += 0.016;
+  if (a._frogTimer > 5 + Math.random() * 4) {
+    a._frogTimer = 0;
+    if (Math.random() < 0.35) {
+      const da = (Math.random() - .5) * Math.PI;
+      a.x += Math.cos(a.angle + da) * (0.2 + Math.random() * 0.4);
+      a.z -= Math.sin(a.angle + da) * (0.2 + Math.random() * 0.4);
+      a.targetAngle = a.angle + da;
+    }
+  }
+  let diff = a.targetAngle - a.angle; while (diff > Math.PI) diff -= 2 * Math.PI; while (diff < -Math.PI) diff += 2 * Math.PI; a.angle += diff * 0.07;
+  const aheadY = getVisualTopY(a.x, a.z);
+  a.y += (aheadY - a.y) * 0.15;
+  a.group.position.set(a.x, a.y + Math.abs(Math.sin(t * 3 + a.x)) * 0.03, a.z);
+  a.group.rotation.y = a.angle;
+}
+
+function updateBat(a, t) {
+  // 박쥐: 동굴 안 고정 위치에서 살짝 흔들림
+  a.group.position.set(a.x, a.y + Math.sin(t * 1.8 + a.x) * 0.05, a.z);
+  a.group.rotation.y += 0.002;
+}
+
+function updateBee(a, t) {
+  // 꿀벌: 공중 원형 비행
+  if (!a._beeT) a._beeT = Math.random() * Math.PI * 2;
+  a._beeT += 0.025;
+  a.group.position.set(
+    a.x + Math.cos(a._beeT * 0.8) * 0.6,
+    a.y + 1.2 + Math.sin(a._beeT * 1.4) * 0.18,
+    a.z + Math.sin(a._beeT * 0.8) * 0.6
+  );
+  a.group.rotation.y = a._beeT;
+}
+
+function updateCrane(a, t) {
+  // 두루미: 우아하고 느린 이동
+  if (Math.random() < 0.004) a.targetAngle = a.angle + (Math.random() - .5) * 1.0;
+  let diff = a.targetAngle - a.angle; while (diff > Math.PI) diff -= 2 * Math.PI; while (diff < -Math.PI) diff += 2 * Math.PI; a.angle += diff * 0.04;
+  a.x += Math.cos(a.angle) * 0.008; a.z -= Math.sin(a.angle) * 0.008;
+  const aheadY = getVisualTopY(a.x, a.z);
+  a.y += (aheadY - a.y) * 0.08;
+  a.group.position.set(a.x, a.y, a.z); a.group.rotation.y = a.angle;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -631,7 +1032,7 @@ function bloomTree() {
     }, 60);
   }
 
-  console.log('[World] 🌳 bloomTree() 실행 — 그늘 블록 생성 완료');
+  DBG('[World] 🌳 bloomTree() 실행 — 그늘 블록 생성 완료');
 }
 
 /**
@@ -663,7 +1064,7 @@ function spawnLadybugAndClearAphids() {
       }, 60);
     }
   }
-  console.log('[World] 🐞 spawnLadybugAndClearAphids() 실행 — 진딧물 제거 완료');
+  DBG('[World] 🐞 spawnLadybugAndClearAphids() 실행 — 진딧물 제거 완료');
 }
 
 /**
@@ -701,7 +1102,7 @@ function animateHorseReturn(targetPos = { x: 10, z: 3 }) {
     if (prog >= 1) {
       clearInterval(tick);
       toast('💨 말이 달려있어요! 별들이 하나두 돌아오고 있어요~');
-      console.log('[World] animateHorseReturn() 에니메이션 완료');
+      DBG('[World] animateHorseReturn() 에니메이션 완료');
     }
   }, 16);
 }
@@ -714,9 +1115,9 @@ function animateHorseReturn(targetPos = { x: 10, z: 3 }) {
  */
 function playProtectorJoinEffect(animalType) {
   const config = {
-    bee:     { emoji: '🐝', color: 0xFFD700, spawnX: -5, spawnZ: 3,  targetX: 8, targetZ: 4,  msg: '🐝 꿀벌이 가든히 관리하던 벌집으로 돌아왔어요!' },
-    swallow: { emoji: '🐦', color: 0x4FC3F7, spawnX: 16, spawnZ: -5, targetX: 8, targetZ: 9,  msg: '🐦 제비가 시녀한 진흙 둥지를 짐고 돌아왔어요!' },
-    sheep:   { emoji: '🐑', color: 0xE8E8E8, spawnX: -3, spawnZ: 10, targetX: 5, targetZ: 5,  msg: '🐑 양이 그늘지고 시원한 고목나무 아래로 옓삼밈습니다!' }
+    bee: { emoji: '🐝', color: 0xFFD700, spawnX: -5, spawnZ: 3, targetX: 8, targetZ: 4, msg: '🐝 꿀벌이 가든히 관리하던 벌집으로 돌아왔어요!' },
+    swallow: { emoji: '🐦', color: 0x4FC3F7, spawnX: 16, spawnZ: -5, targetX: 8, targetZ: 9, msg: '🐦 제비가 시녀한 진흙 둥지를 짐고 돌아왔어요!' },
+    sheep: { emoji: '🐑', color: 0xE8E8E8, spawnX: -3, spawnZ: 10, targetX: 5, targetZ: 5, msg: '🐑 양이 그늘지고 시원한 고목나무 아래로 옓삼밈습니다!' }
   };
   const cfg = config[animalType];
   if (!cfg) return;
@@ -764,7 +1165,7 @@ function playProtectorJoinEffect(animalType) {
         }, 60);
       }
       toast(cfg.msg);
-      console.log(`[World] playProtectorJoinEffect('${animalType}') 완료`);
+      DBG(`[World] playProtectorJoinEffect('${animalType}') 완료`);
       // 2초 후 스프라이트 정리
       setTimeout(() => scene.remove(sprite), 2000);
     }
@@ -784,16 +1185,16 @@ function clearLevelFog() {
 
   const STEPS = 60;
   let step = 0;
-  const initFar  = scene.fog.far  ?? 120;
+  const initFar = scene.fog.far ?? 120;
   const initNear = scene.fog.near ?? 50;
-  const targetFar  = 300;
+  const targetFar = 300;
   const targetNear = 150;
 
   const tick = setInterval(() => {
     step++;
     const t = step / STEPS;
     scene.fog.near = initNear + (targetNear - initNear) * t;
-    scene.fog.far  = initFar  + (targetFar  - initFar)  * t;
+    scene.fog.far = initFar + (targetFar - initFar) * t;
 
     if (step >= STEPS) {
       clearInterval(tick);
@@ -807,7 +1208,7 @@ function clearLevelFog() {
           bldPreview(fx, fz);
         }
       }
-      console.log('[World] clearLevelFog() 완료 — 다양성의 숲 해금');
+      DBG('[World] clearLevelFog() 완료 — 다양성의 숲 해금');
       toast('🌟 다양성의 숲 구역이 해금되었어요!');
     }
   }, 50); // ~3초 전환
@@ -815,14 +1216,124 @@ function clearLevelFog() {
 
 // 레벨 1 클리어 이벤트 수신 등록
 document.addEventListener('level1Cleared', () => {
-  console.log('[World] level1Cleared 이벤트 수신 — clearLevelFog() 호출');
+  DBG('[World] level1Cleared 이벤트 수신 — clearLevelFog() 호출');
   clearLevelFog();
+
+  // 안개 전환(3초) 후 레벨 2 시작
+  setTimeout(() => {
+    currentLevel = 2;
+    DBG('[World] currentLevel → 2, 레벨2 요소 스폰');
+    spawnLevel2WhiteBoxElements();
+    // ── Level2Manager 초기화 (미션 패널 표시 및 phase 진행) ──
+    if (typeof Level2Manager !== 'undefined') {
+      Level2Manager.init();
+    }
+  }, 3200); // clearLevelFog의 STEPS(60) × 50ms = 3000ms + 여유 200ms
 });
 
 // phaseAdvanced 이벤트 수신: Phase 4 시작 시 bloomTree() 자동 호출
 document.addEventListener('phaseAdvanced', (e) => {
   if (e.detail && e.detail.next === 4) {
-    console.log('[World] Phase 4 시작 — bloomTree() 호출');
+    DBG('[World] Phase 4 시작 — bloomTree() 호출');
     setTimeout(() => bloomTree(), 2600); // 지령이 미니게임 종료 후
   }
 });
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  [레벨 2 화이트박스] Named Placeholder 생성 헬퍼
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function createNamedPlaceholder(name, colorHex, w = 1, h = 1, d = 1) {
+  const group = new THREE.Group();
+
+  // 1. 단순 박스 메쉬
+  const mat = new THREE.MeshLambertMaterial({ color: colorHex });
+  const box = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  box.position.y = h / 2;
+  box.castShadow = true;
+  group.add(box);
+
+  // 2. 텍스트 라벨 부착 (CanvasTexture + Sprite)
+  const canvas = document.createElement('canvas');
+  canvas.width = 256; canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, 256, 64);
+  ctx.fillStyle = '#000000';
+  ctx.font = 'bold 32px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(name, 128, 32);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  const spriteMat = new THREE.SpriteMaterial({ map: texture });
+  const sprite = new THREE.Sprite(spriteMat);
+
+  // 박스 바로 위에 텍스트 부착
+  sprite.scale.set(2, 0.5, 1);
+  sprite.position.y = h + 0.4;
+  group.add(sprite);
+
+  // 상호작용 검증을 위해 그룹 반환
+  group.traverse(c => { if (c.isMesh) c.userData.agr = group; });
+  return group;
+}
+
+// ──────────────────────────────────────────────
+// 화이트박스용 동물 스폰 테스트 함수
+// ──────────────────────────────────────────────
+// ──────────────────────────────────────────────
+// 화이트박스용 동물 스폰 (diversity_forest 바이옴 내부)
+// diversity_forest: centerX=80, centerZ=0, radius=30
+// ──────────────────────────────────────────────
+function spawnLevel2WhiteBoxElements() {
+  // 황소개구리 격리 BFS 구역(cx=7-9, cz=0-2), 수달 댐, 두꺼비 목표지, 박쥐 동굴을 사전 활성화
+  // BFS가 비활성 청크를 벽으로 처리하므로, 격리 판정에 필요한 모든 청크를 미리 로드해야 한다
+  for (let cx = 7; cx <= 9; cx++) {
+    for (let cz = 0; cz <= 2; cz++) {
+      activateChunk(cx, cz);
+    }
+  }
+  activateChunk(11, -2);
+
+  // 황소개구리 (외래종) — 격리 연못 지정 구역: X=66~74, Z=8~16
+  const bfX = 70, bfZ = 12;
+  placeAnimal(bfX, getH(bfX, bfZ) + 1, bfZ, 'bullfrog');
+
+  // 두꺼비 두꾸 (토착종) — 숲 동쪽 바위지대
+  const tdX = 88, tdZ = -8;
+  placeAnimal(tdX, getH(tdX, tdZ) + 1, tdZ, 'toad');
+  DBG(`[Level2] 두꾸 스폰: (${tdX},${tdZ}) Y=${getH(tdX, tdZ) + 1}`);
+
+  // 수달 — 댐 동쪽 바로 옆 (x=62, z=14: 댐에서 4칸 떨어진 하류)
+  const otX = 62, otZ = 14;
+  placeAnimal(otX, getH(otX, otZ) + 1, otZ, 'otter');
+
+  // 새끼 박쥐 — 숲 북동쪽 동굴 (지표+2: 천장 아래)
+  const btX = 92, btZ = -10;
+  placeAnimal(btX, getH(btX, btZ) + 2, btZ, 'bat');
+
+  DBG('[Level2] 스폰 완료 — 황소개구리(70,12) 두꾸(88,-8) 수달(62,14) 박쥐(92,-10)');
+
+  // ── 수달 물길 댐 블록 배치 (플레이어가 삽으로 제거해야 할 흙 3개) ──────────
+  // x=58 라인이 SOURCE(55,18)→TARGET(63,12) 경로를 가로막음
+  const DAM_XZ = [{x:58,z:13},{x:58,z:14},{x:58,z:15}];
+  const damCells = [];
+  for (const {x, z} of DAM_XZ) {
+    const dy = getTopY(x, z);
+    _place(x, dy, z, 'dirt');
+    damCells.push({x, y: dy, z});
+  }
+  level2_conditions.waterDamCells  = damCells;
+  level2_conditions.waterDamPlaced = true;
+
+  // ── 박쥐 동굴 석벽 생성 (3×3 외곽 2층, 천장은 플레이어가 채움) ────────────
+  // ROOF_Y = getH(92,-10)+3 — 플레이어가 9칸 돌 블록을 이 레이어에 채우면 달성
+  const caveBaseY = Math.round(getH(btX, btZ)) + 1;
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dz = -1; dz <= 1; dz++) {
+      if (dx === 0 && dz === 0) continue;           // 박쥐 위치는 비워둠
+      _place(btX + dx, caveBaseY,     btZ + dz, 'stone');
+      _place(btX + dx, caveBaseY + 1, btZ + dz, 'stone');
+    }
+  }
+}

@@ -41,7 +41,8 @@ const ITEM_DB = {
   plant_basil:       { category:'plant', type:'block', label:'바질',        color:'#006400', hex:0x006400, solid:false },
   plant_dead:        { category:'plant', type:'block', label:'죽은 식물',   color:'#2F2F2F', hex:0x2F2F2F, solid:false },
   toxic_plant:       { category:'plant', type:'block', label:'독성 식물',   color:'#FFFF00', hex:0xFFFF00, solid:false },
-
+  carcass:           { category:'plant', type:'block', label:'동물 사체',   color:'#7D5C50', hex:0x7D5C50, solid:false, icon:'🍖' },
+  
   lure:  { category:'kit', type:'action', label:'먹이(유도)', icon:'🌾' },
   heal:  { category:'kit', type:'action', label:'구급상자',   icon:'🩹' }
 };
@@ -50,7 +51,8 @@ const TERRAIN_BLOCKS = {
   t_low:{hex:0x6aaa5a,solid:true}, t_mid:{hex:0x4a8a3a,solid:true},
   t_high:{hex:0x7a8e68,solid:true}, t_rock:{hex:0x9a8878,solid:true},
   t_dirt:{hex:0x6b5040,solid:true}, t_sub:{hex:0x888880,solid:true},
-  r_sand:{hex:0xc8b47a,solid:true}, r_gravel:{hex:0x9a8868,solid:true}, r_sub:{hex:0x7a6850,solid:true}
+  r_sand:{hex:0xc8b47a,solid:true}, r_gravel:{hex:0x9a8868,solid:true}, r_sub:{hex:0x7a6850,solid:true},
+  carcass:{hex:0x7D5C50,solid:false}
 };
 
 const CHUNK=8, GH=60;
@@ -147,29 +149,36 @@ const BIOME_CONFIG = {
   green_village: {
     id: 'green_village',
     centerX: 0, centerZ: 0, radius: 40,
-    baseHeight: 34, roughness: 1.0,
+    baseHeight: 34, roughness: 0.25,
     surface: 't_dirt', subsurface: 't_sub',
     waterLevel: 30
   },
   diversity_forest: {
     id: 'diversity_forest',
     centerX: 80, centerZ: 0, radius: 30,
-    baseHeight: 38, roughness: 1.5,
+    baseHeight: 35, roughness: 0.30,
     surface: 't_mid', subsurface: 't_rock',
     waterLevel: 30
   },
   river_source: {
     id: 'river_source',
     centerX: 0, centerZ: 80, radius: 40,
-    baseHeight: 28, roughness: 0.2,
+    baseHeight: 33, roughness: 0.12,
     surface: 'r_sub', subsurface: 'r_gravel',
-    waterLevel: 32
+    waterLevel: 30
   },
-  coral_reef: {
-    id: 'coral_reef',
+  coastal_shore: {
+    id: 'coastal_shore',
     centerX: 80, centerZ: 80, radius: 50,
-    baseHeight: 15, roughness: 0.5,
+    baseHeight: 32, roughness: 0.18,
     surface: 'r_sand', subsurface: 'stone',
+    waterLevel: 30
+  },
+  connection_plains: {
+    id: 'connection_plains',
+    centerX: -80, centerZ: 0, radius: 40,
+    baseHeight: 33, roughness: 0.15,
+    surface: 't_low', subsurface: 't_dirt',
     waterLevel: 30
   }
 };
@@ -280,6 +289,49 @@ const npcDialogues = {
       '꿀벌, 제비, 양 — 수호대가 모두 돌아왔어!',
       '초록 마을이 다시 살아났구나. 정말 고마워, 용감한 탐험가야.'
     ]
+  },
+  l3_intro: {
+    speaker: '할머니',
+    lines: [
+      '여기가 바로 연결의 평원이란다. 한때는 무성한 풀밭이었지만, 지금은 사막처럼 굳어버렸어.',
+      '도로 위에 다리를 다친 어린 노루 초롱이가 쓰러져 있단다. 먼저 노루를 안전한 풀밭으로 옮기고 치료해 주자!'
+    ]
+  },
+  l3_deer_healed: {
+    speaker: '할머니',
+    lines: [
+      '초롱이가 기운을 차렸구나! 다행이야.',
+      '하지만 평원이 사막이 된 진짜 원인을 해결해야 해. 들개 무리가 평원에 들어와 생태계 균형을 흔들고 있어.',
+      '들개들이 초식동물들을 위협하지 않게 영역을 분리해주고, 붉은여우의 신뢰를 얻어 포식자 균형을 맞춰야 한단다.',
+      '그리고 들판에 썩어가고 있는 사체 블록들을 정화해야 하늘의 청소부 독수리가 다시 찾아올 거야.'
+    ]
+  },
+  l3_fox_join: {
+    speaker: '할머니',
+    lines: [
+      '여우 붉은꼬리가 은신처와 먹이를 준 너를 믿기 시작했어! 수호대로 합류하겠다고 하는구나.',
+      '포식자가 돌아왔으니 평원의 초식동물 번식을 조절할 수 있을 게다.'
+    ]
+  },
+  l3_eagle_join: {
+    speaker: '할머니',
+    lines: [
+      '사체를 치우니 평원이 정화되어 독수리 수리가 날아왔어! 하늘의 수호대가 합류했단다.'
+    ]
+  },
+  l3_simulation: {
+    speaker: '할머니',
+    lines: [
+      '오, 평원의 빛이 변하고 있어! 이것이 포식자가 가져다주는 평화란다.',
+      '이제 이 평원이 오랫동안 유지될 수 있도록 먹이사슬 퍼즐을 맞춰야 해. 준비가 되었니?'
+    ]
+  },
+  l3_clear: {
+    speaker: '할머니',
+    lines: [
+      '대단해! 먹이사슬의 고리가 다시 단단하게 연결되었구나.',
+      '수호대 붉은여우와 독수리가 힘을 보태주니 평원이 눈부신 녹색으로 변했단다. 정말 고마워!'
+    ]
   }
 };
 
@@ -341,6 +393,27 @@ const encyclopediaCards = {
     body: '무당벌레는 진딧물을 잡아먹는 자연의 해충 방제사입니다. 농약 없이 텃밭을 지켜주는 고마운 친구예요.',
     tip: '동반식물을 심으면 무당벌레가 자연스럽게 찾아와요.',
     triggerPhase: 2
+  },
+  red_fox: {
+    title: '붉은여우',
+    icon: '🦊',
+    body: '붉은여우는 소형 동물을 사냥해 초식동물의 지나친 번식을 억제합니다. 관목과 덤불에 은신하는 것을 좋아합니다.',
+    tip: '들개를 피해 숨을 수 있는 관목 블록을 심고 먹이로 신뢰를 얻으세요.',
+    triggerPhase: 2
+  },
+  golden_eagle: {
+    title: '독수리',
+    icon: '🦅',
+    body: '독수리는 동물의 사체를 먹어 치우는 하늘의 청소부입니다. 질병의 전파를 막아 초원을 건강하게 유지해 줍니다.',
+    tip: '평원 곳곳의 사체 블록을 제거하면 평원이 정화되어 독수리가 찾아와요.',
+    triggerPhase: 2
+  },
+  food_chain: {
+    title: '먹이사슬',
+    icon: '🕸️',
+    body: '생태계의 생물들은 먹고 먹히는 관계로 연결되어 있습니다. 생산자(식물)부터 시작해 최상위 포식자에 이르기까지 하나의 사슬을 이룹니다.',
+    tip: '올바른 먹이사슬 순서(생산자 → 1차소비자 → 2차소비자 → 최상위포식자)로 퍼즐 타워를 완성하세요.',
+    triggerPhase: 3
   }
 };
 
@@ -416,5 +489,51 @@ const protectorConditions = {
     ],
     rewardScene: 'playProtectorJoinEffect',
     encyclopediaId: 'ancient_tree'
+  },
+  fox: {
+    label: '꾀돌이 붉은 여우',
+    emoji: '🦊',
+    conditions: [
+      {
+        id: 'wild_dog_isolated',
+        description: '들개 구역과 평원을 분리하기 위해 울타리/관목 3개 이상 설치',
+        flag: 'wildDogIsolated'
+      },
+      {
+        id: 'fox_fed',
+        description: '여우에게 먹이(lure)를 3번 던져주어 신뢰 쌓기',
+        flag: 'foxFedCount'
+      }
+    ],
+    rewardScene: 'playProtectorJoinEffect',
+    encyclopediaId: 'red_fox'
+  },
+  eagle: {
+    label: '용감한 독수리',
+    emoji: '🦅',
+    conditions: [
+      {
+        id: 'carcass_removed',
+        description: '평원에 흩어진 동물 사체 블록 3개 모두 정화',
+        flag: 'carcassRemovedCount'
+      }
+    ],
+    rewardScene: 'playProtectorJoinEffect',
+    encyclopediaId: 'golden_eagle'
   }
 };
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  레벨 2 공통 상수 (단일 정의 — 모든 파일에서 참조)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const LEVEL2_ANIMAL_TYPES = ['bullfrog', 'toad', 'otter', 'bat'];
+const LEVEL2_COLORS = { bullfrog: 0xFF2222, toad: 0xFF00FF, otter: 0x0044FF, bat: 0x800080 };
+
+// 영입 전 안기 불가 수호대 동물 (미션상 carry가 필요한 sheep은 제외)
+const NO_CARRY_BEFORE_RECRUIT = new Set(['bee', 'swallow', 'otter', 'bat', 'fox', 'eagle', 'crane', 'salmon', 'raccoon', 'kestrel', 'bear']);
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  디버그 헬퍼 — 프로덕션에서 console.log 비용 제거
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const DEBUG = (location.hostname === 'localhost' || location.search.includes('debug=1'));
+function DBG(...args) { if (DEBUG) console.log(...args); }

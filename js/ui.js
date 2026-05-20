@@ -75,64 +75,40 @@ function showPhaseTransition(phase) {
   setTimeout(() => { el.style.display = 'none'; }, 2500);
 }
 
+function _buildHotbarSlot(i) {
+  const slot = document.createElement('div');
+  slot.className = `hotbar-slot ${i === activeSlot ? 'active' : ''}`;
+  slot.onclick = () => selectHotbarSlot(i);
+  const num = document.createElement('div'); num.className = 'slot-num'; num.textContent = i + 1; slot.appendChild(num);
+  const itemId = hotbar[i];
+  if (itemId && ITEM_DB[itemId]) {
+    const item = ITEM_DB[itemId]; slot.title = item.label;
+    if (item.icon) { const ic = document.createElement('div'); ic.className = 'slot-icon'; ic.textContent = item.icon; slot.appendChild(ic); }
+    else if (item.color) { const sw = document.createElement('div'); sw.className = 'slot-swatch'; sw.style.background = item.color; slot.appendChild(sw); }
+    const ph = QuestManager.getCurrentPhase(), lm = QuestManager.levels[1];
+    if (ph === 1 && lm) {
+      const s = lm.phase1State;
+      if (!s.toxicRemoved && itemId === 'shovel') slot.classList.add('slot-glowing');
+      else if (s.toxicRemoved && !s.tomatoFruited && (itemId === 'seed_tomato' || itemId === 'seed_basil' || itemId === 'watering_can')) slot.classList.add('slot-glowing');
+      else if (s.tomatoFruited && !s.wormDone && itemId === 'fallen_leaf') slot.classList.add('slot-glowing');
+    }
+  } else {
+    const ic = document.createElement('div'); ic.className = 'slot-icon'; ic.textContent = '🖐️'; slot.appendChild(ic);
+    const ph = QuestManager.getCurrentPhase();
+    if (ph === 2 || ph === 3) { ic.style.opacity = '1'; slot.classList.add('slot-glowing'); slot.title = '맨손으로 클릭하세요!'; }
+    else { ic.style.opacity = '0.4'; slot.title = '맨손 (관찰/이동)'; }
+  }
+  return slot;
+}
+
 function initInventoryUI() {
   const hotbarEl = document.getElementById('hotbar-container');
   hotbarEl.innerHTML = '';
-  for(let i=0; i<9; i++) {
-    const slot = document.createElement('div');
-    slot.className = `hotbar-slot ${i===activeSlot?'active':''}`;
-    slot.onclick = () => selectHotbarSlot(i);
-    const num = document.createElement('div'); num.className='slot-num'; num.textContent=i+1; slot.appendChild(num);
-    const itemId = hotbar[i];
-    if(itemId && ITEM_DB[itemId]) {
-      const item = ITEM_DB[itemId];
-      slot.title = item.label;
-      if(item.icon) { const icon=document.createElement('div'); icon.className='slot-icon'; icon.textContent=item.icon; slot.appendChild(icon); }
-      else if(item.color) { const sw=document.createElement('div'); sw.className='slot-swatch'; sw.style.background=item.color; slot.appendChild(sw); }
-      
-      const _phase = QuestManager.getCurrentPhase();
-      const _lm = QuestManager.levels[1];
-      if(_phase === 1 && _lm) {
-        const s = _lm.phase1State;
-        if(!s.toxicRemoved && itemId === 'shovel') slot.classList.add('slot-glowing');
-        else if(s.toxicRemoved && !s.tomatoFruited && (itemId === 'seed_tomato' || itemId === 'seed_basil' || itemId === 'watering_can')) slot.classList.add('slot-glowing');
-        else if(s.tomatoFruited && !s.wormDone && itemId === 'fallen_leaf') slot.classList.add('slot-glowing');
-      }
-    } else {
-      const icon = document.createElement('div'); icon.className = 'slot-icon'; icon.textContent = '🖐️'; slot.appendChild(icon);
-      const _phase = QuestManager.getCurrentPhase();
-      if(_phase === 2 || _phase === 3) { icon.style.opacity = '1'; slot.classList.add('slot-glowing'); slot.title = '맨손으로 클릭하세요!'; }
-      else { icon.style.opacity = '0.4'; slot.title = '맨손 (관찰/이동)'; }
-    }
-    hotbarEl.appendChild(slot);
-  }
-  if(isInventoryOpen) {
+  for (let i = 0; i < 9; i++) hotbarEl.appendChild(_buildHotbarSlot(i));
+  if (isInventoryOpen) {
     const previewEl = document.getElementById('inv-hotbar-grid');
     previewEl.innerHTML = '';
-    for(let i=0; i<9; i++) {
-      const slot=document.createElement('div'); slot.className=`hotbar-slot ${i===activeSlot?'active':''}`;
-      slot.onclick=()=>selectHotbarSlot(i);
-      const num=document.createElement('div'); num.className='slot-num'; num.textContent=i+1; slot.appendChild(num);
-      const itemId=hotbar[i];
-      if(itemId && ITEM_DB[itemId]) {
-        const item=ITEM_DB[itemId]; slot.title=item.label;
-        if(item.icon){const icon=document.createElement('div');icon.className='slot-icon';icon.textContent=item.icon;slot.appendChild(icon);}
-        else if(item.color){const sw=document.createElement('div');sw.className='slot-swatch';sw.style.background=item.color;slot.appendChild(sw);}
-        const _phase2=QuestManager.getCurrentPhase(), _lm2=QuestManager.levels[1];
-        if(_phase2 === 1 && _lm2) {
-          const s = _lm2.phase1State;
-          if(!s.toxicRemoved && itemId === 'shovel') slot.classList.add('slot-glowing');
-          else if(s.toxicRemoved && !s.tomatoFruited && (itemId === 'seed_tomato' || itemId === 'seed_basil' || itemId === 'watering_can')) slot.classList.add('slot-glowing');
-          else if(s.tomatoFruited && !s.wormDone && itemId === 'fallen_leaf') slot.classList.add('slot-glowing');
-        }
-      } else {
-        const icon = document.createElement('div'); icon.className = 'slot-icon'; icon.textContent = '🖐️'; slot.appendChild(icon);
-        const _phase2=QuestManager.getCurrentPhase();
-        if(_phase2 === 2 || _phase2 === 3) { icon.style.opacity = '1'; slot.classList.add('slot-glowing'); slot.title = '맨손으로 클릭하세요!'; }
-        else { icon.style.opacity = '0.4'; slot.title = '맨손 (관찰/이동)'; }
-      }
-      previewEl.appendChild(slot);
-    }
+    for (let i = 0; i < 9; i++) previewEl.appendChild(_buildHotbarSlot(i));
   }
   ['inv-tools','inv-seeds','inv-resources','inv-materials','inv-nature','inv-kits'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.innerHTML='';
@@ -286,7 +262,6 @@ function saveGame(){
     v:14, chunks:activeList, grid:userGrid, deleted:Array.from(deletedBlocks),
     animals:animalData.map(({type,x,y,z,isInjured,angle})=>({type,x,y,z,isInjured,angle})),
     currentLevel: currentLevel,
-    themeComplete:Level1Manager.themeComplete,
     currentPhase:Level1Manager.currentPhase,
     phaseComplete:Level1Manager.phaseComplete,
     injuredHealedCount:Level1Manager.injuredHealedCount,
@@ -303,15 +278,25 @@ function saveGame(){
       toxicRemoved: ToxicPlantSystem.removed
     },
     guardianState: guardianState,
-    // ── state.js 레벨 1 신규 상태 ──
+    level2State: {
+      level2_phase:      level2_phase,
+      level2_conditions: { ...level2_conditions },
+      level2Manager: typeof Level2Manager !== 'undefined' ? {
+        currentPhase:  Level2Manager.currentPhase,
+        phaseComplete: { ...Level2Manager.phaseComplete }
+      } : null
+    },
     level1State: {
-      level_phase,
-      yellow_orbs_collected,
-      toxic_plants_removed,
-      companion_plants_status: { ...companion_plants_status },
-      leaves_collected,
-      tree_state,
-      global_protectors: { ...global_protectors }
+      level_phase:             Level1Manager.currentPhase,
+      yellow_orbs_collected:   ClueSystem.foundCount,
+      toxic_plants_removed:    Level1Manager.phase1State.toxicRemoved,
+      tomatoFruited:           Level1Manager.phase1State.tomatoFruited,
+      leaves_collected:        LeafSystem.collected,
+      tree_state:              OldTree.state,
+      phase2_conditions:       { ...Phase2System.conditions },
+      environment_flags:       { ...Phase2System.envFlags },
+      phase3_conditions:       { ...Phase3System.conditions },
+      global_protectors:       { ...global_protectors }
     }
   };
   try{
@@ -337,7 +322,6 @@ function onFileSelected(e){
       for(const a of(data.animals||[]))placeAnimal(a.x,a.y,a.z,a.type,a.isInjured);
 
       currentLevel = data.currentLevel || 1;
-      Level1Manager.themeComplete=data.themeComplete||{};
       Level1Manager.currentPhase=data.currentPhase!==undefined?data.currentPhase:0;
       Level1Manager.phaseComplete=data.phaseComplete||{};
       Level1Manager.injuredHealedCount=data.injuredHealedCount||0;
@@ -372,16 +356,27 @@ function onFileSelected(e){
         guardianState = data.guardianState;
       }
 
-      // ── state.js 레벨 1 신규 상태 복원 ──
       if (data.level1State) {
         const s = data.level1State;
-        level_phase                = s.level_phase               ?? 0;
-        yellow_orbs_collected      = s.yellow_orbs_collected      ?? 0;
-        toxic_plants_removed       = s.toxic_plants_removed       ?? false;
-        Object.assign(companion_plants_status, s.companion_plants_status ?? {});
-        leaves_collected           = s.leaves_collected           ?? 0;
-        tree_state                 = s.tree_state                 ?? 'withered';
-        Object.assign(global_protectors,       s.global_protectors       ?? {});
+        Level1Manager.currentPhase                    = s.level_phase             ?? Level1Manager.currentPhase;
+        ClueSystem.foundCount                         = s.yellow_orbs_collected   ?? 0;
+        Level1Manager.phase1State.toxicRemoved        = s.toxic_plants_removed    ?? false;
+        Level1Manager.phase1State.tomatoFruited       = s.tomatoFruited           ?? false;
+        LeafSystem.collected                          = s.leaves_collected        ?? 0;
+        OldTree.state                                 = s.tree_state              ?? 'withered';
+        if (s.phase2_conditions) Object.assign(Phase2System.conditions, s.phase2_conditions);
+        if (s.environment_flags) Object.assign(Phase2System.envFlags,   s.environment_flags);
+        if (s.phase3_conditions) Object.assign(Phase3System.conditions, s.phase3_conditions);
+        Object.assign(global_protectors, s.global_protectors ?? {});
+      }
+      if (data.level2State) {
+        const l2 = data.level2State;
+        level2_phase = l2.level2_phase ?? 0;
+        if (l2.level2_conditions) Object.assign(level2_conditions, l2.level2_conditions);
+        if (l2.level2Manager && typeof Level2Manager !== 'undefined') {
+          Level2Manager.currentPhase  = l2.level2Manager.currentPhase  ?? 0;
+          Level2Manager.phaseComplete = l2.level2Manager.phaseComplete ?? {};
+        }
       }
       updateProtectorSlots();
 
@@ -408,7 +403,6 @@ function clearAll(silent=false){
   if (typeof Phase2System !== 'undefined') Phase2System._clearAll();
   if (typeof Phase3System !== 'undefined') Phase3System._clearAll();
   currentLevel = 1;
-  Level1Manager.themeComplete={};
   Level1Manager.currentPhase=0;
   Level1Manager.phaseComplete={};
   Level1Manager.injuredHealedCount=0;
@@ -420,18 +414,19 @@ function clearAll(silent=false){
   LeafSystem.meshes.forEach(m=>scene.remove(m));
   LeafSystem.meshes=[]; LeafSystem.collected=0;
 
-  // ── state.js 레벨 1 신규 상태 초기화 ──
-  level_phase               = 0;
-  yellow_orbs_collected     = 0;
-  toxic_plants_removed      = false;
-  companion_plants_status.tomato  = false;
-  companion_plants_status.basil   = false;
-  companion_plants_status.watered = false;
-  leaves_collected          = 0;
-  tree_state                = 'withered';
-  global_protectors.bee     = false;
-  global_protectors.swallow = false;
-  global_protectors.sheep   = false;
+  ClueSystem.foundCount = 0;
+  Object.assign(global_protectors, { bee: false, swallow: false, sheep: false, otter: false, bat: false });
+  // 레벨 2 상태 초기화
+  level2_phase = 0;
+  if (typeof level2_conditions !== 'undefined') {
+    level2_conditions.bullfrogIsolated = false;
+    level2_conditions.toadRescued = false;
+  }
+  if (typeof Level2Manager !== 'undefined') {
+    Level2Manager.currentPhase = 0;
+    Level2Manager.phaseComplete = {};
+    Level2Manager.missionGuided = false;
+  }
   updateProtectorSlots();
   if(!silent) {
     initWorld(); QuestManager.updateUI(); QuestManager.check();
@@ -456,18 +451,90 @@ window.goPhase = function(n) {
   for(let i = 1; i < n; i++) Level1Manager.phaseComplete[i] = true;
   Level1Manager.phase1State = { toxicRemoved:true, tomatoFruited:true, wormDone:true, treeGrowing:true };
   Level1Manager.currentPhase = n;
-  // ── state.js 동기화 ──
-  level_phase = n;
-  if (n >= 1) { toxic_plants_removed = true; yellow_orbs_collected = 4; }
-  if (n >= 2) { companion_plants_status.tomato = true; companion_plants_status.basil = true; }
-  if (n >= 3) { leaves_collected = 5; tree_state = 'withered'; }
-  if (n >= 4) { tree_state = 'bloomed'; }
-  // ─────────────────────
+  if (n >= 1) { Level1Manager.phase1State.toxicRemoved = true; ClueSystem.foundCount = 4; }
+  if (n >= 2) { Level1Manager.phase1State.tomatoFruited = true; }
+  if (n >= 3) { LeafSystem.collected = 5; OldTree.state = 'withered'; }
+  if (n >= 4) { OldTree.state = 'bloomed'; Phase2System.conditions.treeBlooming = true; }
   if(n === 2) Phase2System.init();
   else if(n >= 3) { Phase2System._clearAll(); Phase3System.init(); }
   QuestManager.updateUI();
   updateProtectorSlots();
   toast(`🔧 페이즈 ${n}로 이동했어요 (개발자 모드)`);
+};
+
+// 개발 테스트용 — 브라우저 콘솔에서 goLevel2() 로 레벨 2를 즉시 시작
+window.goLevel2 = function () {
+  isOpeningActive = false;
+  document.getElementById('opening-overlay').style.display = 'none';
+
+  // 레벨 1 클리어 상태 강제 설정
+  global_protectors.bee = true;
+  global_protectors.swallow = true;
+  global_protectors.sheep = true;
+  Level1Manager.phaseComplete = { 1: true, 2: true, 3: true };
+  Level1Manager.phase1State = { toxicRemoved: true, tomatoFruited: true, wormDone: true, treeGrowing: true };
+  Level1Manager.currentPhase = 3;
+  Level1Manager.phase1State = { toxicRemoved: true, tomatoFruited: true, wormDone: true, treeGrowing: true };
+  ClueSystem.foundCount = 4; LeafSystem.collected = 5;
+  OldTree.state = 'bloomed'; Phase2System.conditions.treeBlooming = true;
+
+  // 중복 스폰 방지: 기존 Level2 동물 제거
+  for (let i = animalData.length - 1; i >= 0; i--) {
+    if (LEVEL2_ANIMAL_TYPES.includes(animalData[i].type)) {
+      if (animalData[i].group) scene.remove(animalData[i].group);
+      animalData.splice(i, 1);
+    }
+  }
+
+  currentLevel = 2;
+  spawnLevel2WhiteBoxElements();
+
+  if (typeof Level2Manager !== 'undefined') {
+    Level2Manager.init();
+    QuestManager.updateUI();
+  }
+  if (typeof updateProtectorSlots === 'function') updateProtectorSlots();
+
+  // 두꾸 위치로 카메라 자동 이동
+  const td = animalData.find(a => a.type === 'toad');
+  if (td && typeof orbitTarget !== 'undefined' && typeof syncCam === 'function') {
+    orbitTarget.set(td.x, td.y + 5, td.z);
+    syncCam();
+  }
+
+  toast('🔧 레벨 2 [다양성의 숲]로 이동했어요 (개발자 모드)');
+};
+
+// 레벨 3 진입 — Level3Logic.js 로드 후 실제 구현으로 교체 예정
+window.startLevel3 = function () {
+  document.getElementById('level2-clear').style.display = 'none';
+  if (typeof Level3Manager !== 'undefined') {
+    Level3Manager.init();
+  } else {
+    toast('🚧 레벨 3: 연결의 평원 — 준비 중입니다!');
+  }
+};
+
+// 개발 테스트용 — 브라우저 콘솔에서 goLevel3() 로 레벨 3를 즉시 시작
+window.goLevel3 = function () {
+  isOpeningActive = false;
+  const overlay = document.getElementById('opening-overlay');
+  if (overlay) overlay.style.display = 'none';
+  const l2Clear = document.getElementById('level2-clear');
+  if (l2Clear) l2Clear.style.display = 'none';
+
+  global_protectors.bee = true;
+  global_protectors.swallow = true;
+  global_protectors.sheep = true;
+  global_protectors.otter = true;
+  global_protectors.bat = true;
+
+  currentLevel = 3;
+  if (typeof Level3Manager !== 'undefined') {
+    Level3Manager.init();
+  }
+  if (typeof updateProtectorSlots === 'function') updateProtectorSlots();
+  toast('🔧 레벨 3 [연결의 평원]으로 이동했어요 (개발자 모드)');
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -532,7 +599,7 @@ function showEncyclopediaCard(cardId) {
     if (e.target === ov) document.body.removeChild(ov);
   });
 
-  console.log(`[UI] showEncyclopediaCard('${cardId}') 표시`);
+  DBG(`[UI] showEncyclopediaCard('${cardId}') 표시`);
 }
 
 /**
@@ -571,7 +638,11 @@ function updateProtectorSlots() {
   const slotMap = {
     bee:     { id: 'protector-slot-bee',     emoji: '🐝', label: '꿀벌' },
     swallow: { id: 'protector-slot-swallow', emoji: '🐦', label: '제비' },
-    sheep:   { id: 'protector-slot-sheep',   emoji: '🐑', label: '양'   }
+    sheep:   { id: 'protector-slot-sheep',   emoji: '🐑', label: '양'   },
+    otter:   { id: 'protector-slot-otter',   emoji: '🦦', label: '수달' },
+    bat:     { id: 'protector-slot-bat',     emoji: '🦇', label: '금비' },
+    fox:     { id: 'protector-slot-fox',     emoji: '🦊', label: '여우' },
+    eagle:   { id: 'protector-slot-eagle',   emoji: '🦅', label: '독수리' }
   };
 
   for (const [key, cfg] of Object.entries(slotMap)) {
@@ -584,7 +655,6 @@ function updateProtectorSlots() {
     el.title = joined ? `${cfg.emoji} ${cfg.label} 합류 완료!` : `${cfg.emoji} ${cfg.label} (미합류)`;
 
     if (joined) {
-      // 합류 시 팡파레 효과: 슬롯 테두리 펄스
       el.style.animation = 'none';
       requestAnimationFrame(() => {
         el.style.animation = 'protector-join-pulse 0.6s ease-out 2';
@@ -592,13 +662,14 @@ function updateProtectorSlots() {
     }
   }
 
-  // 전원 합류 시 클리어 배너 표시
-  const allJoined = Object.values(global_protectors).every(v => v === true);
+  // 레벨 1 클리어 배너: 꿀벌+제비+양 모두 합류 시
+  const lv1Joined = global_protectors.bee && global_protectors.swallow && global_protectors.sheep;
   const clearBanner = document.getElementById('protector-clear-banner');
-  if (clearBanner) clearBanner.style.display = allJoined ? 'flex' : 'none';
+  if (clearBanner) clearBanner.style.display = lv1Joined ? 'flex' : 'none';
 
-  console.log('[UI] updateProtectorSlots() — bee:', global_protectors.bee,
-    '| swallow:', global_protectors.swallow, '| sheep:', global_protectors.sheep);
+  DBG('[UI] updateProtectorSlots() — bee:', global_protectors.bee,
+    '| swallow:', global_protectors.swallow, '| sheep:', global_protectors.sheep,
+    '| otter:', global_protectors.otter, '| bat:', global_protectors.bat);
 }
 
 // level1Cleared 이벤트 수신 → UI 슬롯 갱신
@@ -647,7 +718,7 @@ function showNpcDialogue(phaseKey, opts = {}) {
         clearTimeout(gpop._npcTimer);
         gpop._npcTimer = setTimeout(() => { gpop.style.display = 'none'; }, autoClose);
       }
-      console.log(`[UI] showNpcDialogue('${phaseKey}') — grandma-popup 사용`);
+      DBG(`[UI] showNpcDialogue('${phaseKey}') — grandma-popup 사용`);
       return;
     }
   }
@@ -708,7 +779,7 @@ function showNpcDialogue(phaseKey, opts = {}) {
     setTimeout(() => { if (ov.parentNode) document.body.removeChild(ov); }, autoClose + dialogue.lines.length * 3000);
   }
 
-  console.log(`[UI] showNpcDialogue('${phaseKey}') — 독립 팝업 생성`);
+  DBG(`[UI] showNpcDialogue('${phaseKey}') — 독립 팝업 생성`);
 }
 
 // phaseAdvanced 이벤트 수신 → 페이즈별 할머니 대사 자동 표시
