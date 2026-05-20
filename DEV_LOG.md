@@ -1307,3 +1307,116 @@ const cleared = level2_conditions.waterDamCells.every(({ x, y, z }) =>
 * **기타 개발 편의성**:
   - 브라우저 콘솔에서 `goLevel3()` 치트를 사용하면 이전 레벨을 완료 처리하고 레벨 3 평원으로 즉시 워프하여 테스트할 수 있는 헬퍼 함수 구현.
 
+---
+
+## 📅 2026-05-20 (레벨 3 통합 검증 및 버그 수정 — 저장/초기화 완결)
+
+> **작업 배경**
+> 레벨 3 로직(`Level3Logic.js`) 구현 완료 후, 게임 루프 연결 상태를 전수 검증했습니다. `main.js` / `systems.js` 훅은 이미 정상 연결되어 있었으나, 초기화(`clearAll`)·저장(`saveGame`)·불러오기(`onFileSelected`) 3개 함수에 레벨 3 상태가 전혀 반영되지 않은 사실을 확인하고 수정했습니다.
+
+---
+
+### 1. 기존 연결 상태 검증 결과 (이상 없음 확인)
+
+전수 점검 결과 아래 항목은 이미 정상 연결되어 있었습니다.
+
+| 위치 | 연결 내용 |
+|---|---|
+| `main.js` `animate()` | `Level3Manager.updateArrows(t)` — 매 프레임 화살표·나침반 갱신 |
+| `main.js` `dropAnimal()` | `entry.type === 'deer'` 감지 → `Level3Manager.onAnimalDropped()` 호출 |
+| `main.js` `handleClick()` | 1.5순위에 `Level3Logic.handleClick(obj)` 분기 삽입 |
+| `systems.js` `onBlockPlaced()` | 울타리·관목 블록 → `_scheduleL3IsolationCheck()` 디바운스 BFS |
+| `systems.js` `onBlockRemoved()` | `carcass` 제거 → `Level3Logic.checkCarcassRemoved()` 호출 |
+| `data.js` | `heal`·`lure` 아이템, `carcass` 블록, NPC 대사(`l3_*`), `GUARDIAN_DATA` fox·eagle 정의 |
+| `state.js` | `level3_phase`, `level3_conditions`, `global_protectors.fox/eagle` 선언 |
+| `index.html` | `Level3Logic.js` 로드 순서 확정, `#level3-clear` 배너 HTML 존재 |
+
+---
+
+### 2. `clearAll()` — 레벨 3 상태 미초기화 버그 수정 (`js/ui.js`)
+
+**[증상]**
+* 게임을 초기화(`🗑️`)하면 `global_protectors.fox / eagle`이 `true`인 채로 남아있어, 다음 플레이 시 레벨 3 수호대가 처음부터 합류된 것으로 표시됨.
+* `level3_phase`·`level3_conditions` 7개 필드가 리셋되지 않아 사막화 연출, 먹이사슬 퍼즐 해결 상태 등이 잔류함.
+* `Level3Manager`의 3D 화살표 및 가이드 마커가 씬(Three.js Scene)에 남아있는 채로 새 게임이 시작됨.
+
+**[수정 내용]**
+* `global_protectors` 초기화 대상에 `fox: false, eagle: false` 추가.
+* `level3_phase = 0` 리셋 추가.
+* `level3_conditions` 7개 필드 (`deerRescued`, `wildDogIsolated`, `foxFedCount`, `carcassRemovedCount`, `carcassCells`, `isDesertified`, `foodChainPuzzleSolved`) 명시적 초기화 추가.
+* `Level3Manager.currentPhase = 0`, `Level3Manager.phaseComplete = {}` 리셋.
+* `Level3Manager.clearGuides()` 호출 — 씬에 남아있는 3D 화살표·마커·사체 가이드를 완전히 제거.
+
+---
+
+### 3. `saveGame()` — 레벨 3 상태 저장 누락 수정 (`js/ui.js`)
+
+**[증상]**
+* 레벨 3 진행 중 저장 후 불러오면 `level3_phase`, `level3_conditions`, `carcassCells` 좌표 등이 모두 초기값으로 되돌아가 레벨 3 진행도가 전부 날아감.
+
+**[수정 내용]**
+* `saveGame()`의 저장 데이터 오브젝트에 `level3State` 블록 추가:
+  ```javascript
+  level3State: {
+    level3_phase:      level3_phase,
+    level3_conditions: {
+      ...level3_conditions,
+      carcassCells: level3_conditions.carcassCells.map(c => ({ ...c }))
+    },
+    level3Manager: { currentPhase, phaseComplete }
+  }
+  ```
+* `carcassCells`는 오브젝트 배열이므로 얕은 복사 대신 **딥카피** 적용 (저장 데이터 오염 방지).
+* 세이브 파일 버전은 기존 `v:14` 유지 (하위 호환 파괴 없음).
+
+---
+
+### 4. `onFileSelected()` — 레벨 3 상태 복원 누락 수정 (`js/ui.js`)
+
+**[증상]**
+* 레벨 3 저장 파일을 불러와도 `level3_phase`, `level3_conditions`, `Level3Manager`의 currentPhase가 전혀 복원되지 않음.
+
+**[수정 내용]**
+* `data.level2State` 복원 블록 바로 다음에 `data.level3State` 복원 로직 추가:
+  ```javascript
+  if (data.level3State) {
+    level3_phase = l3.level3_phase ?? 0;
+    Object.assign(level3_conditions, l3.level3_conditions);
+    Level3Manager.currentPhase  = l3.level3Manager.currentPhase  ?? 0;
+    Level3Manager.phaseComplete = l3.level3Manager.phaseComplete ?? {};
+  }
+  ```
+
+---
+
+### 5. 나침반 제목 고정 버그 수정 (`js/Level3Logic.js`)
+
+**[증상]**
+* `Level3Manager.init()` 호출 시 화면 좌측 나침반(`#nav-compass`)의 목적지 제목이 "🌿 다양성의 숲"(레벨 2 텍스트) 그대로 표시됨.
+
+**[원인]**
+* `index.html`의 `.nc-title` 요소 초기값이 `"🌿 다양성의 숲"`으로 하드코딩되어 있고, `Level3Manager.updateNavCompass()`는 화살표 방향·거리만 업데이트하고 제목 텍스트는 수정하지 않았음.
+
+**[수정 내용]**
+* `Level3Manager.init()` 내 가이드 마커 생성 직전에 아래 코드 추가:
+  ```javascript
+  const compass = document.getElementById('nav-compass');
+  if (compass) {
+    const titleEl = compass.querySelector('.nc-title');
+    if (titleEl) titleEl.textContent = '🌾 연결의 평원';
+    compass.style.display = 'flex';
+  }
+  ```
+
+---
+
+### 6. 수정 범위 요약
+
+| 파일 | 주요 변경 내용 |
+|---|---|
+| `js/ui.js` | `clearAll()` — fox/eagle 리셋, level3 상태 7개 필드 초기화, `Level3Manager.clearGuides()` 호출 |
+| `js/ui.js` | `saveGame()` — `level3State` 블록 추가 (carcassCells 딥카피 포함) |
+| `js/ui.js` | `onFileSelected()` — `level3State` 복원 로직 추가 |
+| `js/Level3Logic.js` | `init()` — 나침반 `.nc-title`을 "🌾 연결의 평원"으로 업데이트 |
+| `index.html` | `Level3Logic.js` 버전 `v=20260508` → `v=20260520`, `ui.js` 버전 `v=20260506` → `v=20260520` |
+
