@@ -317,6 +317,7 @@ function handleClick(clientX, clientY) {
   if (QuestManager.getCurrentPhase() === 2 && Phase2System.handleClick(obj)) return;
   if (QuestManager.getCurrentPhase() === 3 && Phase3System.handleClick(obj)) return;
   if (currentLevel === 3 && typeof Level3Logic !== 'undefined' && Level3Logic.handleClick(obj)) return;
+  if (currentLevel === 4 && typeof Level4Logic !== 'undefined' && Level4Logic.handleClick(obj)) return;
 
   // === [2순위] 도구 모드 (Tool Actions) ===
   if (toolMode === 'watering') {
@@ -527,6 +528,10 @@ function animate() {
   // 레벨 3 화살표 애니메이션
   if (currentLevel === 3 && typeof Level3Manager !== 'undefined' && Level3Manager.updateArrows) {
     Level3Manager.updateArrows(t);
+  }
+  // 레벨 4 비 파티클 애니메이션
+  if (currentLevel === 4 && typeof Level4Logic !== 'undefined') {
+    Level4Logic.updateRainParticles();
   }
 
   // ── 방위 나침반 업데이트 ────────────────────────

@@ -797,6 +797,7 @@ const Level3Manager = {
             setTimeout(() => {
                 const el = document.getElementById('level3-clear');
                 if (el) el.style.display = 'block';
+                document.dispatchEvent(new CustomEvent('level3Cleared'));
             }, 3000);
         }, 1000);
     },

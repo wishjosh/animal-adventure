@@ -155,6 +155,11 @@ function onBlockPlaced(blockType) {
       _scheduleL3IsolationCheck();
     }
   }
+
+  // ── 레벨 4 조건 ──────────────────────────────────────
+  if (currentLevel === 4 && typeof Level4Manager !== 'undefined') {
+    Level4Manager.check();
+  }
 }
 
 /**
@@ -185,5 +190,10 @@ function onBlockRemoved(blockType) {
     if (blockType === 'dirt' || blockType === 'stone' || blockType.startsWith('fence') || blockType === 'bush') {
       _scheduleL3IsolationCheck();
     }
+  }
+
+  // ── 레벨 4 조건 ──────────────────────────────────────
+  if (currentLevel === 4 && typeof Level4Manager !== 'undefined') {
+    Level4Manager.check();
   }
 }

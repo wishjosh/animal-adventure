@@ -711,6 +711,26 @@ function buildAnimal(type, isInjured) {
     [-.1, .1].forEach(z => { const wing = new THREE.Mesh(B(.3, .04, .18), M(0x8B6914)); wing.position.set(-.04, .45, z); wing.rotation.z = -.1; g.add(wing); });
     const spwtail = new THREE.Mesh(B(.18, .03, .18), M(0x8B6914)); spwtail.position.set(-.2, .38, 0); g.add(spwtail);
     [-.06, .06].forEach(z => { const eye = new THREE.Mesh(B(.06, .06, .06), M(0x111111)); eye.position.set(.32, .56, z); g.add(eye); });
+  } else if (type === 'owner_park') {
+    // 펜션 주인 박씨: 펜션 사장님 3D 모델링
+    const body = new THREE.Mesh(B(.5, .7, .4), M(0x2244aa)); body.position.y = .35; g.add(body);
+    const head = new THREE.Mesh(B(.35, .35, .35), M(0xffd1a9)); head.position.set(0, .88, 0); g.add(head);
+    const hatBase = new THREE.Mesh(B(.52, .03, .52), M(0xddaa55)); hatBase.position.set(0, 1.06, 0); g.add(hatBase);
+    const hatCrown = new THREE.Mesh(B(.28, .14, .28), M(0xddaa55)); hatCrown.position.set(0, 1.15, 0); g.add(hatCrown);
+    const glasses = new THREE.Mesh(B(.38, .08, .04), M(0x111111)); glasses.position.set(.18, .9, 0); g.add(glasses);
+    [[-.14, -.1], [.14, -.1]].forEach(([lx, lz]) => {
+      const leg = new THREE.Mesh(B(.15, .4, .15), M(0x333333)); leg.position.set(lx, .0, lz); g.add(leg);
+    });
+  } else if (type === 'mandarin_fish') {
+    // 쏘가리 쏘야: 갈자갈색 3D 표범무늬 물고기 모델링
+    const body = new THREE.Mesh(B(.8, .45, .3), M(0xc2b280)); body.position.y = .45; g.add(body);
+    const head = new THREE.Mesh(B(.28, .36, .26), M(0xaa9a6a)); head.position.set(.46, .45, 0); g.add(head);
+    const tail = new THREE.Mesh(B(.28, .38, .1), M(0xc2b280)); tail.position.set(-.5, .45, 0); g.add(tail);
+    const dorsal = new THREE.Mesh(B(.38, .22, .06), M(0x8b7355)); dorsal.position.set(.05, .72, 0); g.add(dorsal);
+    const seye = new THREE.Mesh(B(.08, .08, .08), M(0x111111)); seye.position.set(.58, .5, .14); g.add(seye);
+    [[-.15, .16], [.1, .16], [-.3, -.16]].forEach(([spotX, spotZ]) => {
+      const spot = new THREE.Mesh(B(.12, .12, .04), M(0x5c4033)); spot.position.set(spotX, .5, spotZ); g.add(spot);
+    });
   }
 
   g.traverse(c => { if (c.isMesh) { c.castShadow = c.receiveShadow = true; c.userData.agr = g; } });
@@ -775,7 +795,7 @@ function updateAnimals(t) {
       a.group.rotation.y = t * 2;
       continue;
     }
-    if (a.type === 'fish' || a.type === 'salmon') updateFish(a, t);
+    if (a.type === 'fish' || a.type === 'salmon' || a.type === 'mandarin_fish') updateFish(a, t);
     else if (a.type === 'sheep') updateSheep(a, t);
     else if (a.type === 'horse') updateHorse(a, t);
     else if (a.type === 'goat') updateGoat(a, t);
@@ -785,8 +805,14 @@ function updateAnimals(t) {
     else if (a.type === 'crane') updateCrane(a, t);
     else if (a.type === 'fox') updateFox(a, t);
     else if (a.type === 'dog') updateWildDog(a, t);
+    else if (a.type === 'owner_park') updateOwnerPark(a, t);
     else updateDefaultAnimal(a, t);
   }
+}
+
+function updateOwnerPark(a, t) {
+  a.group.position.set(a.x, a.y + Math.sin(t * 1.5) * 0.02, a.z);
+  a.group.rotation.y = a.angle + Math.sin(t * 0.8) * 0.25;
 }
 
 
@@ -1239,6 +1265,21 @@ document.addEventListener('phaseAdvanced', (e) => {
   }
 });
 
+// 레벨 3 클리어 이벤트 수신 등록
+document.addEventListener('level3Cleared', () => {
+  DBG('[World] level3Cleared 이벤트 수신 — 강의 근원지(Level 4) 해금');
+  clearLevelFog();
+
+  // 3.2초 후 레벨 4 시작
+  setTimeout(() => {
+    currentLevel = 4;
+    DBG('[World] currentLevel → 4, 레벨4 요소 스폰');
+    if (typeof Level4Manager !== 'undefined') {
+      Level4Manager.init();
+    }
+  }, 3200);
+});
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  [레벨 2 화이트박스] Named Placeholder 생성 헬퍼
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1336,4 +1377,41 @@ function spawnLevel2WhiteBoxElements() {
       _place(btX + dx, caveBaseY + 1, btZ + dz, 'stone');
     }
   }
+}
+
+// ──────────────────────────────────────────────
+// 화이트박스용 동물 스폰 (river_source 바이옴 내부)
+// river_source: centerX=45, centerZ=0, radius=30
+// ──────────────────────────────────────────────
+function spawnLevel4Animals() {
+  DBG('[Level4] spawnLevel4Animals() 실행 — 강의 근원지 청크 활성화 및 동물 배치');
+
+  // 강 근원지 근방 청크들을 사전 로드
+  for (let cx = 4; cx <= 7; cx++) {
+    for (let cz = -4; cz <= 3; cz++) {
+      activateChunk(cx, cz);
+    }
+  }
+
+  // 1. 쏘가리 쏘야 (mandarin_fish) — X=42, Z=20
+  const syY = getH(42, 20) - 0.3; // 갇힌 연출을 위해 물속 아래로
+  placeAnimal(42, syY, 20, 'mandarin_fish');
+  const soya = animalData.find(a => a.type === 'mandarin_fish');
+  if (soya && soya.group) {
+    soya.group.scale.set(0.6, 0.6, 0.6); // 처음엔 힘없이 작아져 있는 상태
+  }
+
+  // 2. 펜션 주인 박씨 (owner_park) — X=50, Z=12
+  const owY = getH(50, 12);
+  placeAnimal(50, owY, 12, 'owner_park');
+
+  // 3. 연어 파닥이 (salmon) — X=45, Z=-15
+  const saY = getH(45, -15) - 0.2;
+  placeAnimal(45, saY, -15, 'salmon');
+
+  // 4. 두루미 뚜루 (crane) — X=38, Z=24
+  const crY = getH(38, 24);
+  placeAnimal(38, crY, 24, 'crane');
+
+  DBG('[Level4] 스폰 완료 — 쏘야(42,20) 박씨(50,12) 연어(45,-15) 두루미(38,24)');
 }

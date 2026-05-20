@@ -44,7 +44,10 @@ const ITEM_DB = {
   carcass:           { category:'plant', type:'block', label:'동물 사체',   color:'#7D5C50', hex:0x7D5C50, solid:false, icon:'🍖' },
   
   lure:  { category:'kit', type:'action', label:'먹이(유도)', icon:'🌾' },
-  heal:  { category:'kit', type:'action', label:'구급상자',   icon:'🩹' }
+  heal:  { category:'kit', type:'action', label:'구급상자',   icon:'🩹' },
+  low_pollution:     { category:'kit', type:'action', label:'오염 저감 장치', icon:'⚙️' },
+  cement_dam:        { category:'material', type:'block', label:'시멘트 보', color:'#a0a0a0', hex:0xa0a0a0, solid:true, icon:'🧱' },
+  willow:            { category:'material', type:'block', label:'버드나무', color:'#3c633a', hex:0x3c633a, solid:true, icon:'🌳' }
 };
 
 const TERRAIN_BLOCKS = {
@@ -52,7 +55,7 @@ const TERRAIN_BLOCKS = {
   t_high:{hex:0x7a8e68,solid:true}, t_rock:{hex:0x9a8878,solid:true},
   t_dirt:{hex:0x6b5040,solid:true}, t_sub:{hex:0x888880,solid:true},
   r_sand:{hex:0xc8b47a,solid:true}, r_gravel:{hex:0x9a8868,solid:true}, r_sub:{hex:0x7a6850,solid:true},
-  carcass:{hex:0x7D5C50,solid:false}
+  carcass:{hex:0x7D5C50,solid:false}, cement_dam:{hex:0xa0a0a0,solid:true}, willow:{hex:0x3c633a,solid:true}
 };
 
 const CHUNK=8, GH=60;
@@ -332,6 +335,50 @@ const npcDialogues = {
       '대단해! 먹이사슬의 고리가 다시 단단하게 연결되었구나.',
       '수호대 붉은여우와 독수리가 힘을 보태주니 평원이 눈부신 녹색으로 변했단다. 정말 고마워!'
     ]
+  },
+  l4_intro: {
+    speaker: '할머니',
+    lines: [
+      '여기는 강의 근원지란다. 상류에서 내려오는 맑은 물이 숲과 바다를 잇는 젖줄이지.',
+      '하지만 상류에 무허가 펜션이 들어서면서 강물이 오염되고 시멘트 보가 물길을 가로막고 있어.',
+      '그리고 쓰레기 댐에 갇혀 옴짝달싹 못 하는 어린 쏘가리 쏘야가 강바닥에 갇혀 있단다. 쓰레기 블록들을 부수어 쏘야를 구해 주렴!'
+    ]
+  },
+  l4_soya_rescued: {
+    speaker: '할머니',
+    lines: [
+      '쏘야가 자유롭게 넓은 강으로 헤엄쳐 갔어! 정말 고맙다.',
+      '이제 연어와 두루미를 영입할 차례야.',
+      '상류의 펜션 주인 박씨를 설득해 오염 저감 장치를 설치하고, 강을 가로막는 시멘트 보 3개를 모두 파괴하면 연어가 고향으로 돌아올 거야.',
+      '또한, 산비탈에 버드나무를 8그루 이상 심어 녹색 댐을 만들고 얕은 습지를 정화하면 두루미가 다시 날아올 거란다.'
+    ]
+  },
+  l4_salmon_join: {
+    speaker: '할머니',
+    lines: [
+      '연어 파닥이가 물길을 거슬러 드디어 상류로 올라왔어! 물의 수호대가 합류했단다.'
+    ]
+  },
+  l4_crane_join: {
+    speaker: '할머니',
+    lines: [
+      '녹색 댐이 물을 정화하자 두루미 뚜루가 얕은 습지에 고고하게 내려앉았구나! 수호대가 합류했단다.'
+    ]
+  },
+  l4_flood_warning: {
+    speaker: '할머니',
+    lines: [
+      '큰일이야! 갑작스러운 폭우로 100년 만의 대홍수가 몰려오고 있어. 60초 후에 홍수가 들이닥칠 게다!',
+      '두루미를 호출하면 폭우 전선을 예보받을 수 있고, 수달을 호출하면 넘치기 직전인 둑의 약한 부분이 파랗게 표시된단다.',
+      '비가 내리는 동안 약한 강둑을 흙이나 돌로 신속하게 보강하고, 산비탈에 나무를 더 많이 심어 범람을 막아보렴!'
+    ]
+  },
+  l4_clear: {
+    speaker: '할머니',
+    lines: [
+      '해냈어! 녹색 댐의 울창한 숲과 튼튼히 보강한 둑 덕분에 거센 홍수를 한 줌의 피해도 없이 안전하게 이겨냈구나.',
+      '수호대 두루미와 연어가 물과 숲의 순환 고리를 굳건히 지켜냈어. 정말 대단하구나!'
+    ]
   }
 };
 
@@ -414,6 +461,34 @@ const encyclopediaCards = {
     body: '생태계의 생물들은 먹고 먹히는 관계로 연결되어 있습니다. 생산자(식물)부터 시작해 최상위 포식자에 이르기까지 하나의 사슬을 이룹니다.',
     tip: '올바른 먹이사슬 순서(생산자 → 1차소비자 → 2차소비자 → 최상위포식자)로 퍼즐 타워를 완성하세요.',
     triggerPhase: 3
+  },
+  crane: {
+    title: '두루미',
+    icon: '🦩',
+    body: '두루미는 매우 희귀한 철새로 물이 얕고 깨끗한 습지나 논밭에서 살아갑니다. 습지의 훼손으로 서식지가 점차 사라지고 있습니다.',
+    tip: '산비탈에 버드나무를 많이 심어 맑은 정화 습지를 만들어주면 두루미가 찾아와요.',
+    triggerPhase: 2
+  },
+  salmon: {
+    title: '남대천 연어',
+    icon: '🐟',
+    body: '연어는 바다에서 성장한 후 자신이 태어난 모천(어미 강)으로 돌아와 산란합니다. 콘크리트 보나 댐이 강을 가로막으면 돌아올 수 없습니다.',
+    tip: '시멘트 보 3개를 제거하고 펜션 오염을 막아 연어가 거슬러 올라올 수 있게 하세요.',
+    triggerPhase: 2
+  },
+  green_dam: {
+    title: '녹색 댐',
+    icon: '🌲',
+    body: '숲의 나무들은 빗물을 스펀지처럼 흡수했다가 서서히 흘려보내 홍수와 가뭄을 예방합니다. 흙을 웅켜쥐어 산사태도 예방하지요.',
+    tip: '버드나무를 심어 녹색 댐을 만들어 100년 홍수로부터 마을을 구하세요.',
+    triggerPhase: 3
+  },
+  mandarin_fish: {
+    title: '쏘가리',
+    icon: '🐠',
+    body: '쏘가리는 물의 흐름이 빠르고 자갈이 많은 깨끗한 강 상류에 사는 한국 고유종입니다. 쓰레기 더미에 막히면 생명이 위험해집니다.',
+    tip: '강바닥을 막고 있는 쓰레기 블록들을 모두 파괴하여 쏘야를 구출하세요.',
+    triggerPhase: 1
   }
 };
 
@@ -520,6 +595,38 @@ const protectorConditions = {
     ],
     rewardScene: 'playProtectorJoinEffect',
     encyclopediaId: 'golden_eagle'
+  },
+  crane: {
+    label: '우아한 두루미',
+    emoji: '🦩',
+    conditions: [
+      {
+        id: 'willow_count',
+        description: '산비탈에 버드나무(willow) 블록 8개 이상 설치',
+        blockTypes: ['willow'],
+        minCount: 8
+      }
+    ],
+    rewardScene: 'playProtectorJoinEffect',
+    encyclopediaId: 'crane'
+  },
+  salmon: {
+    label: '힘찬 연어',
+    emoji: '🐟',
+    conditions: [
+      {
+        id: 'pollution_device',
+        description: '펜션 오염 배출구에 오염 저감 장치 설치 완료',
+        flag: 'pollutionDeviceInstalled'
+      },
+      {
+        id: 'cement_dam_removed',
+        description: '강물의 시멘트 보(cement_dam) 블록 3개 모두 제거',
+        flag: 'cementDamRemovedCount'
+      }
+    ],
+    rewardScene: 'playProtectorJoinEffect',
+    encyclopediaId: 'salmon'
   }
 };
 

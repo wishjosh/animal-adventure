@@ -46,6 +46,22 @@ const level3_conditions = {
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  레벨 4: 강의 근원지 — 페이즈 및 상태 변수
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let level4_phase = 0; // 0 (시작) -> 1 (쏘가리 구조 및 펜션 대화) -> 2 (연어/두루미 미션) -> 3 (100년 홍수 대비 및 방어) -> 4 (완료)
+const level4_conditions = {
+  soyaRescued: false,
+  ownerConvinced: false,
+  pollutionDeviceInstalled: false,
+  cementDamRemovedCount: 0,
+  cementDamCells: [], // [{x, y, z}] — 시멘트 보 블록 위치
+  willowPlantedCount: 0,
+  floodTimer: 60,
+  isFlooding: false,
+  floodDefenseScore: 0 // 홍수 방어 성공도 (0 ~ 100)
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  수호대 영입 상태
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -60,7 +76,9 @@ const global_protectors = {
   otter: false,   // 레벨 2: 수달 — 강물 연결
   bat: false,    // 레벨 2: 황금박쥐 — 동굴 빛 차단
   fox: false,    // 레벨 3: 붉은여우 — 먹이 주기 및 신뢰
-  eagle: false    // 레벨 3: 독수리 — 사체 제거
+  eagle: false,   // 레벨 3: 독수리 — 사체 제거
+  crane: false,   // 레벨 4: 두루미 — 녹색 댐(나무 8그루)
+  salmon: false   // 레벨 4: 연어 — 오염 저감 장치 + 보 3개 제거
 };
 
 /**
