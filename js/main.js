@@ -301,7 +301,7 @@ function handleClick(clientX, clientY) {
   // 1-4. 들고 있는 동물 내려놓기
   if (pickedAnimal) {
     let dx, dy, dz;
-    if (obj.userData.isBlock) { const n = hit.face.normal.clone().transformDirection(obj.matrixWorld); dx = obj.userData.bx + Math.round(n.x); dy = obj.userData.by + Math.round(n.y); dz = obj.userData.bz + Math.round(n.z); }
+    if (obj.userData.isBlock) { if (!hit.face) return; const n = hit.face.normal.clone().transformDirection(obj.matrixWorld); dx = obj.userData.bx + Math.round(n.x); dy = obj.userData.by + Math.round(n.y); dz = obj.userData.bz + Math.round(n.z); }
     else if (obj.userData.isGround) { dx = Math.round(hit.point.x); dz = Math.round(hit.point.z); dy = getTopY(dx, dz); }
     else return;
     dropAnimal(dx, dy, dz); return;
@@ -341,7 +341,7 @@ function handleClick(clientX, clientY) {
   }
 
   if (toolMode === 'seed') {
-    if (obj.userData.isBlock) { const n = hit.face.normal.clone().transformDirection(obj.matrixWorld); SeedSystem.plant(obj.userData.bx + Math.round(n.x), obj.userData.by + Math.round(n.y), obj.userData.bz + Math.round(n.z), selItem); }
+    if (obj.userData.isBlock) { if (!hit.face) return; const n = hit.face.normal.clone().transformDirection(obj.matrixWorld); SeedSystem.plant(obj.userData.bx + Math.round(n.x), obj.userData.by + Math.round(n.y), obj.userData.bz + Math.round(n.z), selItem); }
     else if (obj.userData.isGround) { const gx = Math.round(hit.point.x), gz = Math.round(hit.point.z); SeedSystem.plant(gx, getTopY(gx, gz), gz, selItem); }
     return;
   }
@@ -397,7 +397,7 @@ function handleClick(clientX, clientY) {
   }
 
   if (toolMode === 'block' || toolMode === 'resource') {
-    if (obj.userData.isBlock) { const n = hit.face.normal.clone().transformDirection(obj.matrixWorld); placeBlock(obj.userData.bx + Math.round(n.x), obj.userData.by + Math.round(n.y), obj.userData.bz + Math.round(n.z), selItem); }
+    if (obj.userData.isBlock) { if (!hit.face) return; const n = hit.face.normal.clone().transformDirection(obj.matrixWorld); placeBlock(obj.userData.bx + Math.round(n.x), obj.userData.by + Math.round(n.y), obj.userData.bz + Math.round(n.z), selItem); }
     else if (obj.userData.isGround) { const gx = Math.round(hit.point.x), gz = Math.round(hit.point.z); placeBlock(gx, getTopY(gx, gz), gz, selItem); }
     return;
   }
@@ -478,6 +478,7 @@ canvas.addEventListener('mousemove', () => {
   const hit = hits[0], obj = hit.object;
   const isFlat = (toolMode === 'block' || toolMode === 'seed' || toolMode === 'resource') && (selItem === 'grass' || selItem === 'straw' || ITEM_DB[selItem]?.category === 'plant' || ITEM_DB[selItem]?.category === 'seed' || ITEM_DB[selItem]?.category === 'resource');
   if (obj.userData.isBlock) {
+    if (!hit.face) { hlMesh.visible = false; return; }
     const n = hit.face.normal.clone().transformDirection(obj.matrixWorld);
     const nx = obj.userData.bx + Math.round(n.x), ny = obj.userData.by + Math.round(n.y), nz = obj.userData.bz + Math.round(n.z);
     hlMesh.position.set(nx, isFlat ? ny + 0.1 : ny + 0.5, nz); hlMesh.visible = true;
@@ -546,6 +547,10 @@ function animate() {
   // 레벨 4 비 파티클 애니메이션
   if (currentLevel === 4 && typeof Level4Logic !== 'undefined') {
     Level4Logic.updateRainParticles();
+  }
+  // 레벨 5 심사 타이머 갱신
+  if (currentLevel === 5 && typeof Level5Manager !== 'undefined') {
+    Level5Manager.update(t);
   }
 
   // ── 방위 나침반 업데이트 ────────────────────────

@@ -392,6 +392,11 @@ class Level6Manager {
     document.body.appendChild(overlay);
   }
 
+  static handleClick(x, y, z) {
+    // Level 6 상호작용은 세계지도 팝업과 블록 설치 훅(checkBearFeed)으로 처리
+    return false;
+  }
+
   static unlockSandboxMode() {
     const overlay = document.getElementById('final-ending-overlay');
     if (overlay) overlay.remove();

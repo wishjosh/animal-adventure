@@ -308,6 +308,26 @@ function saveGame(){
         phaseComplete: { ...Level4Manager.phaseComplete }
       } : null
     },
+    level5State: {
+      level5_phase:      level5_phase,
+      level5_conditions: {
+        ...level5_conditions,
+        biotopeCells: level5_conditions.biotopeCells.map(c => ({ ...c }))
+      },
+      level5Manager: typeof Level5Manager !== 'undefined' ? {
+        currentPhase: Level5Manager.currentPhase
+      } : null
+    },
+    level6State: {
+      level6_phase:      level6_phase,
+      level6_conditions: { ...level6_conditions },
+      level6Manager: typeof Level6Manager !== 'undefined' ? {
+        currentPhase:  Level6Manager.currentPhase,
+        activeSignals: Object.fromEntries(
+          Object.entries(Level6Manager.activeSignals).map(([k, v]) => [k, { solved: v.solved }])
+        )
+      } : null
+    },
     level1State: {
       level_phase:             Level1Manager.currentPhase,
       yellow_orbs_collected:   ClueSystem.foundCount,
@@ -418,6 +438,29 @@ function onFileSelected(e){
           Level4Manager.phaseComplete = l4.level4Manager.phaseComplete ?? { soya: false, salmon: false, crane: false, flood: false };
         }
       }
+      if (data.level5State) {
+        const l5 = data.level5State;
+        level5_phase = l5.level5_phase ?? 0;
+        if (l5.level5_conditions) Object.assign(level5_conditions, l5.level5_conditions);
+        if (l5.level5Manager && typeof Level5Manager !== 'undefined') {
+          Level5Manager.currentPhase = l5.level5Manager.currentPhase ?? 0;
+        }
+      }
+      if (data.level6State) {
+        const l6 = data.level6State;
+        level6_phase = l6.level6_phase ?? 0;
+        if (l6.level6_conditions) Object.assign(level6_conditions, l6.level6_conditions);
+        if (l6.level6Manager && typeof Level6Manager !== 'undefined') {
+          Level6Manager.currentPhase = l6.level6Manager.currentPhase ?? 0;
+          if (l6.level6Manager.activeSignals) {
+            for (const key in l6.level6Manager.activeSignals) {
+              if (Level6Manager.activeSignals[key]) {
+                Level6Manager.activeSignals[key].solved = l6.level6Manager.activeSignals[key].solved ?? false;
+              }
+            }
+          }
+        }
+      }
       updateProtectorSlots();
 
       // phaseComplete[1]=true인데 currentPhase가 1에 머문 경우 자동 보정
@@ -455,7 +498,7 @@ function clearAll(silent=false){
   LeafSystem.meshes=[]; LeafSystem.collected=0;
 
   ClueSystem.foundCount = 0;
-  Object.assign(global_protectors, { bee: false, swallow: false, sheep: false, otter: false, bat: false, fox: false, eagle: false, crane: false, salmon: false });
+  Object.assign(global_protectors, { bee: false, swallow: false, sheep: false, otter: false, bat: false, fox: false, eagle: false, crane: false, salmon: false, raccoon: false, kestrel: false, bear: false });
   // 레벨 2 상태 초기화
   level2_phase = 0;
   if (typeof level2_conditions !== 'undefined') {
@@ -504,6 +547,51 @@ function clearAll(silent=false){
     scene.remove(Level4Logic.rainParticles);
     Level4Logic.rainParticles = null;
   }
+  // 레벨 5 상태 초기화
+  level5_phase = 0;
+  if (typeof level5_conditions !== 'undefined') {
+    level5_conditions.raccoonRescued = false;
+    level5_conditions.officerConvinced = false;
+    level5_conditions.viaductConnected = false;
+    level5_conditions.tunnelBuilt = false;
+    level5_conditions.biotopePlacedCount = 0;
+    level5_conditions.biotopeCells = [];
+    level5_conditions.isAuditing = false;
+    level5_conditions.auditTimer = 30;
+    level5_conditions.auditScore = 0;
+  }
+  if (typeof Level5Manager !== 'undefined') {
+    Level5Manager.currentPhase = 0;
+  }
+  const _auditUI = document.getElementById('audit-dashboard-ui');
+  if (_auditUI) _auditUI.remove();
+  const _officerUI = document.getElementById('officer-convince-popup');
+  if (_officerUI) _officerUI.remove();
+  // 레벨 6 상태 초기화
+  level6_phase = 0;
+  if (typeof level6_conditions !== 'undefined') {
+    level6_conditions.bridgeCutscenePlayed = false;
+    level6_conditions.craneDispatched = false;
+    level6_conditions.eagleDispatched = false;
+    level6_conditions.otterSalmonDispatched = false;
+    level6_conditions.craneSalmonDispatched = false;
+    level6_conditions.sheepDispatched = false;
+    level6_conditions.dispatchedCount = 0;
+    level6_conditions.bearEncountered = false;
+    level6_conditions.bearAcornFedCount = 0;
+    level6_conditions.heartBeatScore = 0;
+    level6_conditions.globalStabilized = false;
+  }
+  if (typeof Level6Manager !== 'undefined') {
+    Level6Manager.currentPhase = 0;
+    for (const key in Level6Manager.activeSignals) {
+      Level6Manager.activeSignals[key].solved = false;
+    }
+  }
+  const _heartbeatUI = document.getElementById('heartbeat-dashboard-ui');
+  if (_heartbeatUI) _heartbeatUI.remove();
+  const _worldMapUI = document.getElementById('world-map-popup');
+  if (_worldMapUI) _worldMapUI.remove();
   updateProtectorSlots();
   if(!silent) {
     initWorld(); QuestManager.updateUI(); QuestManager.check();
@@ -688,8 +776,9 @@ window.goLevel5 = function () {
   toast('🔧 레벨 5 [경계 도시]로 이동했어요 (개발자 모드)');
 };
 
-// 레벨 6 진입
+// 레벨 6 진입 — startLevel5 배너 버튼 또는 level5Cleared 이벤트에서 호출
 window.startLevel6 = function () {
+  // Level5Manager.proceedToLevel6()이 JS로 생성한 오버레이를 이미 제거하므로 추가 처리 불필요
   currentLevel = 6;
   if (typeof Level6Manager !== 'undefined') {
     Level6Manager.init();
@@ -698,6 +787,11 @@ window.startLevel6 = function () {
     toast('🚧 레벨 6: 초록별 심장부 — 준비 중입니다!');
   }
 };
+
+// Level5Manager.proceedToLevel6() 가 발생시키는 level5Cleared 이벤트 수신
+document.addEventListener('level5Cleared', () => {
+  window.startLevel6();
+});
 
 // 개발 테스트용 — goLevel6()
 window.goLevel6 = function () {
@@ -823,7 +917,10 @@ function updateProtectorSlots() {
     fox:     { id: 'protector-slot-fox',     emoji: '🦊', label: '여우' },
     eagle:   { id: 'protector-slot-eagle',   emoji: '🦅', label: '독수리' },
     crane:   { id: 'protector-slot-crane',   emoji: '🦩', label: '두루미' },
-    salmon:  { id: 'protector-slot-salmon',  emoji: '🐟', label: '연어' }
+    salmon:  { id: 'protector-slot-salmon',  emoji: '🐟', label: '연어' },
+    raccoon: { id: 'protector-slot-raccoon', emoji: '🦝', label: '너구리' },
+    kestrel: { id: 'protector-slot-kestrel', emoji: '🦅', label: '황조롱이' },
+    bear:    { id: 'protector-slot-bear',    emoji: '🐻', label: '반달곰' }
   };
 
   for (const [key, cfg] of Object.entries(slotMap)) {

@@ -1616,4 +1616,160 @@ if (compass) {
 | `js/Level5Logic.js` | [NEW] 경계 도시 퀘스트 매니저, 너구리/황조롱이 영입 조건 검사, 생태 육교 BFS 종단 연결 검증 알고리즘, 심사 보스전 타이머 구현 |
 | `js/Level6Logic.js` | [NEW] 초록별 심장부 퀘스트 매니저, 2D 홀로그램 세계 지도 UI, 반달곰 도토리 피딩 AI, 심장 박동 엔딩 시뮬레이션 및 무한 샌드박스 해금 구현 |
 
+---
+
+## 📅 2026-05-20 (레벨 5/6 통합 검증 및 버그 수정 — 저장/초기화/루프/전환 완결)
+
+> **작업 배경**
+> 레벨 5(`Level5Logic.js`)·레벨 6(`Level6Logic.js`) 구현 완료 후, 레벨 3·4와 동일한 방식으로 게임 루프 연결 상태를 전수 검증했습니다. 총 9개 누락/버그를 발견하고 일괄 수정했습니다.
+
+---
+
+### 1. 기존 연결 상태 검증 결과 (이상 없음 확인)
+
+| 위치 | 연결 내용 |
+|---|---|
+| `main.js` `handleClick()` | 레벨 5: `Level5Manager.handleClick(x,y,z)` 분기, 레벨 6: `Level6Manager.handleClick(x,y,z)` 분기 |
+| `systems.js` `onBlockPlaced()` | 레벨 5: viaduct→`checkViaductConnection`, tunnel→`checkTunnel`, biotope→`checkBiotope` |
+| `systems.js` `onBlockPlaced()` | 레벨 6: acorn→`Level6Manager.checkBearFeed(x,y,z)` |
+| `systems.js` `onBlockRemoved()` | 레벨 5: viaduct/tunnel/biotope 제거 시 재검사 |
+| `data.js` | viaduct/biotope/wildlife_tunnel/acorn/city_trash 아이템, NPC 대사(`l5_*`, `l6_*`), GUARDIAN_DATA raccoon·kestrel·bear 정의 |
+| `state.js` | `level5_conditions`(9개 필드), `level6_conditions`(11개 필드), `global_protectors.raccoon/kestrel/bear` 선언 |
+| `index.html` | `Level5Logic.js?v=20260520`, `Level6Logic.js?v=20260520` 로드 순서 확정 |
+| `ui.js` | `startLevel5()`, `goLevel5()`, `startLevel6()`, `goLevel6()` 구현 완료 |
+| `world.js` | `spawnLevel5Animals()`, `spawnLevel6Animals()`, `buildAnimal('raccoon'/'kestrel'/'bear'/'officer_city')` 구현 완료 |
+
+---
+
+### 2. `animate()` 루프 — `Level5Manager.update(t)` 미연결 수정 (`js/main.js`)
+
+**[증상]**
+* 심사 보스전 시작 후 심사 타이머(`level5_conditions.auditTimer -= 0.016`)가 전혀 감소하지 않음. 30초 이후에도 보스전이 종료되지 않아 진행 불가.
+
+**[원인]**
+* `Level5Manager.update(t)` 메서드가 구현되어 있으나 `main.js`의 `animate()` 루프에 호출이 없어 매 프레임 실행되지 않음.
+
+**[수정 내용]** (`js/main.js`)
+* 레벨 4 비 파티클 업데이트 블록 뒤에 추가:
+  ```javascript
+  if (currentLevel === 5 && typeof Level5Manager !== 'undefined') {
+    Level5Manager.update(t);
+  }
+  ```
+
+---
+
+### 3. `renderHotbar()` 미존재 함수 호출 수정 (`js/Level5Logic.js`)
+
+**[증상]**
+* 공무원 박 주임 설득 성공 후 `closeConvinceAndGetItems()`가 실행될 때 콘솔에 `TypeError: renderHotbar is not a function` 에러 발생. 설득 후 아이템이 인벤토리에 표시되지 않음.
+
+**[원인]**
+* 이 프로젝트의 핫바 렌더링 함수 이름은 `initInventoryUI()`인데, `Level5Logic.js`에 `renderHotbar()`로 잘못 기재됨.
+
+**[수정 내용]** (`js/Level5Logic.js`)
+* `renderHotbar()` → `initInventoryUI()` 교체.
+
+---
+
+### 4. `Level6Manager.handleClick()` 미정의 수정 (`js/Level6Logic.js`)
+
+**[증상]**
+* 레벨 6 진행 중 화면 클릭 시마다 `TypeError: Level6Manager.handleClick is not a function` 에러 발생. 블록 배치·제거·동물 클릭 모두 불가.
+
+**[원인]**
+* `main.js`는 레벨 6에서도 `Level6Manager.handleClick(x, y, z)`를 호출하지만, `Level6Manager` 클래스에 해당 메서드가 정의되어 있지 않았음. 레벨 6의 상호작용은 세계지도 팝업과 블록 설치 훅(`checkBearFeed`)으로 처리되므로 별도 클릭 로직이 불필요하여 `return false` 스텁으로 추가.
+
+**[수정 내용]** (`js/Level6Logic.js`)
+```javascript
+static handleClick(x, y, z) {
+  return false;
+}
+```
+
+---
+
+### 5. `level5Cleared` 이벤트 리스너 누락 — L5→L6 전환 완전 불가 수정 (`js/ui.js`)
+
+**[증상]**
+* 레벨 5 엔딩 배너에서 "최종장 진입" 버튼을 누르면 `Level5Manager.proceedToLevel6()`이 `level5Cleared` 커스텀 이벤트를 발행하지만, 아무 곳에서도 수신하지 않아 레벨 6이 절대 시작되지 않음.
+
+**[원인]**
+* `level5Cleared` 이벤트 리스너가 `ui.js`에 없었음.
+
+**[수정 내용]** (`js/ui.js`)
+```javascript
+document.addEventListener('level5Cleared', () => {
+  window.startLevel6();
+});
+```
+
+---
+
+### 6. `clearAll()` — 레벨 5/6 상태 미초기화 + raccoon/kestrel/bear 미리셋 (`js/ui.js`)
+
+**[증상]**
+* 게임 초기화 시 `global_protectors.raccoon/kestrel/bear`가 `true`로 잔류함.
+* `level5_phase`·`level5_conditions` 9개, `level6_phase`·`level6_conditions` 11개 필드 미리셋.
+* `Level6Manager.activeSignals`의 `solved: true` 상태가 다음 플레이에 이월되어 지도 이상 신호가 처음부터 해결된 것으로 보임.
+* `#audit-dashboard-ui`, `#officer-convince-popup`, `#heartbeat-dashboard-ui`, `#world-map-popup` DOM 요소가 새 게임에 잔류.
+
+**[수정 내용]**
+* `global_protectors` 리셋에 `raccoon: false, kestrel: false, bear: false` 추가.
+* level5/6 조건 20개 필드 명시적 초기화 블록 추가.
+* `Level5Manager.currentPhase = 0`, `Level6Manager.currentPhase = 0` 리셋.
+* `Level6Manager.activeSignals` 전체 `.solved = false` 순회 리셋.
+* 4개 DOM 요소 잔류 제거 (`element.remove()`).
+
+---
+
+### 7. `saveGame()` — level5State/level6State 저장 누락 (`js/ui.js`)
+
+**[수정 내용]**
+* `level5State` 블록 추가 (biotopeCells 딥카피 포함):
+  ```javascript
+  level5State: { level5_phase, level5_conditions: { ...level5_conditions, biotopeCells: [...딥카피] }, level5Manager: { currentPhase } }
+  ```
+* `level6State` 블록 추가 (activeSignals의 solved 상태만 직렬화):
+  ```javascript
+  level6State: { level6_phase, level6_conditions: { ...level6_conditions }, level6Manager: { currentPhase, activeSignals: { key: { solved } } } }
+  ```
+
+---
+
+### 8. `onFileSelected()` — level5/6 상태 복원 누락 (`js/ui.js`)
+
+**[수정 내용]**
+* `data.level4State` 복원 블록 다음에 `data.level5State`·`data.level6State` 복원 로직 추가.
+* level6 복원 시 `activeSignals[key].solved` 필드를 항목별로 복원하여 세계지도 이상 신호 진행도를 정확히 재현.
+
+---
+
+### 9. `updateProtectorSlots()` / `#protector-bar` — raccoon/kestrel/bear 미연결 (`js/ui.js`, `index.html`)
+
+**[수정 내용]**
+* `updateProtectorSlots()` slotMap에 3항목 추가:
+  ```javascript
+  raccoon: { id: 'protector-slot-raccoon', emoji: '🦝', label: '너구리' },
+  kestrel: { id: 'protector-slot-kestrel', emoji: '🦅', label: '황조롱이' },
+  bear:    { id: 'protector-slot-bear',    emoji: '🐻', label: '반달곰' }
+  ```
+* `index.html` `#protector-bar`에 슬롯 3개 추가 (9마리 → 12마리).
+
+---
+
+### 10. 수정 범위 요약
+
+| 파일 | 주요 변경 내용 |
+|---|---|
+| `js/main.js` | `animate()` — `Level5Manager.update(t)` 호출 추가 |
+| `js/Level5Logic.js` | `closeConvinceAndGetItems()` — `renderHotbar()` → `initInventoryUI()` 수정 |
+| `js/Level6Logic.js` | `Level6Manager.handleClick()` 스텁 메서드 추가 |
+| `js/ui.js` | `clearAll()` — raccoon/kestrel/bear 리셋, level5/6 상태 20개 필드 초기화, DOM 4개 잔류 요소 제거 |
+| `js/ui.js` | `saveGame()` — `level5State`/`level6State` 블록 추가 (biotopeCells 딥카피, activeSignals 직렬화) |
+| `js/ui.js` | `onFileSelected()` — `level5State`/`level6State` 복원 로직 추가 |
+| `js/ui.js` | `updateProtectorSlots()` — raccoon·kestrel·bear slotMap 항목 추가 |
+| `js/ui.js` | `level5Cleared` 이벤트 리스너 → `startLevel6()` 연결 |
+| `index.html` | `#protector-bar`에 raccoon·kestrel·bear 슬롯 3개 추가 (9마리 → 12마리) |
+
 

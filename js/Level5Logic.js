@@ -177,7 +177,7 @@ class Level5Manager {
       hotbar[6] = 'viaduct';
       hotbar[7] = 'biotope';
       hotbar[8] = 'wildlife_tunnel';
-      if (typeof renderHotbar === 'function') renderHotbar();
+      if (typeof initInventoryUI === 'function') initInventoryUI();
     }
     toast('⚙️ 생태 육교, 비오톱, 동물 터널 블록을 획득했습니다!');
     
