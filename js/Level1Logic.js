@@ -133,6 +133,11 @@ const LeafSystem = {
   },
 
   placeOnSoil(x, y, z) {
+    // 레벨 2 이상에서는 지렁이 미니게임을 트리거하지 않음 (레벨 1 페이즈 1 전용 기능)
+    if (typeof currentLevel !== 'undefined' && currentLevel !== 1) {
+      toast('⚠️ 낙엽 덮기는 레벨 1에서만 가능해요!');
+      return false;
+    }
     if (this.collected < this.needed) {
       toast(`⚠️ 낙엽이 부족해요! (${this.collected}/${this.needed})`);
       return false;

@@ -357,7 +357,10 @@ function handleClick(clientX, clientY) {
   }
 
   if (toolMode === 'resource' && selItem === 'fallen_leaf') {
-    if (QuestManager.getCurrentPhase() !== 1) { toast('⚠️ 페이즈 1에서만 낙엽을 덮을 수 있어요!'); return; }
+    if (currentLevel !== 1 || QuestManager.getCurrentPhase() !== 1) {
+      toast('⚠️ 낙엽 덮기는 레벨 1 페이즈 1에서만 가능해요!');
+      return;
+    }
     let tx, tz;
     if (obj.userData.isBlock) { tx = obj.userData.bx; tz = obj.userData.bz; }
     else if (obj.userData.isGround) { tx = Math.round(hit.point.x); tz = Math.round(hit.point.z); }
