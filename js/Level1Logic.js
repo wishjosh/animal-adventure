@@ -938,6 +938,7 @@ const Phase2System = {
     if (typeof GuardianSystem !== 'undefined') GuardianSystem.updateState('bee', 3);
     // ── state.js 동기화 ──
     global_protectors.bee = true;
+    if (typeof updateProtectorSlots === 'function') updateProtectorSlots();
     checkLevel1Clear();
     // ────────────────────
     this.check();
@@ -974,6 +975,7 @@ const Phase2System = {
     if (typeof GuardianSystem !== 'undefined') GuardianSystem.updateState('swallow', 3);
     // ── state.js 동기화 ──
     global_protectors.swallow = true;
+    if (typeof updateProtectorSlots === 'function') updateProtectorSlots();
     checkLevel1Clear();
     // ────────────────────
     this.check();

@@ -96,6 +96,7 @@ function checkSheepCondition() {
   if (treeOk && sheepHealed) {
     global_protectors.sheep = true;
     if (typeof GuardianSystem !== 'undefined') GuardianSystem.updateState('sheep', 3);
+    if (typeof updateProtectorSlots === 'function') updateProtectorSlots();
     DBG('[Condition] 🐑 양 영입 완료!');
     checkLevel1Clear();
   }
