@@ -1233,7 +1233,7 @@ const NextActionGuide = {
       how: [
         '맨손(1번)으로 다친 양 🐑 클릭 (선택)',
         '🌳 그늘 표시 클릭 → 양이 이동',
-        '다시 양 클릭 후 🌾 볏짚 표시 클릭',
+        '다시 양 클릭 후 황금색 볏짚 더미 클릭',
         '다시 양 클릭 → 응급처치 팝업 → 💖 치료하기'
       ],
       progress: () => Phase3System.conditions.sheepHealed ? '완료' : '진행 중'

@@ -1054,8 +1054,17 @@ const Phase3System = {
     // 그늘 = 고목나무(8,8) 바로 옆, 볏짚 = 그 근처
     const shx = 7, shz = 8;
     this.shadeMesh = _phaseSprite('🌳', shx, getVisualTopY(shx, shz), shz, { isShadeZone: true });
-    const stx = 5, stz = 8;
-    this.strawMesh = _phaseSprite('🌾', stx, getVisualTopY(stx, stz), stz, { isStrawZone: true });
+    // 볏짚 더미 = 가로로 누운 황금색 원기둥 (수확한 볏짚 다발 모양)
+    const stx = 5, stz = 8, sty = getVisualTopY(stx, stz);
+    const strawGeo = new THREE.CylinderGeometry(0.5, 0.5, 1.3, 18);
+    const strawMat = new THREE.MeshLambertMaterial({ color: 0xDDC050 });
+    const straw = new THREE.Mesh(strawGeo, strawMat);
+    straw.rotation.z = Math.PI / 2; // 옆으로 눕히기
+    straw.position.set(stx, sty + 0.5, stz);
+    straw.castShadow = true;
+    straw.userData = { isStrawZone: true };
+    scene.add(straw);
+    this.strawMesh = straw;
   },
 
   _initHorseZone() {
@@ -1115,7 +1124,7 @@ const Phase3System = {
     this.shadeMesh.material.color.setHex(0xBBBBBB);
     this._sheepSelected = false;
     this.sheepMesh.traverse(c => { if (c.isMesh && c.material) c.material.emissiveIntensity = 0; });
-    toast('🐑 시원한 그늘로 왔어요! 양을 다시 클릭해서 🌾 볏짚 표시를 클릭하세요!');
+    toast('🐑 시원한 그늘로 왔어요! 양을 다시 클릭해서 황금색 볏짚 더미를 클릭하세요!');
   },
 
   _onStrawZoneClick() {
