@@ -1264,34 +1264,87 @@ const NextActionGuide = {
           ? `구슬 ${Phase3System._escapeSphereClicked}/3`
           : '대기';
       }
+    },
+
+    // ── 레벨 2: 다양성의 숲 ───────────────────────
+    L2_toad: {
+      title: '🐸 길 잃은 두꺼비 두꾸 구출',
+      how: [
+        '바위지대의 두꾸(초록 블록)를 클릭해 안기',
+        '⬇️ 황금 화살표가 가리키는 습지 경계부(파란 마커 🌊)에 내려놓기'
+      ],
+      progress: () => (typeof level2_conditions !== 'undefined' && level2_conditions.toadRescued) ? '완료' : '진행 중'
+    },
+    L2_bullfrog: {
+      title: '🐸 황소개구리 격리 연못 만들기',
+      how: [
+        '오렌지 기둥이 표시하는 강변 구역 안에서',
+        '빨간 황소개구리 주변을 흙·돌 블록으로 둘러싸기 (최소 4칸 폐곡선)',
+        '⚠️ 다른 토착 동물은 함께 가두지 말 것'
+      ],
+      progress: () => (typeof level2_conditions !== 'undefined' && level2_conditions.bullfrogIsolated) ? '완료' : '대기'
+    },
+    L2_otter: {
+      title: '🦦 수달 수리 영입 — 물길 뚫기',
+      how: [
+        '청록색 ⛏️ 화살표가 가리키는 흙 댐 블록 3개를 삽(🪏 4번)으로 모두 제거',
+        '물길이 이어지면 자동으로 합류해요'
+      ],
+      progress: () => (typeof global_protectors !== 'undefined' && global_protectors.otter) ? '완료' : '대기'
+    },
+    L2_bat: {
+      title: '🦇 황금박쥐 금비 영입 — 동굴 어둡게',
+      how: [
+        '동쪽 동굴(보라 박쥐 위치) 천장의 빈틈을 모두 채우기',
+        '돌(8번)이나 흙으로 3×3 천장을 완전히 막으면 자동 합류'
+      ],
+      progress: () => (typeof global_protectors !== 'undefined' && global_protectors.bat) ? '완료' : '대기'
     }
   },
 
   getCurrentStepId() {
-    if (typeof currentLevel === 'undefined' || currentLevel !== 1) return null;
+    if (typeof currentLevel === 'undefined') return null;
     if (typeof QuestManager === 'undefined') return null;
-    const ph = QuestManager.getCurrentPhase();
-    if (ph === 0) return 'L1P0_clue';
-    if (ph === 1 && typeof Level1Manager !== 'undefined') {
-      const s = Level1Manager.phase1State;
-      if (!s.toxicRemoved) return 'L1P1_toxic';
-      if (!s.tomatoFruited) return 'L1P1_companion';
-      if (!s.wormDone) return 'L1P1_worm';
-      if (!s.treeGrowing) return 'L1P1_tree';
+
+    // ── 레벨 1 ────────────────────────────────
+    if (currentLevel === 1) {
+      const ph = QuestManager.getCurrentPhase();
+      if (ph === 0) return 'L1P0_clue';
+      if (ph === 1 && typeof Level1Manager !== 'undefined') {
+        const s = Level1Manager.phase1State;
+        if (!s.toxicRemoved) return 'L1P1_toxic';
+        if (!s.tomatoFruited) return 'L1P1_companion';
+        if (!s.wormDone) return 'L1P1_worm';
+        if (!s.treeGrowing) return 'L1P1_tree';
+      }
+      if (ph === 2 && typeof Phase2System !== 'undefined') {
+        const c = Phase2System.conditions, e = Phase2System.envFlags;
+        const planted = (Phase2System.flowerZoneMeshes||[]).filter(m => m.userData.planted).length;
+        if (planted < 4 || Phase2System.branchMesh) return 'L1P2_flower';
+        if (e.riverTrashCount > 0) return 'L1P2_trash';
+        if (!c.nestBuilt) return 'L1P2_nest';
+      }
+      if (ph === 3 && typeof Phase3System !== 'undefined') {
+        const c = Phase3System.conditions;
+        if (!c.sheepHealed) return 'L1P3_sheep';
+        if (!c.horseSpace) return 'L1P3_horse';
+        if (!c.goatClimbed) return 'L1P3_goat';
+      }
+      return null;
     }
-    if (ph === 2 && typeof Phase2System !== 'undefined') {
-      const c = Phase2System.conditions, e = Phase2System.envFlags;
-      const planted = (Phase2System.flowerZoneMeshes||[]).filter(m => m.userData.planted).length;
-      if (planted < 4 || Phase2System.branchMesh) return 'L1P2_flower';
-      if (e.riverTrashCount > 0) return 'L1P2_trash';
-      if (!c.nestBuilt) return 'L1P2_nest';
+
+    // ── 레벨 2 (병렬 미션 — 두꾸 먼저, 이후 격리 → 수달 → 박쥐 순서로 노출) ──
+    if (currentLevel === 2) {
+      if (typeof level2_conditions === 'undefined') return null;
+      if (!level2_conditions.toadRescued) return 'L2_toad';
+      if (!level2_conditions.bullfrogIsolated) return 'L2_bullfrog';
+      if (typeof global_protectors !== 'undefined') {
+        if (!global_protectors.otter) return 'L2_otter';
+        if (!global_protectors.bat) return 'L2_bat';
+      }
+      return null;
     }
-    if (ph === 3 && typeof Phase3System !== 'undefined') {
-      const c = Phase3System.conditions;
-      if (!c.sheepHealed) return 'L1P3_sheep';
-      if (!c.horseSpace) return 'L1P3_horse';
-      if (!c.goatClimbed) return 'L1P3_goat';
-    }
+
     return null;
   },
 
