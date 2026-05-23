@@ -171,6 +171,7 @@ function toggleRotation() {
 window.addEventListener('keydown',e=>{
   if(e.key>='1'&&e.key<='9') selectHotbarSlot(parseInt(e.key)-1);
   if(e.key.toLowerCase()==='e') toggleInventory();
+  if(e.key.toLowerCase()==='g') NextActionGuide.toggleVisibility();
   if(e.key.toLowerCase()==='b') toggleGuardianBook();
   if(e.key.toLowerCase()==='m') openMap();
   if(e.key.toLowerCase()==='r') toggleRotation();
@@ -1094,3 +1095,257 @@ document.addEventListener('phaseAdvanced', (e) => {
     setTimeout(() => showNpcDialogue(key, { autoClose: 6000 }), 800);
   }
 });
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  중앙 팝업 큐 — 동시 표시 시 겹치지 않도록 순차 표시
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const CenterUI = {
+  _active: false,
+  _queue: [],
+  enqueue(showFn, durationMs) {
+    if (!this._active) {
+      this._run(showFn, durationMs);
+    } else {
+      this._queue.push({ showFn, durationMs });
+    }
+  },
+  _run(showFn, durationMs) {
+    this._active = true;
+    try { showFn(); } catch(e) { DBG('[CenterUI] showFn error:', e); }
+    setTimeout(() => {
+      this._active = false;
+      if (this._queue.length > 0) {
+        const next = this._queue.shift();
+        this._run(next.showFn, next.durationMs);
+      }
+    }, durationMs);
+  }
+};
+
+// 기존 중앙 팝업 함수들을 큐로 감싸기
+(function wrapCenterPopups() {
+  const _origShowEcoPopup = window.showEcoPopup;
+  const _origShowPhaseTransition = window.showPhaseTransition;
+  const _origShowNpcDialogue = window.showNpcDialogue;
+  if (typeof _origShowEcoPopup === 'function') {
+    window.showEcoPopup = function(emoji, text) {
+      CenterUI.enqueue(() => _origShowEcoPopup(emoji, text), 4200);
+    };
+  }
+  if (typeof _origShowPhaseTransition === 'function') {
+    window.showPhaseTransition = function(phase) {
+      CenterUI.enqueue(() => _origShowPhaseTransition(phase), 2700);
+    };
+  }
+  if (typeof _origShowNpcDialogue === 'function') {
+    window.showNpcDialogue = function(phaseKey, opts = {}) {
+      const dur = (opts && opts.autoClose) ? opts.autoClose + 200 : 6200;
+      CenterUI.enqueue(() => _origShowNpcDialogue(phaseKey, opts), dur);
+    };
+  }
+})();
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  다음 할 일 가이드 카드 — 항상 보이는 진행 안내
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const NextActionGuide = {
+  _visible: true,
+  _collapsed: false,
+
+  steps: {
+    L1P0_clue: {
+      title: '🔍 마을 단서 4개 찾기',
+      how: [
+        '맨손(1번) 상태로 노란 구슬을 클릭',
+        '나무·텃밭·벌집·강가 4곳에 흩어져 있어요'
+      ],
+      progress: () => `${ClueSystem.foundCount}/4`
+    },
+    L1P1_toxic: {
+      title: '🌼 노란 독성 식물 3개 뽑기',
+      how: [
+        '🪏 핫바 4번 (삽) 선택',
+        '노란 꽃을 직접 클릭'
+      ],
+      progress: () => `${ToxicPlantSystem.removed}/3`
+    },
+    L1P1_companion: {
+      title: '🍅 토마토와 🌿 바질 나란히 심기',
+      how: [
+        '🪣 물뿌리개(3번)로 흙 1칸 클릭 → 젖은 흙',
+        '🍅 토마토 씨앗(5번) 들고 젖은 흙 클릭',
+        '🌿 바질 씨앗(6번)을 토마토 바로 옆에 같은 방법으로'
+      ],
+      progress: () => {
+        let cnt = 0;
+        for (const v of Object.values(gridData)) {
+          if (v === 'plant_tomato' || v === 'plant_tomato_fruit' || v === 'plant_basil') cnt++;
+        }
+        return `심은 식물 ${cnt}개`;
+      }
+    },
+    L1P1_worm: {
+      title: '🍂 낙엽 5장 모아 흙에 덮기',
+      how: [
+        '맨손(1번)으로 땅에 떨어진 🍂 낙엽 클릭',
+        '5장 모이면 🍂 핫바 7번 들고 고목나무 근처 흙 클릭',
+        '지렁이 미니게임이 시작돼요'
+      ],
+      progress: () => `${LeafSystem.collected}/5`
+    },
+    L1P1_tree: {
+      title: '🌳 나무 할아버지 회복 중...',
+      how: ['잠시 기다리세요 (지렁이가 흙을 살리고 있어요)'],
+      progress: () => '자동 진행'
+    },
+    L1P2_flower: {
+      title: '🌸 꽃 4구역 심기 + 🪵 나뭇가지 치우기',
+      how: [
+        '맨손(1번)으로 분홍색 🌸 표시 4곳 클릭',
+        '꽃 선택창에서 🍀 클로버 또는 🌻 해바라기 선택',
+        '(장미·국화는 ❌)',
+        '🪵 나뭇가지도 클릭해서 제거'
+      ],
+      progress: () => {
+        const p = (Phase2System.flowerZoneMeshes||[]).filter(m => m.userData.planted).length;
+        const b = Phase2System.branchMesh ? '🪵 남음' : '🪵 완료';
+        return `🌸 ${p}/4 · ${b}`;
+      }
+    },
+    L1P2_trash: {
+      title: '🗑️ 강 쓰레기 3개 치우기',
+      how: [
+        '맨손(1번)으로 강가 🗑️ 표시 3개 클릭',
+        '모두 치우면 강물에 진흙이 생겨요'
+      ],
+      progress: () => `${3 - (Phase2System.envFlags.riverTrashCount||0)}/3`
+    },
+    L1P2_nest: {
+      title: '🪺 제비 둥지 짓기',
+      how: [
+        '맨손(1번)으로 고목나무 위쪽 🪺 표시 클릭',
+        '진흙이 있어야 가능해요 (쓰레기 먼저 치우기)'
+      ],
+      progress: () => Phase2System.conditions.nestBuilt ? '완료' : '대기 중'
+    },
+    L1P3_sheep: {
+      title: '🐑 다친 양 치료하기',
+      how: [
+        '맨손(1번)으로 다친 양 🐑 클릭 (선택)',
+        '🌳 그늘 표시 클릭 → 양이 이동',
+        '다시 양 클릭 후 🌾 볏짚 표시 클릭',
+        '다시 양 클릭 → 응급처치 팝업 → 💖 치료하기'
+      ],
+      progress: () => Phase3System.conditions.sheepHealed ? '완료' : '진행 중'
+    },
+    L1P3_horse: {
+      title: '🐴 말 발굽 치료 + 울타리 제거',
+      how: [
+        '말 🐴 클릭 → 발굽 돌 제거 팝업 → 확인',
+        '말 양옆 붉은 울타리 2개 클릭'
+      ],
+      progress: () => {
+        if (Phase3System.conditions.horseSpace) return '완료';
+        const fences = (Phase3System.fenceMeshes||[]).length;
+        return `울타리 ${2 - fences}/2`;
+      }
+    },
+    L1P3_goat: {
+      title: '🐐 염소 잡고 바위 위로 올리기',
+      how: [
+        '염소 🐐 클릭 → 탈출 미니게임 시작',
+        '파란 구슬 3개를 10초 안에 모두 클릭',
+        '다시 염소 클릭 (선택)',
+        '회색 🪨 바위 클릭'
+      ],
+      progress: () => {
+        if (Phase3System.conditions.goatClimbed) return '완료';
+        return Phase3System._escapeMiniActive
+          ? `구슬 ${Phase3System._escapeSphereClicked}/3`
+          : '대기';
+      }
+    }
+  },
+
+  getCurrentStepId() {
+    if (typeof currentLevel === 'undefined' || currentLevel !== 1) return null;
+    if (typeof QuestManager === 'undefined') return null;
+    const ph = QuestManager.getCurrentPhase();
+    if (ph === 0) return 'L1P0_clue';
+    if (ph === 1 && typeof Level1Manager !== 'undefined') {
+      const s = Level1Manager.phase1State;
+      if (!s.toxicRemoved) return 'L1P1_toxic';
+      if (!s.tomatoFruited) return 'L1P1_companion';
+      if (!s.wormDone) return 'L1P1_worm';
+      if (!s.treeGrowing) return 'L1P1_tree';
+    }
+    if (ph === 2 && typeof Phase2System !== 'undefined') {
+      const c = Phase2System.conditions, e = Phase2System.envFlags;
+      const planted = (Phase2System.flowerZoneMeshes||[]).filter(m => m.userData.planted).length;
+      if (planted < 4 || Phase2System.branchMesh) return 'L1P2_flower';
+      if (e.riverTrashCount > 0) return 'L1P2_trash';
+      if (!c.nestBuilt) return 'L1P2_nest';
+    }
+    if (ph === 3 && typeof Phase3System !== 'undefined') {
+      const c = Phase3System.conditions;
+      if (!c.sheepHealed) return 'L1P3_sheep';
+      if (!c.horseSpace) return 'L1P3_horse';
+      if (!c.goatClimbed) return 'L1P3_goat';
+    }
+    return null;
+  },
+
+  refresh() {
+    const card = document.getElementById('next-action-card');
+    if (!card) return;
+    const stepId = this.getCurrentStepId();
+    if (!stepId || !this._visible) {
+      card.classList.add('hidden');
+      return;
+    }
+    const step = this.steps[stepId];
+    if (!step) { card.classList.add('hidden'); return; }
+    card.classList.remove('hidden');
+    const titleEl = document.getElementById('nac-step');
+    const howEl = document.getElementById('nac-how');
+    const progEl = document.getElementById('nac-progress');
+    if (titleEl) titleEl.textContent = step.title;
+    if (howEl) howEl.innerHTML = step.how.map(h => `<div>${h}</div>`).join('');
+    if (progEl) {
+      try { progEl.textContent = step.progress(); } catch(e) { progEl.textContent = '—'; }
+    }
+  },
+
+  toggleVisibility() {
+    this._visible = !this._visible;
+    if (this._visible) this.refresh();
+    else {
+      const card = document.getElementById('next-action-card');
+      if (card) card.classList.add('hidden');
+    }
+  },
+
+  toggleMinimize(event) {
+    if (event && event.stopPropagation) event.stopPropagation();
+    this._collapsed = !this._collapsed;
+    const card = document.getElementById('next-action-card');
+    if (card) card.classList.toggle('collapsed', this._collapsed);
+  }
+};
+
+// 자동 갱신 훅
+document.addEventListener('phaseAdvanced', () => NextActionGuide.refresh());
+// 초기 렌더 + 주기 갱신 (꽃 심기/구슬 클릭 같은 중간 상태도 진행도 반영)
+setInterval(() => { if (NextActionGuide._visible) NextActionGuide.refresh(); }, 500);
+
+// 페이즈 진입 시 상단 미션 박스를 자동으로 펼침 (사용자가 다시 접을 수는 있음)
+document.addEventListener('phaseAdvanced', () => {
+  const box = document.getElementById('mission-box');
+  if (box) box.classList.add('open');
+});
+// 페이지 로드 직후에도 한 번 펼치고 가이드 카드 초기 렌더
+setTimeout(() => {
+  const box = document.getElementById('mission-box');
+  if (box) box.classList.add('open');
+  if (typeof NextActionGuide !== 'undefined') NextActionGuide.refresh();
+}, 200);

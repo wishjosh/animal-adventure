@@ -96,9 +96,7 @@ const ToxicPlantSystem = {
       Level1Manager.phase1State.toxicRemoved = true;
       if (typeof showEcoPopup === 'function') showEcoPopup('🌼❌', '나쁜 노란 꽃을 뽑아<br>동물 친구들이 안전해졌어요!');
       QuestManager.check();
-      setTimeout(() => toast('✅ 꽃 뽑기 완료! 다음: 토마토(🍅)와 바질(🌿) 씨앗을 나란히 심어주세요!'), 3500);
-      setTimeout(() => toast('💡 바질의 강한 향이 벌레를 쫓아 토마토를 튼튼하게 지켜준답니다! (동반식물)'), 6500);
-      setTimeout(() => toast('🎒 가방에서 두 씨앗을 꺼내 텃밭에 붙여서 심고 물(💧)을 주세요!'), 9500);
+      // 다음 단계 안내는 우측 "🎯 다음 할 일" 카드가 자동 표시
     }
   }
 };
@@ -355,9 +353,7 @@ const CompanionPlant = {
           const targetZ = plantType === 'tomato' ? z : nz;
           LadybugSystem.summon(targetX, targetZ);
           QuestManager.check();
-          // 다음 단계 안내
-          setTimeout(() => toast('✅ 토마토 완료! 다음: 낙엽 🍂 5장을 주워서 고목나무 근처 흙에 덮어주세요!'), 3500);
-          setTimeout(() => toast('💡 땅에 있는 주황색 낙엽을 맨손(곡괭이 없이)으로 클릭하면 주울 수 있어요!'), 6500);
+          // 다음 단계 안내는 우측 "🎯 다음 할 일" 카드가 자동 표시
         }, 3000);
         return true;
       }
@@ -424,11 +420,13 @@ const Level1Manager = {
 
     const statusEl = document.getElementById('mission-status');
     if (statusEl) {
+      const toxicCnt = (typeof ToxicPlantSystem !== 'undefined') ? ToxicPlantSystem.removed : 0;
+      const leafCnt = (typeof LeafSystem !== 'undefined') ? LeafSystem.collected : 0;
       statusEl.innerHTML = `
-        <div class="mc${toxicOk ? ' done' : ''}">\n          ${toxicOk ? '✅' : '1️⃣'} 🌼 나쁜 노란 꽃 뽑기 <small style="opacity:0.7">→ 말 구출</small>\n        </div>
-        <div class="mc${tomatoOk ? ' done' : ''}">\n          ${tomatoOk ? '✅' : '2️⃣'} 💧 토마토 & 바질 나란히 심기 <small style="opacity:0.7">→ 동반식물 효과</small>\n        </div>
-        <div class="mc${wormOk ? ' done' : ''}">\n          ${wormOk ? '✅' : '3️⃣'} 🍂 지렁이 밥 주기 <small style="opacity:0.7">→ 영양토 만들기</small>\n        </div>
-        <div class="mc${treeOk ? ' done' : ''}">\n          ${treeOk ? '✅' : '🌳'} 나무 할아버지 <small style="opacity:0.7">→ 지렁이가 부르면 자동!</small>\n        </div>
+        <div class="mc${toxicOk ? ' done' : ''}">${toxicOk ? '✅' : '1️⃣'} 🌼 노란 독성 꽃 뽑기 <small style="opacity:0.7">— 🪏 삽으로 클릭 (${toxicCnt}/3)</small></div>
+        <div class="mc${tomatoOk ? ' done' : ''}">${tomatoOk ? '✅' : '2️⃣'} 🍅 토마토 + 🌿 바질 나란히 심기 <small style="opacity:0.7">— 💧 물주고 → 5·6번 씨앗 인접 배치</small></div>
+        <div class="mc${wormOk ? ' done' : ''}">${wormOk ? '✅' : '3️⃣'} 🍂 낙엽 5장 모아 흙에 덮기 <small style="opacity:0.7">— 모은 낙엽 ${leafCnt}/5</small></div>
+        <div class="mc${treeOk ? ' done' : ''}">${treeOk ? '✅' : '🌳'} 나무 할아버지 회복 <small style="opacity:0.7">— 지렁이가 흙을 살리면 자동</small></div>
       `;
     }
 
@@ -467,13 +465,13 @@ const Level1Manager = {
     const statusEl = document.getElementById('mission-status');
 
     if (this.currentPhase === 0) {
-      titleEl.textContent = `🔍 단서 탐색 중... (탭해서 열기)`;
-      if (descEl) descEl.innerHTML = `마을 곳곳의 <b style="color:#FFD700">노란색 구슬</b>을 눌러 단서를 수집하세요!`;
+      titleEl.textContent = `🔍 단서 탐색 중...`;
+      if (descEl) descEl.innerHTML = `마을 곳곳의 <b style="color:#FFD700">노란색 구슬</b>을 눌러 단서를 수집하세요!<br><small style="opacity:0.7">🎯 우측 "다음 할 일" 카드를 참고하세요</small>`;
       if (statusEl) statusEl.innerHTML = '';
 
     } else if (this.currentPhase === 1) {
-      titleEl.textContent = `🌱 목표: 병든 고목나무 살리기 (탭해서 열기)`;
-      if (descEl) descEl.innerHTML = `화살표(⬇️)와 반짝이는 도구를 따라 순서대로 해결하세요!`;
+      titleEl.textContent = `🌱 페이즈 1: 병든 고목나무 살리기`;
+      if (descEl) descEl.innerHTML = `네 가지 과제를 순서대로 해결하세요.<br><small style="opacity:0.7">🎯 우측 "다음 할 일" 카드에 자세한 방법이 있어요</small>`;
       this.checkPhase1();  // 상태바 즉시 갱신
 
     } else if (this.currentPhase === 2) {

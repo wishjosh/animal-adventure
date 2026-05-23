@@ -244,11 +244,129 @@
       height: 22px;
       background: rgba(255,255,255,0.25);
     }
+
+    /* ── 다음 할 일 가이드 카드 ── */
+    #next-action-card {
+      position: fixed;
+      top: 150px;
+      right: 14px;
+      z-index: 26;
+      width: 260px;
+      background: linear-gradient(135deg, rgba(10, 30, 12, 0.94), rgba(8, 22, 10, 0.94));
+      border: 2px solid rgba(255, 215, 0, 0.55);
+      border-radius: 14px;
+      padding: 12px 14px 14px;
+      color: #fff;
+      font-size: 13px;
+      line-height: 1.55;
+      box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(6px);
+      transition: width 0.25s, padding 0.25s, top 0.25s;
+    }
+    #next-action-card.collapsed {
+      width: 56px;
+      padding: 8px;
+      cursor: pointer;
+    }
+    #next-action-card.collapsed .nac-body,
+    #next-action-card.collapsed .nac-progress,
+    #next-action-card.collapsed .nac-min {
+      display: none;
+    }
+    #next-action-card.collapsed .nac-title {
+      font-size: 22px;
+      justify-content: center;
+    }
+    #next-action-card.hidden {
+      display: none;
+    }
+    .nac-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .nac-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: #FFD700;
+      letter-spacing: 0.3px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex: 1;
+    }
+    .nac-progress {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.65);
+      background: rgba(255, 215, 0, 0.12);
+      padding: 2px 8px;
+      border-radius: 10px;
+      white-space: nowrap;
+    }
+    .nac-min {
+      background: rgba(255, 255, 255, 0.08);
+      border: none;
+      color: rgba(255, 255, 255, 0.65);
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      line-height: 1;
+      padding: 0;
+    }
+    .nac-min:hover {
+      background: rgba(255, 255, 255, 0.18);
+      color: #fff;
+    }
+    .nac-step {
+      font-weight: 700;
+      font-size: 14px;
+      color: #fff;
+      margin-bottom: 8px;
+      padding-bottom: 8px;
+      border-bottom: 1px dashed rgba(255, 215, 0, 0.25);
+    }
+    .nac-how {
+      color: rgba(255, 255, 255, 0.82);
+      font-size: 12px;
+    }
+    .nac-how div {
+      margin: 3px 0;
+      padding-left: 4px;
+    }
+    .nac-how div::before {
+      content: '•';
+      color: #FFD700;
+      margin-right: 6px;
+    }
+    @keyframes nac-pulse {
+      0%, 100% { box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45); }
+      50% { box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45), 0 0 18px rgba(255, 215, 0, 0.45); }
+    }
+    #next-action-card:not(.collapsed):not(.hidden) {
+      animation: nac-pulse 3s infinite;
+    }
   </style>
 </head>
 
 <body>
   <canvas id="canvas"></canvas>
+
+  <!-- 다음 할 일 가이드 카드 (항상 표시, 우측) -->
+  <div id="next-action-card" class="hidden">
+    <div class="nac-header">
+      <span class="nac-title" id="nac-title">🎯 다음 할 일</span>
+      <span class="nac-progress" id="nac-progress">—</span>
+      <button class="nac-min" id="nac-min" title="접기/펼치기" onclick="NextActionGuide.toggleMinimize(event)">─</button>
+    </div>
+    <div class="nac-body">
+      <div class="nac-step" id="nac-step">로딩 중...</div>
+      <div class="nac-how" id="nac-how"></div>
+    </div>
+  </div>
 
   <!-- 방위 나침반 로즈 (항상 표시) -->
   <!-- 좌표 정의: +X=동(東) | -X=서(西) | -Z=북(北) | +Z=남(南) -->
@@ -353,6 +471,7 @@
         <button class="action-btn" onclick="toggleInventory()" title="가방 (E)">🎒</button>
         <button class="action-btn" onclick="toggleGuardianBook()" title="수호대 도감 (B)" style="color:#f2c94c;">📖</button>
         <button class="action-btn" onclick="openMap()" title="지도 (M)">🗺️</button>
+        <button class="action-btn" onclick="NextActionGuide.toggleVisibility()" title="다음 할 일 (G)" style="color:#ffd700;">🎯</button>
         <button class="action-btn" onclick="toggleMessageLog()" title="알림 기록 (L)" style="color:#a8d0e6;">📩</button>
         <button class="action-btn" onclick="saveGame()" title="저장" style="color:#6fcf97;">💾</button>
         <button class="action-btn" onclick="loadGame()" title="불러오기">📂</button>
@@ -522,18 +641,18 @@
   <script src="https://cdn.jsdelivr.net/npm/stats.js@0.17.0/build/stats.min.js"></script>
 
   <!-- 게임 스크립트 모듈 (순서 중요) -->
-  <script src="js/data.js?v=20260523c"></script>
-  <script src="js/state.js?v=20260523c"></script>
-  <script src="js/systems.js?v=20260523c"></script>
-  <script src="js/Level1Logic.js?v=20260523c"></script>
-  <script src="js/Level2Logic.js?v=20260523c"></script>
-  <script src="js/Level3Logic.js?v=20260523c"></script>
-  <script src="js/Level4Logic.js?v=20260523c"></script>
-  <script src="js/Level5Logic.js?v=20260523c"></script>
-  <script src="js/Level6Logic.js?v=20260523c"></script>
-  <script src="js/world.js?v=20260523c"></script>
-  <script src="js/ui.js?v=20260523c"></script>
-  <script src="js/main.js?v=20260523c"></script>
+  <script src="js/data.js?v=20260523d"></script>
+  <script src="js/state.js?v=20260523d"></script>
+  <script src="js/systems.js?v=20260523d"></script>
+  <script src="js/Level1Logic.js?v=20260523d"></script>
+  <script src="js/Level2Logic.js?v=20260523d"></script>
+  <script src="js/Level3Logic.js?v=20260523d"></script>
+  <script src="js/Level4Logic.js?v=20260523d"></script>
+  <script src="js/Level5Logic.js?v=20260523d"></script>
+  <script src="js/Level6Logic.js?v=20260523d"></script>
+  <script src="js/world.js?v=20260523d"></script>
+  <script src="js/ui.js?v=20260523d"></script>
+  <script src="js/main.js?v=20260523d"></script>
 
 </body>
 
