@@ -5,7 +5,7 @@ const ITEM_DB = {
   pickaxe:    { category:'tool',     type:'pickaxe',  label:'곡괭이',       icon:'⛏️' },
   axe:        { category:'tool',     type:'axe',      label:'도끼',         icon:'🪓' },
   watering_can:{ category:'tool',    type:'watering', label:'물뿌리개',     icon:'🪣' },
-  shovel:     { category:'tool',     type:'shovel',   label:'삽',           icon:'🪤' },
+  shovel:     { category:'tool',     type:'shovel',   label:'삽',           icon:'🪏' },
 
   seed_tomato:   { category:'seed', type:'seed', label:'토마토 씨앗',    icon:'🍅', grows:'tomato' },
   seed_basil:    { category:'seed', type:'seed', label:'바질 씨앗',      icon:'🌿', grows:'basil'  },

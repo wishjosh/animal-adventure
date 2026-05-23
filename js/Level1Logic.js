@@ -94,7 +94,6 @@ const ToxicPlantSystem = {
     toast(`🗑️ 독성 식물 제거 (${this.removed}/${this.locations.length})`);
     if (this.removed >= this.locations.length) {
       Level1Manager.phase1State.toxicRemoved = true;
-      if (Level1Manager.currentPhase === 1) advancePhase(2);
       if (typeof showEcoPopup === 'function') showEcoPopup('🌼❌', '나쁜 노란 꽃을 뽑아<br>동물 친구들이 안전해졌어요!');
       QuestManager.check();
       setTimeout(() => toast('✅ 꽃 뽑기 완료! 다음: 토마토(🍅)와 바질(🌿) 씨앗을 나란히 심어주세요!'), 3500);
@@ -140,8 +139,6 @@ const LeafSystem = {
       toast(`⚠️ 낙엽이 부족해요! (${this.collected}/${this.needed})`);
       return false;
     }
-    // Phase 3 → Phase 4 이행
-    if (Level1Manager.currentPhase === 3) advancePhase(4);
     WormMinigame.start(x, z);
     return true;
   }
@@ -421,6 +418,9 @@ const Level1Manager = {
     const tomatoOk = s.tomatoFruited;
     const wormOk = s.wormDone;
     const treeOk = s.treeGrowing;
+
+    // 핫바 hint 글로우는 phase1State에 의존하므로 매 체크마다 갱신
+    if (typeof initInventoryUI === 'function') initInventoryUI();
 
     const statusEl = document.getElementById('mission-status');
     if (statusEl) {
@@ -951,7 +951,7 @@ const Phase2System = {
       toast('💧 강물 수위가 올라갔어요! 강가에 진흙이 생겼어요!');
       DBG('[Phase2] hasMud = true — 제비 둥지 열쇠 활성화');
       if (typeof showEcoPopup === 'function') showEcoPopup('🗑️💧', '쓰레기를 치우자<br>강물이 맑아지고 진흙이 생겼어요!');
-      if (typeof GuardianSystem !== 'undefined') GuardianSystem.updateState('otter', 3);
+      // 수달(otter)은 레벨 2에서 강물 연결 시 합류하므로 여기서 합류 처리하지 않음
     }
     QuestManager.updateUI();
   },

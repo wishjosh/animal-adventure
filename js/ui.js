@@ -146,6 +146,23 @@ function toggleInventory() {
   document.getElementById('inventory-overlay').style.display=isInventoryOpen?'flex':'none';
   if(isInventoryOpen) initInventoryUI();
 }
+
+// 가방 열려있을 때 바깥 클릭 → 자동 닫기 (캡처 단계에서 검사해서 다른 핸들러보다 먼저 실행)
+document.addEventListener('click', (e) => {
+  if (!isInventoryOpen) return;
+  const overlay = document.getElementById('inventory-overlay');
+  if (!overlay) return;
+  // 오버레이 내부 클릭은 무시
+  if (overlay.contains(e.target)) return;
+  // 가방 토글 버튼 클릭은 토글 자신이 처리하므로 무시
+  if (e.target.closest('[onclick*="toggleInventory"]')) return;
+  toggleInventory();
+});
+
+// ESC 키로도 닫기
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && isInventoryOpen) toggleInventory();
+});
 function toggleRotation() {
   currentRotation=(currentRotation+1)%2; updateHlMesh();
   toast(currentRotation===1?'방향: 90도 회전':'방향: 기본');
@@ -961,6 +978,10 @@ document.addEventListener('level1Cleared', () => {
 document.addEventListener('DOMContentLoaded', () => {
   // phaseAdvanced 이벤트 수신 → 수호대 슬롯 UI 갱신
   document.addEventListener('phaseAdvanced', () => updateProtectorSlots());
+  // phaseAdvanced 이벤트 수신 → 핫바 hint 글로우 즉시 갱신 (가방 열지 않아도 반영)
+  document.addEventListener('phaseAdvanced', () => {
+    if (typeof initInventoryUI === 'function') initInventoryUI();
+  });
 });
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
