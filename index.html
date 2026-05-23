@@ -356,11 +356,11 @@
   <canvas id="canvas"></canvas>
 
   <!-- 다음 할 일 가이드 카드 (항상 표시, 우측) -->
-  <div id="next-action-card" class="hidden">
+  <div id="next-action-card" class="hidden" onclick="NextActionGuide.onCardClick(event)" title="클릭하면 펼칩니다">
     <div class="nac-header">
       <span class="nac-title" id="nac-title">🎯 다음 할 일</span>
       <span class="nac-progress" id="nac-progress">—</span>
-      <button class="nac-min" id="nac-min" title="접기/펼치기" onclick="NextActionGuide.toggleMinimize(event)">─</button>
+      <button class="nac-min" id="nac-min" title="접기" onclick="NextActionGuide.toggleMinimize(event)">─</button>
     </div>
     <div class="nac-body">
       <div class="nac-step" id="nac-step">로딩 중...</div>
@@ -641,18 +641,18 @@
   <script src="https://cdn.jsdelivr.net/npm/stats.js@0.17.0/build/stats.min.js"></script>
 
   <!-- 게임 스크립트 모듈 (순서 중요) -->
-  <script src="js/data.js?v=20260523g"></script>
-  <script src="js/state.js?v=20260523g"></script>
-  <script src="js/systems.js?v=20260523g"></script>
-  <script src="js/Level1Logic.js?v=20260523g"></script>
-  <script src="js/Level2Logic.js?v=20260523g"></script>
-  <script src="js/Level3Logic.js?v=20260523g"></script>
-  <script src="js/Level4Logic.js?v=20260523g"></script>
-  <script src="js/Level5Logic.js?v=20260523g"></script>
-  <script src="js/Level6Logic.js?v=20260523g"></script>
-  <script src="js/world.js?v=20260523g"></script>
-  <script src="js/ui.js?v=20260523g"></script>
-  <script src="js/main.js?v=20260523g"></script>
+  <script src="js/data.js?v=20260523h"></script>
+  <script src="js/state.js?v=20260523h"></script>
+  <script src="js/systems.js?v=20260523h"></script>
+  <script src="js/Level1Logic.js?v=20260523h"></script>
+  <script src="js/Level2Logic.js?v=20260523h"></script>
+  <script src="js/Level3Logic.js?v=20260523h"></script>
+  <script src="js/Level4Logic.js?v=20260523h"></script>
+  <script src="js/Level5Logic.js?v=20260523h"></script>
+  <script src="js/Level6Logic.js?v=20260523h"></script>
+  <script src="js/world.js?v=20260523h"></script>
+  <script src="js/ui.js?v=20260523h"></script>
+  <script src="js/main.js?v=20260523h"></script>
 
 </body>
 

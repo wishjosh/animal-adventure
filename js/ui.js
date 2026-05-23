@@ -1382,7 +1382,17 @@ const NextActionGuide = {
     if (event && event.stopPropagation) event.stopPropagation();
     this._collapsed = !this._collapsed;
     const card = document.getElementById('next-action-card');
-    if (card) card.classList.toggle('collapsed', this._collapsed);
+    if (card) {
+      card.classList.toggle('collapsed', this._collapsed);
+      card.title = this._collapsed ? '클릭하면 펼칩니다' : '';
+    }
+  },
+
+  // 접힌 상태에서 카드 자체를 클릭하면 펼치기
+  onCardClick(event) {
+    if (!this._collapsed) return; // 펼쳐진 상태에선 동작 안 함 (─ 버튼이 처리)
+    if (event && event.stopPropagation) event.stopPropagation();
+    this.toggleMinimize();
   }
 };
 
