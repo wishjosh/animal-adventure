@@ -1477,21 +1477,30 @@ function spawnLevel2WhiteBoxElements() {
   }
   activateChunk(11, -2);
 
+  // ── 동물 스폰 시 각 좌표의 청크를 먼저 활성화 ──────────────
+  // getH가 비활성 청크에서 -1을 반환하면 동물이 지표면 아래(y≈0)에 박혀 보이지
+  // 않게 되는 문제를 방지한다 (예: 두꾸 청크 (11,-1) 누락 사례).
+  const ensureChunk = (x, z) => activateChunk(Math.floor(x / CHUNK), Math.floor(z / CHUNK));
+
   // 황소개구리 (외래종) — 격리 연못 지정 구역: X=66~74, Z=8~16
   const bfX = 70, bfZ = 12;
+  ensureChunk(bfX, bfZ);
   placeAnimal(bfX, getH(bfX, bfZ) + 1, bfZ, 'bullfrog');
 
   // 두꺼비 두꾸 (토착종) — 숲 동쪽 바위지대
   const tdX = 88, tdZ = -8;
+  ensureChunk(tdX, tdZ);
   placeAnimal(tdX, getH(tdX, tdZ) + 1, tdZ, 'toad');
   DBG(`[Level2] 두꾸 스폰: (${tdX},${tdZ}) Y=${getH(tdX, tdZ) + 1}`);
 
   // 수달 — 댐 동쪽 바로 옆 (x=62, z=14: 댐에서 4칸 떨어진 하류)
   const otX = 62, otZ = 14;
+  ensureChunk(otX, otZ);
   placeAnimal(otX, getH(otX, otZ) + 1, otZ, 'otter');
 
   // 새끼 박쥐 — 숲 북동쪽 동굴 (지표+2: 천장 아래)
   const btX = 92, btZ = -10;
+  ensureChunk(btX, btZ);
   placeAnimal(btX, getH(btX, btZ) + 2, btZ, 'bat');
 
   DBG('[Level2] 스폰 완료 — 황소개구리(70,12) 두꾸(88,-8) 수달(62,14) 박쥐(92,-10)');
