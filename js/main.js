@@ -88,28 +88,68 @@ function isFenced(x, z) {
 const orbitTarget = new THREE.Vector3(CHUNK, 38, CHUNK);
 let theta = 0.7, phi = 0.85, radius = 36;
 let cameraMode = 'orbit'; // 'orbit' | 'first-person' — Phase 2 도입
+let firstPersonChosen = false; // Phase 4: ploStart 한 번이라도 누르면 true → V 키 토글 활성
 const EYE_HEIGHT = 1.6;   // 1인칭에서 플레이어 위치(orbitTarget) 위 카메라 높이
 
 const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false, ' ': false, Shift: false };
-window.addEventListener('keydown', e => { if (keys.hasOwnProperty(e.key)) keys[e.key] = true; if (e.key === ' ') keys[' '] = true; });
+window.addEventListener('keydown', e => {
+  if (keys.hasOwnProperty(e.key)) keys[e.key] = true;
+  if (e.key === ' ') keys[' '] = true;
+  // V 키: 1인칭 ↔ orbit 탑뷰 토글 (1인칭 선택자만)
+  if ((e.key === 'v' || e.key === 'V') && firstPersonChosen && !isUIBlockingForToggle()) {
+    if (cameraMode === 'first-person') {
+      exitFirstPerson();
+      if (document.pointerLockElement) document.exitPointerLock();
+    } else {
+      enterFirstPerson();
+      canvas.requestPointerLock();
+    }
+  }
+});
 window.addEventListener('keyup', e => { if (keys.hasOwnProperty(e.key)) keys[e.key] = false; if (e.key === ' ') keys[' '] = false; });
+
+// isUIBlocking은 main.js 하단에 정의되어 있어 keydown 핸들러 안에서 직접 호출 시점에 미정의일 수 있음
+// 단순 안전망: 단지 모달 열려 있을 때 V 키가 작동하지 않도록 살짝 보정
+function isUIBlockingForToggle() {
+  return typeof isInventoryOpen !== 'undefined' && isInventoryOpen;
+}
+
+// Phase 4: 카메라 흔들기 오프셋 (yaw/pitch 미세 진동). applyShake로 갱신.
+let _shakeX = 0, _shakeY = 0;
 
 function syncCam() {
   phi = Math.max(0.05, Math.min(Math.PI * 0.95, phi));
   if (cameraMode === 'first-person') {
     // 1인칭: 카메라 = 플레이어 위치(orbitTarget) + 눈높이, theta=yaw, phi=pitch
     camera.position.set(orbitTarget.x, orbitTarget.y + EYE_HEIGHT, orbitTarget.z);
-    // 시선 방향 = orbit 모드의 lookAt 방향과 동일 (orbitTarget으로 향하던 방향)
-    const lx = -Math.sin(phi) * Math.sin(theta);
-    const ly = -Math.cos(phi);
-    const lz = -Math.sin(phi) * Math.cos(theta);
+    const effPhi = phi + _shakeY;
+    const effTheta = theta + _shakeX;
+    const lx = -Math.sin(effPhi) * Math.sin(effTheta);
+    const ly = -Math.cos(effPhi);
+    const lz = -Math.sin(effPhi) * Math.cos(effTheta);
     camera.lookAt(camera.position.x + lx, camera.position.y + ly, camera.position.z + lz);
   } else {
-    // 기존 orbit
+    // orbit: 카메라 위치는 그대로 두고 lookAt 타겟에 미세 오프셋 → 머리 흔들림 효과
     radius = Math.max(8, Math.min(140, radius));
     camera.position.set(orbitTarget.x + radius * Math.sin(phi) * Math.sin(theta), orbitTarget.y + radius * Math.cos(phi), orbitTarget.z + radius * Math.sin(phi) * Math.cos(theta));
-    camera.lookAt(orbitTarget);
+    camera.lookAt(orbitTarget.x + _shakeX * 5, orbitTarget.y + _shakeY * 5, orbitTarget.z);
   }
+}
+
+// 카메라 흔들기 (나무 베기, 폭발, 진동 등에 공통 사용). 모드 무관하게 동작.
+function applyShake(durationMs = 500, magnitude = 0.05) {
+  const end = Date.now() + durationMs;
+  const tick = () => {
+    if (Date.now() > end) {
+      _shakeX = 0; _shakeY = 0; syncCam();
+      return;
+    }
+    _shakeX = (Math.random() - 0.5) * magnitude;
+    _shakeY = (Math.random() - 0.5) * magnitude;
+    syncCam();
+    setTimeout(tick, 30);
+  };
+  tick();
 }
 syncCam();
 
@@ -236,7 +276,8 @@ document.addEventListener('pointerlockchange', () => {
   isPointerLocked = (document.pointerLockElement === canvas);
   if (isPointerLocked) {
     mouse2D.set(0, 0);
-  } else if (!pointerLockSkipped && ploEl) {
+  } else if (!pointerLockSkipped && ploEl && cameraMode === 'first-person') {
+    // ESC로 잠금 해제 시에만 오버레이 표시. V 키 토글(cameraMode='orbit')에는 표시 안 함.
     ploEl.classList.remove('hidden');
   }
   isDragging = false; clickMoved = false;
@@ -277,6 +318,7 @@ function exitFirstPerson() {
 
 if (ploStart) ploStart.addEventListener('click', () => {
   ploEl.classList.add('hidden');
+  firstPersonChosen = true; // V 키 토글 활성화
   enterFirstPerson();
   canvas.requestPointerLock();
 });
@@ -709,6 +751,69 @@ if (typeof Stats !== 'undefined') {
   stats.dom.style.zIndex = '9999';
 }
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  상시 미니맵 (Phase 4)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const _mmCanvas = document.getElementById('minimap');
+const _mmCtx = _mmCanvas ? _mmCanvas.getContext('2d') : null;
+const MM_VIEW_RADIUS = 5; // 청크 단위 (11×11)
+const _mmHeading = new THREE.Vector3();
+
+function drawMinimap() {
+  if (!_mmCtx) return;
+  const w = _mmCanvas.width, h = _mmCanvas.height;
+  const cellSize = w / (MM_VIEW_RADIUS * 2 + 1);
+  const centerCx = Math.floor(orbitTarget.x / CHUNK);
+  const centerCz = Math.floor(orbitTarget.z / CHUNK);
+
+  _mmCtx.clearRect(0, 0, w, h);
+
+  // 청크 셀
+  for (let dz = -MM_VIEW_RADIUS; dz <= MM_VIEW_RADIUS; dz++) {
+    for (let dx = -MM_VIEW_RADIUS; dx <= MM_VIEW_RADIUS; dx++) {
+      const cx = centerCx + dx, cz = centerCz + dz;
+      const st = chunkState[ck(cx, cz)] || 'hidden';
+      const px = (dx + MM_VIEW_RADIUS) * cellSize;
+      const py = (dz + MM_VIEW_RADIUS) * cellSize;
+      if (st === 'active') _mmCtx.fillStyle = 'rgba(92, 204, 92, 0.78)';
+      else if (st === 'visible') _mmCtx.fillStyle = 'rgba(255, 175, 60, 0.55)';
+      else _mmCtx.fillStyle = 'rgba(60, 60, 60, 0.35)';
+      _mmCtx.fillRect(px + 0.5, py + 0.5, cellSize - 1, cellSize - 1);
+    }
+  }
+
+  // 미니맵 테두리 강조 (중앙 청크)
+  const cx0 = MM_VIEW_RADIUS * cellSize;
+  _mmCtx.strokeStyle = 'rgba(255, 215, 0, 0.75)';
+  _mmCtx.lineWidth = 1.5;
+  _mmCtx.strokeRect(cx0 + 0.5, cx0 + 0.5, cellSize - 1, cellSize - 1);
+
+  // 플레이어 위치(청크 내 정밀 위치) + 시선 화살표
+  const localCxPos = orbitTarget.x / CHUNK - centerCx;
+  const localCzPos = orbitTarget.z / CHUNK - centerCz;
+  const ppx = (MM_VIEW_RADIUS + localCxPos) * cellSize;
+  const ppy = (MM_VIEW_RADIUS + localCzPos) * cellSize;
+
+  camera.getWorldDirection(_mmHeading);
+  const heading = Math.atan2(_mmHeading.x, -_mmHeading.z); // -Z=북 기준
+
+  _mmCtx.save();
+  _mmCtx.translate(ppx, ppy);
+  _mmCtx.rotate(heading);
+  _mmCtx.fillStyle = '#FFD700';
+  _mmCtx.strokeStyle = 'rgba(0,0,0,0.85)';
+  _mmCtx.lineWidth = 1;
+  _mmCtx.beginPath();
+  _mmCtx.moveTo(0, -7);
+  _mmCtx.lineTo(5, 5);
+  _mmCtx.lineTo(0, 2);
+  _mmCtx.lineTo(-5, 5);
+  _mmCtx.closePath();
+  _mmCtx.fill();
+  _mmCtx.stroke();
+  _mmCtx.restore();
+}
+
 let t = 0;
 function animate() {
   if (stats) stats.begin();
@@ -789,6 +894,9 @@ function animate() {
   if (currentLevel === 5 && typeof Level5Manager !== 'undefined') {
     Level5Manager.update(t);
   }
+
+  // ── 상시 미니맵 업데이트 (Phase 4) ──────────────
+  drawMinimap();
 
   // ── 방위 나침반 업데이트 ────────────────────────
   // 좌표계: +X=동(E), -X=서(W), -Z=북(N), +Z=남(S)

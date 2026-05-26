@@ -576,13 +576,9 @@ const OldTree = {
   },
 
   chop() {
-    const shakeDuration = 500;
-    const endTime = Date.now() + shakeDuration;
-    const originalY = orbitTarget.y;
-    const shakeInterval = setInterval(() => {
-      if (Date.now() > endTime) { clearInterval(shakeInterval); orbitTarget.y = originalY; syncCam(); }
-      else { orbitTarget.y = originalY + (Math.random() - 0.5) * 1.5; syncCam(); }
-    }, 50);
+    // Phase 4: orbitTarget.y 흔들기 대신 카메라 회전 흔들기 사용
+    // (1인칭에서 플레이어가 위아래로 튀어오르는 비현실적 동작 방지)
+    if (typeof applyShake === 'function') applyShake(500, 0.08);
     scene.remove(this.group);
     this.state = 'chopped';
     const tx = 8, tz = 8;
