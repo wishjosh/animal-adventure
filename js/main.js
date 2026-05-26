@@ -114,6 +114,102 @@ function syncCam() {
 syncCam();
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  1인칭 물리 (Phase 3): 중력 / 점프 / 블록 충돌 / 한 칸 step-up
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const GRAVITY  = 0.025;   // 프레임당 vy 감소
+const JUMP_V   = 0.25;    // 점프 초속 (≈ 1.25 블록 높이, 마인크래프트 수치)
+const MAX_FALL = 1.0;     // 자유낙하 종단속도 (터널링 방지)
+const STEP_UP_MAX = 1.05; // 자동으로 올라설 수 있는 최대 단차
+const PLAYER_R = 0.3;     // 플레이어 반경 (충돌 박스 절반 너비)
+const PLAYER_H = 1.6;     // 플레이어 높이
+let vy = 0;               // 수직 속도
+
+// 발 바로 위에 서야 할 y — 플레이어 풋프린트의 네 모서리 중 가장 높은 지면.
+// (활성 청크는 실제 블록 top, 그 외는 절차적 지형으로 폴백)
+function getGroundY(x, z) {
+  const rxs = new Set([Math.round(x - PLAYER_R), Math.round(x + PLAYER_R)]);
+  const rzs = new Set([Math.round(z - PLAYER_R), Math.round(z + PLAYER_R)]);
+  let maxY = 0;
+  for (const rx of rxs) for (const rz of rzs) {
+    const tY = getTopY(rx, rz);
+    const gy = tY > 0 ? tY : getH(rx, rz) + 1;
+    if (gy > maxY) maxY = gy;
+  }
+  return maxY;
+}
+
+// (x, y_feet, z) 위치에서 플레이어 박스(반경 PLAYER_R, 높이 PLAYER_H)가 블록과 겹치는가?
+// 플레이어 풋프린트의 네 모서리 그리드 셀을 모두 검사
+function isCollidingAt(x, y_feet, z) {
+  const rxs = new Set([Math.round(x - PLAYER_R), Math.round(x + PLAYER_R)]);
+  const rzs = new Set([Math.round(z - PLAYER_R), Math.round(z + PLAYER_R)]);
+  const b0 = Math.floor(y_feet + 0.001);
+  const b1 = Math.floor(y_feet + PLAYER_H - 0.001);
+  for (const rx of rxs) {
+    for (const rz of rzs) {
+      for (let b = b0; b <= b1; b++) {
+        if (gridData[bk(rx, b, rz)]) return true;
+      }
+    }
+  }
+  return false;
+}
+
+// 발이 지면에 닿아 있고 떨어지지 않는 상태인가? (점프 가능 여부)
+function isPlayerGrounded() {
+  if (vy > 0) return false;
+  const gy = getGroundY(orbitTarget.x, orbitTarget.z);
+  return Math.abs(orbitTarget.y - gy) < 0.05;
+}
+
+// 수직 운동 (중력/착지)
+function playerPhysicsV() {
+  vy -= GRAVITY;
+  if (vy < -MAX_FALL) vy = -MAX_FALL;
+  const groundY = getGroundY(orbitTarget.x, orbitTarget.z);
+  const newY = orbitTarget.y + vy;
+  if (newY <= groundY) {
+    orbitTarget.y = groundY;
+    vy = 0;
+  } else {
+    orbitTarget.y = newY;
+  }
+}
+
+// 한 축 이동: 충돌 시 한 칸 step-up 시도, 안 되면 이진 검색으로 벽 근접까지 이동
+function tryMoveAxis(axis, delta) {
+  const tmpX = (axis === 'x') ? orbitTarget.x + delta : orbitTarget.x;
+  const tmpZ = (axis === 'z') ? orbitTarget.z + delta : orbitTarget.z;
+
+  // 1) 풀 step 시도
+  if (!isCollidingAt(tmpX, orbitTarget.y, tmpZ)) {
+    orbitTarget[axis] += delta;
+    return;
+  }
+
+  // 2) 한 칸 step-up 시도 (계단/낮은 둔덕 자동 올라타기)
+  if (!isCollidingAt(tmpX, orbitTarget.y + 1, tmpZ)) {
+    const stepGround = getGroundY(tmpX, tmpZ);
+    if (stepGround - orbitTarget.y > 0 && stepGround - orbitTarget.y <= STEP_UP_MAX) {
+      orbitTarget[axis] += delta;
+      orbitTarget.y = stepGround;
+      vy = 0;
+      return;
+    }
+  }
+
+  // 3) 풀 step 실패 — 이진 검색으로 벽에 최대한 접근
+  let safe = 0, test = delta;
+  for (let i = 0; i < 5; i++) {
+    test *= 0.5;
+    const tx = (axis === 'x') ? orbitTarget.x + safe + test : orbitTarget.x;
+    const tz = (axis === 'z') ? orbitTarget.z + safe + test : orbitTarget.z;
+    if (!isCollidingAt(tx, orbitTarget.y, tz)) safe += test;
+  }
+  if (Math.abs(safe) > 1e-4) orbitTarget[axis] += safe;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  인터랙션
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 let isDragging = false, clickMoved = false, dragButton = 0;
@@ -160,6 +256,9 @@ function enterFirstPerson() {
     camera.fov = 72;
     camera.updateProjectionMatrix();
     if (crosshairEl) crosshairEl.classList.add('visible');
+    // 지면으로 스냅 (orbit 모드에서 공중에 있었을 수 있음)
+    orbitTarget.y = getGroundY(orbitTarget.x, orbitTarget.z);
+    vy = 0;
     syncCam();
     invalidateRayCache();
   }
@@ -624,12 +723,36 @@ function animate() {
   if (_camFwd.lengthSq() < 1e-6) _camFwd.set(0, 0, -1);
   _camFwd.normalize();
   const rgt = new THREE.Vector3().crossVectors(_camFwd, new THREE.Vector3(0, 1, 0)).normalize();
-  if (keys.w || keys.ArrowUp) { orbitTarget.addScaledVector(_camFwd, spd); camMoved = true; }
-  if (keys.s || keys.ArrowDown) { orbitTarget.addScaledVector(_camFwd, -spd); camMoved = true; }
-  if (keys.a || keys.ArrowLeft) { orbitTarget.addScaledVector(rgt, -spd); camMoved = true; }
-  if (keys.d || keys.ArrowRight) { orbitTarget.addScaledVector(rgt, spd); camMoved = true; }
-  if (keys[' '] || camMoveDir === 1) { orbitTarget.y += spd; camMoved = true; }
-  if (keys.Shift || camMoveDir === -1) { orbitTarget.y -= spd; camMoved = true; }
+
+  if (cameraMode === 'first-person') {
+    // ── 1인칭: 수평 = 충돌+step-up, 수직 = 중력+점프 ──
+    let dx = 0, dz = 0;
+    if (keys.w || keys.ArrowUp)    { dx += _camFwd.x; dz += _camFwd.z; }
+    if (keys.s || keys.ArrowDown)  { dx -= _camFwd.x; dz -= _camFwd.z; }
+    if (keys.a || keys.ArrowLeft)  { dx -= rgt.x;     dz -= rgt.z; }
+    if (keys.d || keys.ArrowRight) { dx += rgt.x;     dz += rgt.z; }
+    const len = Math.sqrt(dx * dx + dz * dz);
+    if (len > 1e-4) {
+      // 대각선 가속 방지: 정규화 후 spd 적용. 분리축 충돌.
+      dx = (dx / len) * spd;
+      dz = (dz / len) * spd;
+      tryMoveAxis('x', dx);
+      tryMoveAxis('z', dz);
+    }
+    // 점프: Space + 지면 접지
+    if (keys[' '] && isPlayerGrounded()) vy = JUMP_V;
+    // 중력/낙하/착지
+    playerPhysicsV();
+    camMoved = true;
+  } else {
+    // ── orbit: 기존 fly 모드 (충돌/중력 없음) ──
+    if (keys.w || keys.ArrowUp) { orbitTarget.addScaledVector(_camFwd, spd); camMoved = true; }
+    if (keys.s || keys.ArrowDown) { orbitTarget.addScaledVector(_camFwd, -spd); camMoved = true; }
+    if (keys.a || keys.ArrowLeft) { orbitTarget.addScaledVector(rgt, -spd); camMoved = true; }
+    if (keys.d || keys.ArrowRight) { orbitTarget.addScaledVector(rgt, spd); camMoved = true; }
+    if (keys[' '] || camMoveDir === 1) { orbitTarget.y += spd; camMoved = true; }
+    if (keys.Shift || camMoveDir === -1) { orbitTarget.y -= spd; camMoved = true; }
+  }
   if (camMoved) syncCam();
 
   const wL = typeof BiomeSystem !== 'undefined' ? BiomeSystem.getDominantBiome(orbitTarget.x, orbitTarget.z).waterLevel : 30;
