@@ -265,3 +265,33 @@ body { overflow:hidden; background:#87CEEB; font-family:'Malgun Gothic','Apple S
 #gd-title { text-align: center; font-size: 14px; color: #f2c94c; margin-bottom: 20px; }
 #gd-story { font-size: 15px; line-height: 1.6; color: #ddd; margin-bottom: 15px; }
 #gd-personality { font-size: 14px; line-height: 1.5; color: #bbb; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; }
+
+/* ── Pointer Lock 진입 오버레이 (1인칭 모드 시작) ── */
+#pointer-lock-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0, 0, 0, 0.72); backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center;
+}
+#pointer-lock-overlay.hidden { display: none; }
+#plo-card {
+  background: linear-gradient(180deg, rgba(30,50,30,0.95), rgba(20,30,20,0.95));
+  border: 2px solid rgba(255, 215, 0, 0.5); border-radius: 16px;
+  padding: 28px 36px; max-width: 460px; text-align: center;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+}
+#plo-title { font-size: 22px; font-weight: 900; color: #FFD700; margin-bottom: 18px; }
+#plo-desc { color: rgba(255,255,255,0.85); font-size: 13px; line-height: 1.9; text-align: left; margin-bottom: 20px; }
+#plo-desc b { color: #FFD700; }
+#plo-start {
+  background: linear-gradient(180deg, #FFD700, #e6b800); color: #1a2a1a;
+  border: none; padding: 12px 28px; border-radius: 10px; cursor: pointer;
+  font-size: 15px; font-weight: 800; box-shadow: 0 4px 12px rgba(255,215,0,0.35);
+  transition: transform 0.1s;
+}
+#plo-start:hover { transform: scale(1.05); }
+#plo-start:active { transform: scale(0.97); }
+#plo-skip {
+  margin-top: 14px; color: rgba(255,255,255,0.5); font-size: 11px;
+  cursor: pointer; text-decoration: underline;
+}
+#plo-skip:hover { color: rgba(255,255,255,0.8); }

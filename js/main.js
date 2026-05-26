@@ -109,6 +109,43 @@ let touchMode = null;
 let digInterval = null, isHoldingPickaxe = false;
 let lastClickTime = 0, lastTouchTime = 0;
 
+// ── Pointer Lock (Phase 1: 마우스 시점만 마인크래프트식, 이동은 기존 그대로) ──
+const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+const pointerLockSupported = 'requestPointerLock' in HTMLElement.prototype;
+let isPointerLocked = false;
+let pointerLockSkipped = false;
+const MOUSE_SENS = 0.0025;
+const ploEl = document.getElementById('pointer-lock-overlay');
+
+// 모바일/미지원: 오버레이 숨기고 기존 조작 유지
+if (isTouchDevice || !pointerLockSupported) {
+  if (ploEl) ploEl.style.display = 'none';
+  pointerLockSkipped = true;
+}
+
+document.addEventListener('pointerlockchange', () => {
+  isPointerLocked = (document.pointerLockElement === canvas);
+  if (isPointerLocked) {
+    mouse2D.set(0, 0);
+  } else if (!pointerLockSkipped && ploEl) {
+    ploEl.classList.remove('hidden');
+  }
+  isDragging = false; clickMoved = false;
+  clearInterval(digInterval); digInterval = null; isHoldingPickaxe = false;
+  invalidateRayCache();
+});
+
+const ploStart = document.getElementById('plo-start');
+const ploSkip = document.getElementById('plo-skip');
+if (ploStart) ploStart.addEventListener('click', () => {
+  ploEl.classList.add('hidden');
+  canvas.requestPointerLock();
+});
+if (ploSkip) ploSkip.addEventListener('click', () => {
+  pointerLockSkipped = true;
+  ploEl.classList.add('hidden');
+});
+
 const ptEl = document.getElementById('phase-transition');
 const crEl = document.getElementById('creature-report');
 
@@ -187,6 +224,24 @@ function doDig(clientX, clientY) {
 canvas.addEventListener('mousedown', e => {
   if (isUIBlocking()) return;
   if (e.button === 2 && pickedAnimal) { cancelCarry(); return; }
+
+  // 1인칭 잠금 모드: 드래그 없이 화면 중앙 ray로 즉시 액션
+  if (isPointerLocked) {
+    if (e.button !== 0) return;
+    const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+    if (toolMode === 'pickaxe') {
+      const now = Date.now();
+      if (now - lastClickTime < 300) {
+        isHoldingPickaxe = true; doDig(cx, cy);
+        digInterval = setInterval(() => { if (isHoldingPickaxe) doDig(cx, cy); }, 150);
+      } else { doDig(cx, cy); }
+      lastClickTime = now;
+    } else {
+      handleClick(cx, cy);
+    }
+    return;
+  }
+
   if (e.button === 0 || e.button === 2) {
     isDragging = true; clickMoved = false; dragButton = e.button;
     mouseStart = { x: e.clientX, y: e.clientY }; currentMouseX = e.clientX; currentMouseY = e.clientY;
@@ -200,6 +255,13 @@ canvas.addEventListener('mousedown', e => {
 });
 
 canvas.addEventListener('mousemove', e => {
+  // 1인칭 잠금 모드: 마우스 움직임으로 직접 시점 회전
+  if (isPointerLocked) {
+    theta -= e.movementX * MOUSE_SENS;
+    phi   += e.movementY * MOUSE_SENS;
+    syncCam();
+    return;
+  }
   currentMouseX = e.clientX; currentMouseY = e.clientY;
   mouse2D.x = (e.clientX / window.innerWidth) * 2 - 1; mouse2D.y = -(e.clientY / window.innerHeight) * 2 + 1;
   if (!isDragging) return;

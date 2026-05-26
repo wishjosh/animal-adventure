@@ -355,6 +355,21 @@
 <body>
   <canvas id="canvas"></canvas>
 
+  <!-- Pointer Lock 진입 오버레이 (데스크탑 전용) -->
+  <div id="pointer-lock-overlay">
+    <div id="plo-card">
+      <div id="plo-title">🎮 마인크래프트 조작 모드</div>
+      <div id="plo-desc">
+        <div>🖱️ <b>마우스</b> — 시점 회전</div>
+        <div>⌨️ <b>WASD</b> — 이동 · <b>Space/Shift</b> — 위/아래</div>
+        <div>🖲️ <b>왼쪽 클릭</b> — 화면 중앙 대상 상호작용</div>
+        <div>⎋ <b>ESC</b> — 마우스 잠금 해제</div>
+      </div>
+      <button id="plo-start">클릭해서 시작</button>
+      <div id="plo-skip">건너뛰고 기존 조작 유지</div>
+    </div>
+  </div>
+
   <!-- 다음 할 일 가이드 카드 (항상 표시, 우측) -->
   <div id="next-action-card" class="hidden" onclick="NextActionGuide.onCardClick(event)" title="클릭하면 펼칩니다">
     <div class="nac-header">
