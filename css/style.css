@@ -295,3 +295,20 @@ body { overflow:hidden; background:#87CEEB; font-family:'Malgun Gothic','Apple S
   cursor: pointer; text-decoration: underline;
 }
 #plo-skip:hover { color: rgba(255,255,255,0.8); }
+
+/* ── 1인칭 크로스헤어 (Phase 2) ── */
+#crosshair {
+  position: fixed; top: 50%; left: 50%;
+  width: 18px; height: 18px;
+  transform: translate(-50%, -50%);
+  pointer-events: none; z-index: 15;
+  display: none;
+}
+#crosshair.visible { display: block; }
+#crosshair span {
+  position: absolute; background: rgba(255,255,255,0.85);
+  box-shadow: 0 0 2px rgba(0,0,0,0.8);
+  mix-blend-mode: difference;
+}
+#crosshair span:nth-child(1) { left: 50%; top: 0; width: 2px; height: 100%; transform: translateX(-50%); }
+#crosshair span:nth-child(2) { top: 50%; left: 0; height: 2px; width: 100%; transform: translateY(-50%); }

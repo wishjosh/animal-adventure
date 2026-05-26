@@ -87,6 +87,8 @@ function isFenced(x, z) {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const orbitTarget = new THREE.Vector3(CHUNK, 38, CHUNK);
 let theta = 0.7, phi = 0.85, radius = 36;
+let cameraMode = 'orbit'; // 'orbit' | 'first-person' — Phase 2 도입
+const EYE_HEIGHT = 1.6;   // 1인칭에서 플레이어 위치(orbitTarget) 위 카메라 높이
 
 const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false, ' ': false, Shift: false };
 window.addEventListener('keydown', e => { if (keys.hasOwnProperty(e.key)) keys[e.key] = true; if (e.key === ' ') keys[' '] = true; });
@@ -94,9 +96,20 @@ window.addEventListener('keyup', e => { if (keys.hasOwnProperty(e.key)) keys[e.k
 
 function syncCam() {
   phi = Math.max(0.05, Math.min(Math.PI * 0.95, phi));
-  radius = Math.max(8, Math.min(140, radius));
-  camera.position.set(orbitTarget.x + radius * Math.sin(phi) * Math.sin(theta), orbitTarget.y + radius * Math.cos(phi), orbitTarget.z + radius * Math.sin(phi) * Math.cos(theta));
-  camera.lookAt(orbitTarget);
+  if (cameraMode === 'first-person') {
+    // 1인칭: 카메라 = 플레이어 위치(orbitTarget) + 눈높이, theta=yaw, phi=pitch
+    camera.position.set(orbitTarget.x, orbitTarget.y + EYE_HEIGHT, orbitTarget.z);
+    // 시선 방향 = orbit 모드의 lookAt 방향과 동일 (orbitTarget으로 향하던 방향)
+    const lx = -Math.sin(phi) * Math.sin(theta);
+    const ly = -Math.cos(phi);
+    const lz = -Math.sin(phi) * Math.cos(theta);
+    camera.lookAt(camera.position.x + lx, camera.position.y + ly, camera.position.z + lz);
+  } else {
+    // 기존 orbit
+    radius = Math.max(8, Math.min(140, radius));
+    camera.position.set(orbitTarget.x + radius * Math.sin(phi) * Math.sin(theta), orbitTarget.y + radius * Math.cos(phi), orbitTarget.z + radius * Math.sin(phi) * Math.cos(theta));
+    camera.lookAt(orbitTarget);
+  }
 }
 syncCam();
 
@@ -137,12 +150,40 @@ document.addEventListener('pointerlockchange', () => {
 
 const ploStart = document.getElementById('plo-start');
 const ploSkip = document.getElementById('plo-skip');
+const crosshairEl = document.getElementById('crosshair');
+
+function enterFirstPerson() {
+  if (cameraMode !== 'first-person') {
+    // 처음 진입: pitch를 거의 수평으로 보정해서 어색한 내려다보기 방지
+    phi = Math.PI / 2 - 0.1;
+    cameraMode = 'first-person';
+    camera.fov = 72;
+    camera.updateProjectionMatrix();
+    if (crosshairEl) crosshairEl.classList.add('visible');
+    syncCam();
+    invalidateRayCache();
+  }
+}
+
+function exitFirstPerson() {
+  if (cameraMode === 'first-person') {
+    cameraMode = 'orbit';
+    camera.fov = 62;
+    camera.updateProjectionMatrix();
+    if (crosshairEl) crosshairEl.classList.remove('visible');
+    syncCam();
+    invalidateRayCache();
+  }
+}
+
 if (ploStart) ploStart.addEventListener('click', () => {
   ploEl.classList.add('hidden');
+  enterFirstPerson();
   canvas.requestPointerLock();
 });
 if (ploSkip) ploSkip.addEventListener('click', () => {
   pointerLockSkipped = true;
+  exitFirstPerson();
   ploEl.classList.add('hidden');
 });
 
@@ -576,10 +617,15 @@ function animate() {
 
   let camMoved = false;
   const spd = 0.4;
-  const fwd = new THREE.Vector3(orbitTarget.x - camera.position.x, 0, orbitTarget.z - camera.position.z).normalize();
-  const rgt = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
-  if (keys.w || keys.ArrowUp) { orbitTarget.addScaledVector(fwd, spd); camMoved = true; }
-  if (keys.s || keys.ArrowDown) { orbitTarget.addScaledVector(fwd, -spd); camMoved = true; }
+  // 카메라 정면 방향(수평 성분만) — orbit/first-person 양 모드 호환
+  const _camFwd = new THREE.Vector3();
+  camera.getWorldDirection(_camFwd);
+  _camFwd.y = 0;
+  if (_camFwd.lengthSq() < 1e-6) _camFwd.set(0, 0, -1);
+  _camFwd.normalize();
+  const rgt = new THREE.Vector3().crossVectors(_camFwd, new THREE.Vector3(0, 1, 0)).normalize();
+  if (keys.w || keys.ArrowUp) { orbitTarget.addScaledVector(_camFwd, spd); camMoved = true; }
+  if (keys.s || keys.ArrowDown) { orbitTarget.addScaledVector(_camFwd, -spd); camMoved = true; }
   if (keys.a || keys.ArrowLeft) { orbitTarget.addScaledVector(rgt, -spd); camMoved = true; }
   if (keys.d || keys.ArrowRight) { orbitTarget.addScaledVector(rgt, spd); camMoved = true; }
   if (keys[' '] || camMoveDir === 1) { orbitTarget.y += spd; camMoved = true; }
@@ -587,8 +633,11 @@ function animate() {
   if (camMoved) syncCam();
 
   const wL = typeof BiomeSystem !== 'undefined' ? BiomeSystem.getDominantBiome(orbitTarget.x, orbitTarget.z).waterLevel : 30;
+  // 1인칭에서는 안개 거리를 넓혀 답답함 완화
+  const _fogNear = (cameraMode === 'first-person') ? 50 : 35;
+  const _fogFar  = (cameraMode === 'first-person') ? 85 : 65;
   if (camera.position.y < wL) { scene.fog.color.setHex(0x021b3a); scene.fog.near = 2; scene.fog.far = 12; renderer.setClearColor(0x021b3a); }
-  else { scene.fog.color.setHex(0x87CEEB); scene.fog.near = 35; scene.fog.far = 65; renderer.setClearColor(0x87CEEB); }
+  else { scene.fog.color.setHex(0x87CEEB); scene.fog.near = _fogNear; scene.fog.far = _fogFar; renderer.setClearColor(0x87CEEB); }
 
   waterVolume.position.y = wL + Math.sin(t * 1.5) * 0.04;
   waterDeep.position.y = wL - 0.5 + Math.sin(t * 1.5) * 0.02;
@@ -620,11 +669,9 @@ function animate() {
 
   // ── 방위 나침반 업데이트 ────────────────────────
   // 좌표계: +X=동(E), -X=서(W), -Z=북(N), +Z=남(S)
-  // 카메라가 바라보는 방향의 방위각 계산
-  //   atan2(dx, -dz) → 0°=북, 90°=동, 180°=남, -90°=서
-  const _camDx = orbitTarget.x - camera.position.x;
-  const _camDz = orbitTarget.z - camera.position.z;
-  const _azimuth = Math.atan2(_camDx, -_camDz) * (180 / Math.PI);
+  // camera.getWorldDirection을 사용해 orbit/first-person 양 모드 호환
+  //   atan2(dirX, -dirZ) → 0°=북, 90°=동, 180°=남, -90°=서
+  const _azimuth = Math.atan2(_camFwd.x, -_camFwd.z) * (180 / Math.PI);
   const _rose = document.getElementById('compass-rose');
   if (_rose) _rose.style.transform = `rotate(${(-_azimuth).toFixed(1)}deg)`;
 
