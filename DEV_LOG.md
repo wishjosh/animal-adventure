@@ -1772,4 +1772,203 @@ document.addEventListener('level5Cleared', () => {
 | `js/ui.js` | `level5Cleared` 이벤트 리스너 → `startLevel6()` 연결 |
 | `index.html` | `#protector-bar`에 raccoon·kestrel·bear 슬롯 3개 추가 (9마리 → 12마리) |
 
+---
+
+## 📅 2026-05-27 (레벨 3 버그 수정 3종 + 레벨 4 전면 수정 + 레벨 5/6 NextActionGuide 완성)
+
+> **작업 배경**
+> 레벨 3 플레이 테스트에서 들개 미스폰·들개 울타리 통과·관목 아이템 미존재 세 가지 버그가 발견되었습니다. 이어서 레벨 4의 다음 할 일 팝업 미표시, 쏘가리 미가시, 나침반 미작동 세 가지 문제를 수정했습니다. 마지막으로 레벨 5·6의 NextActionGuide가 전혀 없음을 확인하고 전체 구현했습니다.
+
+---
+
+### 1. 레벨 3 들개 미스폰 수정 — 청크 활성화 범위 (`js/Level3Logic.js`)
+
+**[증상]**
+* 레벨 3 시작 시 들개 무리와 붉은여우가 맵에 나타나지 않음.
+
+**[원인]**
+* `Level3Manager.init()`에서 청크 범위를 `cx = -7 ~ -3`으로 활성화했는데, 실제 들개 스폰 좌표(X=-68~-73)는 청크 `cx=-9,-10`, 여우(X=-84)는 `cx=-11`에 해당하여 모두 미로드 상태였음.
+
+**[수정 내용]**
+```javascript
+// 수정 전: cx = -7 to -3 (들개·여우 좌표 청크 누락)
+// 수정 후:
+for (let cx = -11; cx <= -8; cx++) {
+  for (let cz = -3; cz <= 2; cz++) {
+    activateChunk(cx, cz);
+  }
+}
+```
+
+---
+
+### 2. 레벨 3 관목(bush) 아이템 추가 (`js/data.js`, `js/world.js`, `js/Level3Logic.js`)
+
+**[배경]**
+* 들개 격리 수단으로 울타리(fence) 외에 관목(bush)을 사용할 수 있도록 기획되어 있었으나 아이템이 미구현 상태였음.
+
+**[작업 내용]**
+* **`js/data.js`:** `ITEM_DB`에 `bush` 항목 추가 (`category:'material'`, `type:'block'`, `icon:'🌿'`, `color:'#2d7a2d'`).
+* **`js/world.js` `buildMesh()`:** bush 블록 3D 메시 추가 — 몸체(`BoxGeometry 0.9×0.7×0.9`) + 상단 뭉치(`BoxGeometry 0.6×0.5×0.6`, 짙은 녹색) 2개 레이어 구조로 관목 외형 표현.
+* **`js/Level3Logic.js`:** 레벨 3 핫바 초기화에 `'bush'` 아이템 추가 (`hotbar = [null, 'pickaxe', 'shovel', 'heal', 'lure', 'fence', 'bush', null, null]`).
+
+---
+
+### 3. 레벨 3 울타리 모서리(fence_c0) 추가 (`js/world.js`)
+
+**[배경]**
+* 수직·수평 울타리가 직각으로 만나는 코너에 시각적 공백이 생겨 격리 구조물이 어색하게 보였음.
+
+**[작업 내용]**
+* **`js/data.js`:** `fence_c0` 항목 추가 (fence와 동일한 나무색 `0xa0522d`).
+* **`js/world.js` `buildMesh()`:** `fence_c*` 처리를 기존 `fence_` 처리보다 **앞에** 삽입.
+  * 이유: 기존 코드가 `fence_N`의 방향 문자를 `parseInt()`로 파싱하므로, `fence_c0`이 먼저 매칭되지 않으면 `parseInt('c0') = NaN` 오류 발생.
+  * 구현: N-S 패널(`BoxGeometry 1×1×0.2`)과 E-W 패널(`BoxGeometry 0.2×1×1`)을 `THREE.Group`으로 조합한 십자형 메시.
+* **`js/world.js` `_refreshFenceCorner(x, y, z)`:** 신규 함수 — 해당 좌표에 수직·수평 두 방향으로 인접한 울타리가 모두 있으면 `fence_c0`으로 타입 변경 후 씬 메시 교체.
+* **`js/world.js` `placeBlock()`:** fence 설치 후 인접 6칸에 `_refreshFenceCorner()` 호출하여 실시간 코너 갱신.
+
+---
+
+### 4. 레벨 3 들개 울타리 통과 버그 수정 — `getTopY` 오프셋 오류 (`js/world.js`)
+
+**[증상]**
+* 들개 주변을 울타리/관목으로 완전히 둘러싸도 BFS 격리 판정이 절대 성공하지 않고, 들개가 울타리를 무시하고 자유롭게 이동함.
+
+**[원인 분석]**
+* `updateWildDog()`에서 이동 예정 좌표의 지형을 확인할 때 `getTopY(nx, nz)`를 그대로 사용했음.
+* `getTopY(x, z)`는 "가장 높은 블록 위 첫 번째 **빈** 슬롯"을 반환 — 즉, 울타리가 y=34에 있으면 `getTopY = 35`를 반환함.
+* y=35의 `gridData`는 항상 `undefined`(공기)이므로 `isBlocked`가 항상 `false` → 들개가 울타리를 통과.
+* BFS 격리 체크(`checkWildDogIsolation`)는 올바르게 `getTopY-1`을 사용했으나, 들개가 이미 탈출한 상태에서 BFS를 시작하므로 격리 판정 불가.
+
+**[수정 내용]** (`js/world.js` `updateWildDog()`)
+```javascript
+// 수정 전 (버그):
+const curTopY = getTopY(Math.round(nx), Math.round(nz));
+const block = gridData[bk(Math.round(nx), curTopY, Math.round(nz))];
+const isBlocked = isSolid(block) || (block && (block.startsWith('fence') || block.startsWith('bush')));
+
+// 수정 후 (정상):
+const topBlockY = getTopY(Math.round(nx), Math.round(nz)) - 1; // 실제 최상단 블록 y
+const block = gridData[bk(Math.round(nx), topBlockY, Math.round(nz))];
+const isBlocked = block && (block.startsWith('fence') || block.startsWith('bush'));
+```
+
+---
+
+### 5. 레벨 4 NextActionGuide 팝업 추가 (`js/ui.js`)
+
+**[배경]**
+* 레벨 4 진행 중 다음 할 일 가이드 카드가 항상 숨겨져 있었음. `getCurrentStepId()`에 `currentLevel === 4` 분기가 없었고, 대응하는 step 정의도 전무했음.
+
+**[작업 내용]**
+* **`NextActionGuide.steps`에 3개 step 추가:**
+  * `L4_soya` — 쏘가리 구출: 강바닥 쓰레기 댐 3개 파괴 안내
+  * `L4_main` — 강 복원 (오염저감장치·시멘트보·버드나무): 연어·두루미 영입 조건 진행도 표시
+  * `L4_flood` — 100년 홍수 비상 대응: 남은 시간 표시
+* **`getCurrentStepId()` Level 4 분기 추가:**
+  ```javascript
+  if (currentLevel === 4) {
+    if (!level4_conditions.soyaRescued) return 'L4_soya';
+    if (level4_phase === 3) return 'L4_flood';
+    if (!global_protectors.salmon || !global_protectors.crane) return 'L4_main';
+    return null;
+  }
+  ```
+
+---
+
+### 6. 레벨 4 쏘가리 미가시 수정 (`js/world.js`)
+
+**[증상]**
+* 레벨 4 시작 후 쏘가리(mandarin_fish)가 물 위 또는 지형 위에 스폰되어 보이지 않거나 튀어나옴.
+
+**[원인]**
+* `spawnLevel4Animals()`가 `getH(42, 20) - 0.3`으로 Y를 계산하는데, 해당 좌표의 지형 높이가 수면(y=30) 이상일 수 있어 물 밖에 스폰됨.
+
+**[수정 내용]**
+```javascript
+// 수정 전: getH(42, 20) - 0.3  →  지형 따라 물 밖 가능
+// 수정 후: 항상 수중 위치 고정
+placeAnimal(42, 29.5, 20, 'mandarin_fish');
+```
+
+---
+
+### 7. 레벨 4 나침반 화살표 미작동 수정 (`js/Level4Logic.js`, `js/main.js`)
+
+**[증상]**
+* 레벨 4에서 목적지 안내 나침반 화살표가 정지되거나 항상 같은 방향을 가리킴.
+
+**[원인]**
+* `Level4Manager`에 `updateArrows(t)` / `updateNavCompass()` 메서드가 미구현.
+* `main.js` `animate()` 루프에서 레벨 4에 대한 화살표 업데이트 호출 없음.
+
+**[수정 내용]**
+* **`js/Level4Logic.js`:** `Level4Manager.updateArrows(t)` 및 `updateNavCompass()` 추가.
+  * Phase 1 (soyaRescued=false): 쏘가리 위치 (42, 20) 방향 안내
+  * Phase 2+: 강의 근원지 바이옴 (0, 80) 방향 안내
+* **`js/main.js` `animate()` 루프:**
+  ```javascript
+  if (currentLevel === 4 && typeof Level4Manager !== 'undefined' && Level4Manager.updateArrows) {
+    Level4Manager.updateArrows(t);
+  }
+  ```
+
+---
+
+### 8. 레벨 5/6 NextActionGuide 전체 구현 (`js/ui.js`)
+
+**[배경]**
+* 레벨 1~4는 `NextActionGuide.steps`와 `getCurrentStepId()` 분기가 완비되어 있으나, 레벨 5·6은 단계 정의와 분기 자체가 없어 가이드 카드가 항상 숨겨졌음.
+
+**[레벨 5 — 4개 step 추가]**
+
+| step ID | 표시 조건 | 내용 |
+|---|---|---|
+| `L5_raccoon` | `raccoonRescued = false` | 삽/곡괭이로 city_trash 전부 제거 → 너구리 구출 |
+| `L5_officer` | `officerConvinced = false` | 공무원 박 주임 클릭 → 선택지 1번 설득 |
+| `L5_build` | 3개 시설 미완성 | 생태 육교·동물 터널·비오톱 건설 진행도 표시 |
+| `L5_audit` | `phase === 3` | 심사 보스전 현재 점수 표시 (80점 이상 목표) |
+
+**[레벨 6 — 3개 step 추가]**
+
+| step ID | 표시 조건 | 내용 |
+|---|---|---|
+| `L6_dispatch` | `dispatchedCount < 5` | 홀로그램 세계 지도에서 5구역 수호대 파견 |
+| `L6_bear` | `bearAcornFedCount < 3` | 반달곰 웅이 근처에 도토리 배치 × 3회 |
+| `L6_heart` | `!globalStabilized` | 자동 진행 대기 — 충전 % 표시 |
+
+**[`getCurrentStepId()` 분기 추가]**
+```javascript
+// 레벨 5
+if (currentLevel === 5) {
+  if (!level5_conditions.raccoonRescued) return 'L5_raccoon';
+  if (!level5_conditions.officerConvinced) return 'L5_officer';
+  if (Level5Manager.currentPhase === 3) return 'L5_audit';
+  if (!level5_conditions.viaductConnected || !level5_conditions.tunnelBuilt ||
+      !global_protectors.kestrel) return 'L5_build';
+  return null;
+}
+// 레벨 6
+if (currentLevel === 6) {
+  if (level6_conditions.dispatchedCount < 5) return 'L6_dispatch';
+  if (level6_conditions.bearAcornFedCount < 3) return 'L6_bear';
+  if (!level6_conditions.globalStabilized) return 'L6_heart';
+  return null;
+}
+```
+
+---
+
+### 9. 수정 범위 요약
+
+| 파일 | 주요 변경 내용 |
+|---|---|
+| `js/Level3Logic.js` | 청크 활성화 범위 `cx=-7~-3` → `cx=-11~-8` 수정, 핫바에 bush 추가 |
+| `js/data.js` | `bush`, `fence_c0` 아이템 정의 추가 |
+| `js/world.js` | bush 3D 메시, fence_c0 십자형 메시, `_refreshFenceCorner()`, `placeBlock()` 코너 자동 갱신, `updateWildDog()` `getTopY-1` 버그 수정, `spawnLevel4Animals()` 쏘가리 y=29.5 고정 |
+| `js/Level4Logic.js` | `updateArrows(t)`, `updateNavCompass()` 추가 |
+| `js/main.js` | `animate()` 루프에 Level4 화살표 업데이트 호출 추가 |
+| `js/ui.js` | L4_soya/main/flood, L5_raccoon/officer/build/audit, L6_dispatch/bear/heart step 정의 추가; `getCurrentStepId()` Level 4/5/6 분기 추가 |
+
 
