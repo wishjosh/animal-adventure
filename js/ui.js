@@ -1299,6 +1299,50 @@ const NextActionGuide = {
         '돌(8번)이나 흙으로 3×3 천장을 완전히 막으면 자동 합류'
       ],
       progress: () => (typeof global_protectors !== 'undefined' && global_protectors.bat) ? '완료' : '대기'
+    },
+
+    // ── 레벨 3: 연결의 평원 ───────────────────────
+    L3_deer: {
+      title: '🦌 다친 노루 초롱이 구조',
+      how: [
+        '맨손(1번)으로 노루(🦌) 클릭 → 안아 올리기',
+        '파란 마커(🍀) 풀밭 안전지대에 내려놓기',
+        '구급상자(🩹) 핫바에 장착 후 노루 클릭 → 치료'
+      ],
+      progress: () => (typeof level3_conditions !== 'undefined' && level3_conditions.deerRescued) ? '완료' : '진행 중'
+    },
+    L3_dog: {
+      title: '🐕 들개 무리 격리하기',
+      how: [
+        '관목(bush) 또는 울타리(fence) 블록으로 들개 무리 주변을 막기',
+        '최소 4칸, 폐곡선 형성 (노루·여우는 밖에 있어야 함)'
+      ],
+      progress: () => (typeof level3_conditions !== 'undefined' && level3_conditions.wildDogIsolated) ? '완료' : '대기'
+    },
+    L3_fox: {
+      title: '🦊 붉은여우 영입 — 먹이 3회 제공',
+      how: [
+        '들개 격리 완료 후 활성화',
+        '먹이(🌾 lure) 핫바 장착 후 여우(🦊) 클릭 × 3회'
+      ],
+      progress: () => {
+        if (typeof global_protectors !== 'undefined' && global_protectors.fox) return '완료';
+        const cnt = (typeof level3_conditions !== 'undefined') ? level3_conditions.foxFedCount : 0;
+        return `${cnt} / 3`;
+      }
+    },
+    L3_eagle: {
+      title: '🦅 독수리 영입 — 사체 블록 3개 제거',
+      how: [
+        '삽(🪏 4번) 장착 후 평원의 사체 블록(⛏️ 화살표) 3개 파내기',
+        '모두 치우면 독수리가 자동 합류'
+      ],
+      progress: () => {
+        if (typeof global_protectors !== 'undefined' && global_protectors.eagle) return '완료';
+        if (typeof level3_conditions === 'undefined' || !level3_conditions.carcassCells) return '대기';
+        const done = level3_conditions.carcassCells.filter(({x,y,z}) => deletedBlocks.has(bk(x,y,z))).length;
+        return `${done} / 3`;
+      }
     }
   },
 
@@ -1341,6 +1385,18 @@ const NextActionGuide = {
       if (typeof global_protectors !== 'undefined') {
         if (!global_protectors.otter) return 'L2_otter';
         if (!global_protectors.bat) return 'L2_bat';
+      }
+      return null;
+    }
+
+    // ── 레벨 3 (노루 구조 → 들개 격리 → 여우 영입 → 독수리 영입) ──
+    if (currentLevel === 3) {
+      if (typeof level3_conditions === 'undefined') return null;
+      if (!level3_conditions.deerRescued) return 'L3_deer';
+      if (!level3_conditions.wildDogIsolated) return 'L3_dog';
+      if (typeof global_protectors !== 'undefined') {
+        if (!global_protectors.fox) return 'L3_fox';
+        if (!global_protectors.eagle) return 'L3_eagle';
       }
       return null;
     }

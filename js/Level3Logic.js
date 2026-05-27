@@ -40,8 +40,12 @@ const Level3Logic = {
                     const dx = Math.abs(deerEntry.x - Level3Manager.DEER_TARGET.x);
                     const dz = Math.abs(deerEntry.z - Level3Manager.DEER_TARGET.z);
                     if (dx > 4 || dz > 4) {
-                        this.alert('노루를 먼저 ⬇️ 파란 마커가 표시된 풀밭 안전지대로 옮겨주세요!');
-                        return true;
+                        // heal 아이템으로 클릭했을 때만 경고; 맨손이면 픽업 허용
+                        if (activeItem === 'heal') {
+                            this.alert('노루를 먼저 ⬇️ 파란 마커가 표시된 풀밭 안전지대로 옮겨주세요!');
+                            return true;
+                        }
+                        return false;
                     }
 
                     if (activeItem === 'heal') {
