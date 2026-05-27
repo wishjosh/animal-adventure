@@ -846,6 +846,15 @@ const LEVEL2_COLORS = { bullfrog: 0xFF2222, toad: 0xFF00FF, otter: 0x0044FF, bat
 // 영입 전 안기 불가 수호대 동물 (미션상 carry가 필요한 sheep은 제외)
 const NO_CARRY_BEFORE_RECRUIT = new Set(['bee', 'swallow', 'otter', 'bat', 'fox', 'eagle', 'crane', 'salmon', 'raccoon', 'kestrel', 'bear']);
 
+// 동물 타입 → 한글 이름 (픽업 토스트 등에서 사용)
+const ANIMAL_LABELS = {
+  sheep: '양', bee: '꿀벌', swallow: '제비', otter: '수달', bat: '박쥐',
+  fox: '여우', eagle: '독수리', crane: '두루미', salmon: '연어',
+  raccoon: '너구리', kestrel: '황조롱이', bear: '반달곰',
+  toad: '두꺼비', bullfrog: '황소개구리', salamander: '도롱뇽',
+  deer: '노루', dog: '들개'
+};
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  디버그 헬퍼 — 프로덕션에서 console.log 비용 제거
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

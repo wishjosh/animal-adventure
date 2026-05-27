@@ -411,7 +411,7 @@ function handleClick(clientX, clientY) {
       const a = animalData.find(a => a.group === obj.userData.agr); 
       if (a) {
         pickUpAnimal(a);
-        const animalName = ITEM_DB[a.type]?.label || '동물';
+        const animalName = GUARDIAN_DATA[a.type]?.name || ANIMAL_LABELS[a.type] || '동물';
         toast(`🐾 ${animalName}을/를 안아 올렸습니다!`);
       }
       return; 
