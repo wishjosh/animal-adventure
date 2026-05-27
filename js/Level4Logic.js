@@ -873,6 +873,57 @@ const Level4Manager = {
         }
     },
 
+    updateArrows(t) {
+        this.updateNavCompass();
+    },
+
+    updateNavCompass() {
+        const compass = document.getElementById('nav-compass');
+        const arrowEl  = document.getElementById('nav-arrow');
+        const distEl   = document.getElementById('nav-dist');
+        const hintEl   = document.getElementById('nav-hint');
+        if (!compass || !arrowEl) return;
+
+        // 현재 단계에 따라 목표 좌표 설정
+        let TX, TZ, hintText;
+        if (level4_phase === 1 || !level4_conditions.soyaRescued) {
+            TX = 42; TZ = 20;  // 쏘가리 위치
+            hintText = '쏘가리 쏘야<br>방향으로!';
+        } else {
+            TX = 0; TZ = 80;   // river_source 바이옴 중심
+            hintText = '강의 근원지<br>탐험하세요!';
+        }
+
+        const ox = orbitTarget.x, oz = orbitTarget.z;
+        const dx = TX - ox, dz = TZ - oz;
+        const dist = Math.hypot(dx, dz);
+
+        if (dist < 30) {
+            compass.classList.add('nc-nearby');
+            arrowEl.textContent = '✅';
+            if (distEl) distEl.textContent = '목표 도착!';
+            if (hintEl) hintEl.innerHTML = hintText;
+            arrowEl.style.transform = 'rotate(0deg)';
+            return;
+        }
+
+        compass.classList.remove('nc-nearby');
+        if (distEl) distEl.textContent = `약 ${Math.round(dist)}칸`;
+        if (hintEl) hintEl.innerHTML = hintText;
+
+        const camFwd = new THREE.Vector3(ox - camera.position.x, 0, oz - camera.position.z).normalize();
+        const camRgt = new THREE.Vector3().crossVectors(camFwd, new THREE.Vector3(0, 1, 0)).normalize();
+        const wDir   = new THREE.Vector3(dx, 0, dz).normalize();
+
+        const screenX = wDir.dot(camRgt);
+        const screenY = wDir.dot(camFwd);
+        const angle = Math.atan2(screenX, screenY) * (180 / Math.PI);
+
+        arrowEl.textContent = '⬆️';
+        arrowEl.style.transform = `rotate(${angle.toFixed(1)}deg)`;
+        compass.style.display = 'flex';
+    },
+
     advance() {
         DBG('[Level4Manager] advance() 호출');
     }

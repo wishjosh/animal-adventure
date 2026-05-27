@@ -1354,6 +1354,41 @@ const NextActionGuide = {
         const done = level3_conditions.carcassCells.filter(({x,y,z}) => deletedBlocks.has(bk(x,y,z))).length;
         return `${done} / 3`;
       }
+    },
+
+    // ── 레벨 4: 강의 근원지 ───────────────────────
+    L4_soya: {
+      title: '🐠 쏘가리 쏘야 구출',
+      how: [
+        '① 삽(🪏) 또는 곡괭이(⛏️)를 핫바에서 장착하세요',
+        '② 강바닥 쓰레기 댐 블록 3개를 클릭해 파괴하세요',
+        '③ 모두 제거하면 쏘야가 자유롭게 탈출합니다!'
+      ],
+      progress: () => (typeof level4_conditions !== 'undefined' && level4_conditions.soyaRescued) ? '완료' : '진행 중'
+    },
+    L4_main: {
+      title: '💧 강 복원 — 연어·두루미 영입',
+      how: [
+        '① 펜션 주인 박씨 클릭 → 설득 후 오염 저감 장치(⚙️) 설치',
+        '② 곡괭이로 강바닥 시멘트 보(🧱) 3개 제거',
+        '③ 산비탈(Z > 20 방향)에 버드나무(🌳) 8그루 이상 심기'
+      ],
+      progress: () => {
+        if (typeof level4_conditions === 'undefined') return '';
+        const p = level4_conditions.pollutionDeviceInstalled ? '✅' : '❌';
+        const d = Math.min(level4_conditions.cementDamRemovedCount || 0, 3);
+        const w = Math.min(level4_conditions.willowPlantedCount || 0, 8);
+        return `오염저감:${p} / 보:${d}/3 / 나무:${w}/8`;
+      }
+    },
+    L4_flood: {
+      title: '🌊 100년 홍수 비상 대응',
+      how: [
+        '① 두루미 스킬로 폭우 예보 확인',
+        '② 수달 스킬로 약한 둑 위치 파악',
+        '③ 흙·돌 블록으로 약한 둑 즉시 보강!'
+      ],
+      progress: () => (typeof level4_conditions !== 'undefined') ? `남은 시간: ${level4_conditions.floodTimer}초` : ''
     }
   },
 
@@ -1409,6 +1444,15 @@ const NextActionGuide = {
         if (!global_protectors.fox) return 'L3_fox';
         if (!global_protectors.eagle) return 'L3_eagle';
       }
+      return null;
+    }
+
+    // ── 레벨 4 (쏘가리 구출 → 강 복원 → 홍수 대응) ──
+    if (currentLevel === 4) {
+      if (typeof level4_conditions === 'undefined') return null;
+      if (!level4_conditions.soyaRescued) return 'L4_soya';
+      if (typeof level4_phase !== 'undefined' && level4_phase === 3) return 'L4_flood';
+      if (typeof global_protectors !== 'undefined' && (!global_protectors.salmon || !global_protectors.crane)) return 'L4_main';
       return null;
     }
 

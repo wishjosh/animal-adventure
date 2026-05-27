@@ -547,7 +547,10 @@ function animate() {
   if (currentLevel === 3 && typeof Level3Manager !== 'undefined' && Level3Manager.updateArrows) {
     Level3Manager.updateArrows(t);
   }
-  // 레벨 4 비 파티클 애니메이션
+  // 레벨 4 나침반 화살표 + 비 파티클 애니메이션
+  if (currentLevel === 4 && typeof Level4Manager !== 'undefined' && Level4Manager.updateArrows) {
+    Level4Manager.updateArrows(t);
+  }
   if (currentLevel === 4 && typeof Level4Logic !== 'undefined') {
     Level4Logic.updateRainParticles();
   }

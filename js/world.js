@@ -1622,9 +1622,9 @@ function spawnLevel4Animals() {
     }
   }
 
-  // 1. 쏘가리 쏘야 (mandarin_fish) — X=42, Z=20
-  const syY = getH(42, 20) - 0.3; // 갇힌 연출을 위해 물속 아래로
-  placeAnimal(42, syY, 20, 'mandarin_fish');
+  // 1. 쏘가리 쏘야 (mandarin_fish) — X=42, Z=20, y=29.5 수면 아래 고정
+  // getH()가 지형에 따라 30 이상을 반환할 수 있으므로 y를 직접 지정
+  placeAnimal(42, 29.5, 20, 'mandarin_fish');
   const soya = animalData.find(a => a.type === 'mandarin_fish');
   if (soya && soya.group) {
     soya.group.scale.set(0.6, 0.6, 0.6); // 처음엔 힘없이 작아져 있는 상태
