@@ -92,6 +92,17 @@ function _buildHotbarSlot(i) {
       else if (s.toxicRemoved && !s.tomatoFruited && (itemId === 'seed_tomato' || itemId === 'seed_basil' || itemId === 'watering_can')) slot.classList.add('slot-glowing');
       else if (s.tomatoFruited && !s.wormDone && itemId === 'fallen_leaf') slot.classList.add('slot-glowing');
     }
+    // 레벨 3: 노루가 목표 위치에 있고 아직 치료 전이면 구급상자 반짝임
+    if (typeof currentLevel !== 'undefined' && currentLevel === 3 && itemId === 'heal'
+        && typeof level3_conditions !== 'undefined' && !level3_conditions.deerRescued
+        && typeof Level3Manager !== 'undefined') {
+      const deer = animalData.find(a => a.type === 'deer');
+      if (deer) {
+        const dx = Math.abs(deer.x - Level3Manager.DEER_TARGET.x);
+        const dz = Math.abs(deer.z - Level3Manager.DEER_TARGET.z);
+        if (dx <= 4 && dz <= 4) slot.classList.add('slot-glowing');
+      }
+    }
   } else {
     const ic = document.createElement('div'); ic.className = 'slot-icon'; ic.textContent = '🖐️'; slot.appendChild(ic);
     const ph = QuestManager.getCurrentPhase();

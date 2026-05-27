@@ -555,6 +555,7 @@ const Level3Manager = {
             if (dx <= 4 && dz <= 4) {
                 toast('✅ 노루 초롱이를 안전한 풀밭에 내려놓았습니다! 이제 구급상자를 장착하고 클릭해 주세요.');
                 this.updateUI();
+                if (typeof initInventoryUI === 'function') initInventoryUI();
             }
         }
     },
