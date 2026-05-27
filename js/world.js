@@ -1151,9 +1151,10 @@ function updateWildDog(a, t) {
   const nx = a.x + Math.cos(a.angle) * spd;
   const nz = a.z - Math.sin(a.angle) * spd;
 
-  const curTopY = getTopY(Math.round(nx), Math.round(nz));
-  const block = gridData[bk(Math.round(nx), curTopY, Math.round(nz))];
-  const isBlocked = isSolid(block) || (block && (block.startsWith('fence') || block.startsWith('bush')));
+  // getTopY - 1 = 실제 최상단 블록(울타리/관목)이 있는 y
+  const topBlockY = getTopY(Math.round(nx), Math.round(nz)) - 1;
+  const block = gridData[bk(Math.round(nx), topBlockY, Math.round(nz))];
+  const isBlocked = block && (block.startsWith('fence') || block.startsWith('bush'));
 
   if (!isBlocked) {
     a.x = nx; a.z = nz;
