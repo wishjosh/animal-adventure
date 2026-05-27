@@ -1389,6 +1389,85 @@ const NextActionGuide = {
         '③ 흙·돌 블록으로 약한 둑 즉시 보강!'
       ],
       progress: () => (typeof level4_conditions !== 'undefined') ? `남은 시간: ${level4_conditions.floodTimer}초` : ''
+    },
+
+    // ── 레벨 5: 경계 도시 ───────────────────────
+    L5_raccoon: {
+      title: '🦝 너구리 라쿤이 구출',
+      how: [
+        '① 삽(4번) 또는 곡괭이(2번)를 핫바에서 장착하세요',
+        '② 도심 쓰레기(city_trash) 블록을 모두 클릭해 제거하세요',
+        '③ 쓰레기가 전부 사라지면 너구리가 탈출해요!'
+      ],
+      progress: () => {
+        let trashCount = 0;
+        for (const k in gridData) { if (gridData[k] && gridData[k].startsWith('city_trash')) trashCount++; }
+        return `남은 쓰레기: ${trashCount}개`;
+      }
+    },
+    L5_officer: {
+      title: '🏢 공무원 박 주임 설득',
+      how: [
+        '① 시청 공무원 박 주임 NPC를 클릭하세요',
+        '② 대화창에서 선택지 1번 [친환경 통합 대안 제시]를 고르세요',
+        '③ 성공하면 생태 육교·터널·비오톱 아이템이 지급됩니다'
+      ],
+      progress: () => (typeof level5_conditions !== 'undefined' && level5_conditions.officerConvinced) ? '완료' : '대기 중'
+    },
+    L5_build: {
+      title: '🌉 생태 시설 3종 건설',
+      how: [
+        '🌉 생태 육교(viaduct): Z=73~79 도로 위를 가로질러 연결 (폭 2칸↑)',
+        '🚇 동물 터널(wildlife_tunnel): 도로 아래에 2개 이상 배치',
+        '🌿 비오톱(biotope): 빌딩 옥상(X=-40, Z=80, y≥39)에 4칸 이상 설치'
+      ],
+      progress: () => {
+        if (typeof level5_conditions === 'undefined') return '';
+        const v = level5_conditions.viaductConnected ? '✅' : '⏳';
+        const t = level5_conditions.tunnelBuilt ? '✅' : '⏳';
+        const kestrel = typeof global_protectors !== 'undefined' && global_protectors.kestrel;
+        const b = kestrel ? '✅' : `⏳(${level5_conditions.biotopePlacedCount || 0}/4)`;
+        return `육교:${v} / 터널:${t} / 비오톱:${b}`;
+      }
+    },
+    L5_audit: {
+      title: '📋 생태통로 심사 (80점 이상)',
+      how: [
+        '🌧️ 우천 배수력: 동물 터널 2개 = 100%',
+        '🐾 야간 동물통행: 생태 육교 완성 = 100%',
+        '👨‍👩‍👧 시민 친화도: 옥상 비오톱 4개 = 100%',
+        '30초 내 종합 80점 이상 달성!'
+      ],
+      progress: () => (typeof level5_conditions !== 'undefined') ? `현재 점수: ${level5_conditions.auditScore || 0}점` : '진행 중'
+    },
+
+    // ── 레벨 6: 초록별 심장부 ───────────────────────
+    L6_dispatch: {
+      title: '🗺️ 홀로그램 세계 지도 — 5구역 파견',
+      how: [
+        '① 세계 지도 팝업에서 빨간 신호 구역을 클릭하세요',
+        '② 적합한 수호대가 있으면 [수호대 파견] 버튼을 누르세요',
+        '필요 수호대: 두루미·독수리·연어·수달·양',
+        '5구역 모두 완료하면 다음 단계로 진행됩니다'
+      ],
+      progress: () => (typeof level6_conditions !== 'undefined') ? `${level6_conditions.dispatchedCount} / 5 구역 완료` : '대기'
+    },
+    L6_bear: {
+      title: '🐻 반달곰 웅이와 신뢰 쌓기',
+      how: [
+        '① 핫바에서 도토리(acorn, 6번)를 장착하세요',
+        '② 반달곰 웅이 근처 땅에 도토리를 배치하세요 (2.2칸 이내)',
+        '③ 웅이가 먹을 때마다 신뢰도 +1 — 3번이면 수호대 합류!'
+      ],
+      progress: () => (typeof level6_conditions !== 'undefined') ? `신뢰도: ${level6_conditions.bearAcornFedCount} / 3` : '대기'
+    },
+    L6_heart: {
+      title: '💓 초록별 심장 박동 회복 중...',
+      how: [
+        '12마리 수호대의 심장 주파수가 연동되고 있습니다',
+        '잠시 기다리면 자동으로 완성돼요!'
+      ],
+      progress: () => (typeof level6_conditions !== 'undefined') ? `${level6_conditions.heartBeatScore || 0}% 충전 완료` : '진행 중'
     }
   },
 
@@ -1453,6 +1532,26 @@ const NextActionGuide = {
       if (!level4_conditions.soyaRescued) return 'L4_soya';
       if (typeof level4_phase !== 'undefined' && level4_phase === 3) return 'L4_flood';
       if (typeof global_protectors !== 'undefined' && (!global_protectors.salmon || !global_protectors.crane)) return 'L4_main';
+      return null;
+    }
+
+    // ── 레벨 5 (너구리 구출 → 공무원 설득 → 시설 건설 → 심사) ──
+    if (currentLevel === 5) {
+      if (typeof level5_conditions === 'undefined') return null;
+      if (!level5_conditions.raccoonRescued) return 'L5_raccoon';
+      if (!level5_conditions.officerConvinced) return 'L5_officer';
+      if (typeof Level5Manager !== 'undefined' && Level5Manager.currentPhase === 3) return 'L5_audit';
+      if (!level5_conditions.viaductConnected || !level5_conditions.tunnelBuilt ||
+          (typeof global_protectors !== 'undefined' && !global_protectors.kestrel)) return 'L5_build';
+      return null;
+    }
+
+    // ── 레벨 6 (세계 파견 → 반달곰 신뢰 → 심장박동 회복) ──
+    if (currentLevel === 6) {
+      if (typeof level6_conditions === 'undefined') return null;
+      if (level6_conditions.dispatchedCount < 5) return 'L6_dispatch';
+      if (level6_conditions.bearAcornFedCount < 3) return 'L6_bear';
+      if (!level6_conditions.globalStabilized) return 'L6_heart';
       return null;
     }
 
