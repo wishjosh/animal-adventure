@@ -259,11 +259,29 @@ function activateChunk(cx, cz, isInit = false) {
 
 let lastCenterCx = null;
 let lastCenterCz = null;
+let _lastAutoActivate = 0; // Phase 5: 자동 탐험 throttle
 
 function updateVisibleChunks(orbitTarget) {
   if (!orbitTarget) return;
   const centerCx = Math.floor(orbitTarget.x / CHUNK);
   const centerCz = Math.floor(orbitTarget.z / CHUNK);
+
+  // Phase 5: 자동 탐험 모드 — 청크 변경 무관, 한 프레임당 1개 자동 활성화 (200ms throttle)
+  if (typeof autoExplore !== 'undefined' && autoExplore) {
+    const now = performance.now();
+    if (now - _lastAutoActivate > 200) {
+      outer: for (let dx = -1; dx <= 1; dx++) {
+        for (let dz = -1; dz <= 1; dz++) {
+          const cx = centerCx + dx, cz = centerCz + dz;
+          if (chunkState[ck(cx, cz)] !== 'active') {
+            activateChunk(cx, cz);
+            _lastAutoActivate = now;
+            break outer;
+          }
+        }
+      }
+    }
+  }
 
   if (lastCenterCx === centerCx && lastCenterCz === centerCz) return;
   lastCenterCx = centerCx;

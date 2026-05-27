@@ -91,6 +91,19 @@ let cameraMode = 'orbit'; // 'orbit' | 'first-person' — Phase 2 도입
 let firstPersonChosen = false; // Phase 4: ploStart 한 번이라도 누르면 true → V 키 토글 활성
 const EYE_HEIGHT = 1.6;   // 1인칭에서 플레이어 위치(orbitTarget) 위 카메라 높이
 
+// Phase 5: 자동 탐험 모드 (걸으면 청크 자동 활성화). localStorage 영속.
+let autoExplore = false;
+try { autoExplore = JSON.parse(localStorage.getItem('aa_autoExplore') || 'false'); } catch (e) {}
+function setAutoExplore(on) {
+  autoExplore = !!on;
+  try { localStorage.setItem('aa_autoExplore', JSON.stringify(autoExplore)); } catch (e) {}
+  const btn = document.getElementById('auto-explore-toggle');
+  if (btn) {
+    btn.textContent = `🗺️ 자동 탐험: ${autoExplore ? 'ON' : 'OFF'}`;
+    btn.classList.toggle('on', autoExplore);
+  }
+}
+
 const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false, ' ': false, Shift: false };
 window.addEventListener('keydown', e => {
   if (keys.hasOwnProperty(e.key)) keys[e.key] = true;
@@ -327,6 +340,13 @@ if (ploSkip) ploSkip.addEventListener('click', () => {
   exitFirstPerson();
   ploEl.classList.add('hidden');
 });
+
+// Phase 5: 자동 탐험 토글 버튼 바인딩 + 저장값으로 초기 라벨 동기화
+const _aeBtn = document.getElementById('auto-explore-toggle');
+if (_aeBtn) {
+  setAutoExplore(autoExplore); // 저장값으로 UI 동기화
+  _aeBtn.addEventListener('click', () => setAutoExplore(!autoExplore));
+}
 
 const ptEl = document.getElementById('phase-transition');
 const crEl = document.getElementById('creature-report');
