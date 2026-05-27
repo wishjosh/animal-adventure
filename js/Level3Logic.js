@@ -274,8 +274,13 @@ const Level3Manager = {
 
         DBG('[Level3Manager] 연결의 평원 초기화 시작');
 
-        // 들개 격리 BFS를 위해 청크 사전 로드
-        for (let cx = -7; cx <= -3; cx++) {
+        // 레벨 3 전용 핫바 설정
+        hotbar = [null, 'pickaxe', 'shovel', 'heal', 'lure', 'fence', 'bush', null, null];
+        if (typeof initInventoryUI === 'function') initInventoryUI();
+        if (typeof applyCurrentTool === 'function') applyCurrentTool();
+
+        // 들개(cx≈-9~-10), 여우(cx=-11), 노루(-80→cx=-10) 등 평원 동물 청크 사전 로드
+        for (let cx = -11; cx <= -8; cx++) {
             for (let cz = -3; cz <= 2; cz++) {
                 activateChunk(cx, cz);
             }

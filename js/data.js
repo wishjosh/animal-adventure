@@ -23,6 +23,7 @@ const ITEM_DB = {
   grass:    { category:'material', type:'block', label:'풀',       color:'#4caf50', hex:0x4caf50, solid:true },
   straw:    { category:'material', type:'block', label:'볏짚',     color:'#ddc050', hex:0xddc050, solid:true },
   fence:    { category:'material', type:'block', label:'울타리',   color:'#8d6e3a', hex:0x8d6e3a, solid:true },
+  bush:     { category:'material', type:'block', label:'관목',     color:'#2d7a2d', hex:0x2d7a2d, solid:true, icon:'🌿' },
   stone:    { category:'material', type:'block', label:'돌',       color:'#888888', hex:0x888888, solid:true },
 
   t_low:   { category:'nature', type:'block', label:'얕은 풀밭', color:'#6aaa5a', hex:0x6aaa5a, solid:true },

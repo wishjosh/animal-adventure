@@ -417,6 +417,53 @@ function createEmojiSprite(emoji) {
 function buildMesh(rawType, x, y, z) {
   const def = getBlockData(rawType);
   if (!def) return null;
+
+  // 코너 울타리: 두 패널이 직각으로 교차하는 십자형 메시
+  if (rawType.startsWith('fence_c')) {
+    const mat = new THREE.MeshLambertMaterial({ color: def.hex });
+    const g = new THREE.Group();
+    g.position.set(x, y + 0.5, z);
+    g.userData = { isBlock: true, bx: x, by: y, bz: z };
+    const edgeMat = new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.14 });
+    // N-S 방향 패널
+    const geoA = new THREE.BoxGeometry(1, 1, 0.2);
+    const panelA = new THREE.Mesh(geoA, mat);
+    panelA.castShadow = panelA.receiveShadow = true;
+    panelA.userData = { isBlock: true, bx: x, by: y, bz: z };
+    panelA.add(new THREE.LineSegments(new THREE.EdgesGeometry(geoA), edgeMat.clone()));
+    g.add(panelA);
+    // E-W 방향 패널
+    const geoB = new THREE.BoxGeometry(0.2, 1, 1);
+    const panelB = new THREE.Mesh(geoB, mat.clone());
+    panelB.castShadow = panelB.receiveShadow = true;
+    panelB.userData = { isBlock: true, bx: x, by: y, bz: z };
+    panelB.add(new THREE.LineSegments(new THREE.EdgesGeometry(geoB), edgeMat.clone()));
+    g.add(panelB);
+    return g;
+  }
+
+  // 관목: 녹색 덤불 모양 (짧고 둥근 덩어리)
+  if (rawType === 'bush') {
+    const mat = new THREE.MeshLambertMaterial({ color: def.hex });
+    const g = new THREE.Group();
+    g.position.set(x, y + 0.5, z);
+    g.userData = { isBlock: true, bx: x, by: y, bz: z };
+    const geoMain = new THREE.BoxGeometry(0.9, 0.7, 0.9);
+    const main = new THREE.Mesh(geoMain, mat);
+    main.userData = { isBlock: true, bx: x, by: y, bz: z };
+    main.castShadow = main.receiveShadow = true;
+    main.add(new THREE.LineSegments(new THREE.EdgesGeometry(geoMain), new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.14 })));
+    g.add(main);
+    const geoTop = new THREE.BoxGeometry(0.6, 0.5, 0.6);
+    const darkMat = new THREE.MeshLambertMaterial({ color: 0x1a5c1a });
+    const top = new THREE.Mesh(geoTop, darkMat);
+    top.position.y = 0.5;
+    top.userData = { isBlock: true, bx: x, by: y, bz: z };
+    top.castShadow = true;
+    g.add(top);
+    return g;
+  }
+
   let type = rawType, rot = 0;
   if (rawType.startsWith('fence_')) { type = 'fence'; rot = parseInt(rawType.split('_')[1]); }
   const mat = def.transparent ? new THREE.MeshLambertMaterial({ color: def.hex, transparent: true, opacity: def.opacity }) : new THREE.MeshLambertMaterial({ color: def.hex });
@@ -465,11 +512,42 @@ function _place(x, y, z, type) {
   if (typeof onBlockPlaced === 'function') onBlockPlaced(type, x, y, z);
 }
 
+// 해당 좌표의 울타리를 인접 상황에 맞게 직선/코너로 업데이트
+function _refreshFenceCorner(x, y, z) {
+  const cur = gridData[bk(x, y, z)];
+  if (!cur || !cur.startsWith('fence')) return;
+  const hasN = gridData[bk(x, y, z-1)]?.startsWith('fence');
+  const hasS = gridData[bk(x, y, z+1)]?.startsWith('fence');
+  const hasE = gridData[bk(x+1, y, z)]?.startsWith('fence');
+  const hasW = gridData[bk(x-1, y, z)]?.startsWith('fence');
+  const isCorner = (hasN || hasS) && (hasE || hasW);
+  const newType = isCorner ? 'fence_c0' : cur;
+  if (newType === cur) return;
+  const k = bk(x, y, z);
+  if (meshByKey[k]) { scene.remove(meshByKey[k]); delete meshByKey[k]; }
+  gridData[k] = newType;
+  const mesh = buildMesh(newType, x, y, z);
+  if (mesh) { meshByKey[k] = mesh; scene.add(mesh); }
+}
+
 function placeBlock(x, y, z, type) {
   if (!isActive(x, z)) { toast('⚠️ 희미한 지역을 먼저 탐험해주세요!'); return; }
   let finalType = type;
-  if (type === 'fence') finalType = type + '_' + currentRotation;
-  _place(x, y, z, finalType); QuestManager.check();
+  if (type === 'fence') {
+    const hasN = gridData[bk(x, y, z-1)]?.startsWith('fence');
+    const hasS = gridData[bk(x, y, z+1)]?.startsWith('fence');
+    const hasE = gridData[bk(x+1, y, z)]?.startsWith('fence');
+    const hasW = gridData[bk(x-1, y, z)]?.startsWith('fence');
+    finalType = (hasN || hasS) && (hasE || hasW) ? 'fence_c0' : 'fence_' + currentRotation;
+  }
+  _place(x, y, z, finalType);
+  // 인접 울타리도 코너 여부 재검사
+  if (type === 'fence') {
+    _refreshFenceCorner(x, y-1, z); _refreshFenceCorner(x, y+1, z);
+    _refreshFenceCorner(x-1, y, z); _refreshFenceCorner(x+1, y, z);
+    _refreshFenceCorner(x, y, z-1); _refreshFenceCorner(x, y, z+1);
+  }
+  QuestManager.check();
 }
 
 function removeBlock(x, y, z) {
