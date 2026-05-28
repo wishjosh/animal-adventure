@@ -4,6 +4,7 @@
 
 class Level5Manager {
   static currentPhase = 0; // 0: 시작, 1: 너구리 구출, 2: 생태통로/비오톱/공무원, 3: 심사보스, 4: 클리어
+  static _auditLastTick = null; // 심사 타이머 실시간 delta 추적용 (ms)
 
   static init() {
     Level5Manager.currentPhase = 1;
@@ -39,11 +40,17 @@ class Level5Manager {
 
   static update(t) {
     if (Level5Manager.currentPhase === 3 && level5_conditions.isAuditing) {
-      // 심사 보스전 진행 중
-      level5_conditions.auditTimer -= 0.016;
+      // 심사 보스전 진행 중 — 실시간 delta로 카운트다운 (프레임 레이트 무관)
+      const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+      if (Level5Manager._auditLastTick == null) Level5Manager._auditLastTick = now;
+      const dt = (now - Level5Manager._auditLastTick) / 1000;
+      Level5Manager._auditLastTick = now;
+
+      level5_conditions.auditTimer -= dt;
       if (level5_conditions.auditTimer <= 0) {
         level5_conditions.auditTimer = 0;
         level5_conditions.isAuditing = false;
+        Level5Manager._auditLastTick = null;
         Level5Manager.completeAudit();
       }
       Level5Manager.updateAuditProgressUI();
@@ -56,7 +63,7 @@ class Level5Manager {
     const block = gridData[key];
     
     if (block && block.startsWith('city_trash')) {
-      if (toolMode === 'tool' && (selItem === 'shovel' || selItem === 'pickaxe')) {
+      if (toolMode === 'shovel' || toolMode === 'pickaxe') {
         _remove(x, y, z);
         playBlockBreakEffect(x, y, z, 0x708090);
         
@@ -98,6 +105,11 @@ class Level5Manager {
     });
 
     if (clickedNpc && !level5_conditions.officerConvinced) {
+      // 시나리오 순서: 너구리 구출이 먼저
+      if (!level5_conditions.raccoonRescued) {
+        toast('🦝 먼저 쓰레기에 갇힌 너구리 라쿤이를 구출해 주세요!');
+        return true;
+      }
       Level5Manager.showOfficerConvincePopup();
       return true;
     }
@@ -235,9 +247,11 @@ class Level5Manager {
         // 해당 X라인 좌우로도 viaduct가 깔려 있는지 확인
         let widthCheck = 0;
         for (let checkZ = 74; checkZ <= 78; checkZ++) {
-          const topY = getTopY(startX, checkZ) - 1;
-          const bLeft = gridData[bk(startX - 1, topY, checkZ)];
-          const bRight = gridData[bk(startX + 1, topY, checkZ)];
+          // 좌/우 인접 칸은 각자의 지표면 높이로 검사 (startX 높이로 probe하면 어긋남)
+          const yLeft = getTopY(startX - 1, checkZ) - 1;
+          const yRight = getTopY(startX + 1, checkZ) - 1;
+          const bLeft = gridData[bk(startX - 1, yLeft, checkZ)];
+          const bRight = gridData[bk(startX + 1, yRight, checkZ)];
           if ((bLeft && bLeft.startsWith('viaduct')) || (bRight && bRight.startsWith('viaduct'))) {
             widthCheck++;
           }
@@ -252,12 +266,12 @@ class Level5Manager {
     if (connected && !level5_conditions.viaductConnected) {
       level5_conditions.viaductConnected = true;
       toast('🌉 생태 육교가 도로를 안전하게 연결했습니다!');
-      
-      // 너구리 영입
+
+      // 너구리 영입 (수호대 합류 플래그를 항상 직접 설정)
+      global_protectors.raccoon = true;
       if (typeof GuardianSystem !== 'undefined' && typeof GuardianSystem.updateState === 'function') {
         GuardianSystem.updateState('raccoon', 3);
       } else {
-        global_protectors.raccoon = true;
         guardianState.raccoon = 3;
         if (typeof renderGuardians === 'function') renderGuardians();
       }
@@ -310,11 +324,11 @@ class Level5Manager {
     level5_conditions.biotopeCells = cells;
 
     if (count >= 4 && !global_protectors.kestrel) {
-      // 황조롱이 영입
+      // 황조롱이 영입 (수호대 합류 플래그를 항상 직접 설정)
+      global_protectors.kestrel = true;
       if (typeof GuardianSystem !== 'undefined' && typeof GuardianSystem.updateState === 'function') {
         GuardianSystem.updateState('kestrel', 3);
       } else {
-        global_protectors.kestrel = true;
         guardianState.kestrel = 3;
         if (typeof renderGuardians === 'function') renderGuardians();
       }
@@ -351,6 +365,7 @@ class Level5Manager {
     level5_conditions.isAuditing = true;
     level5_conditions.auditTimer = 30;
     level5_conditions.auditScore = 0;
+    Level5Manager._auditLastTick = null; // 첫 update에서 기준 시각 초기화
     
     // 심사 전광판 UI 생성
     const board = document.createElement('div');

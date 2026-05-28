@@ -4,6 +4,8 @@
 
 class Level6Manager {
   static currentPhase = 0; // 0: 시작, 1: 기후이상파견, 2: 반달곰신뢰, 3: 심장박동회복, 4: 엔딩, 5: 샌드박스
+  static _lastBearFeed = 0; // 도토리 연속 입력 방지 쿨다운 (ms)
+  static _heartbeatInterval = null; // 심장 박동 회복 게이지 인터벌 핸들
   static activeSignals = {
     arctic: { label: '북극 빙하 녹음', coords: [150, 40], solved: false, required: 'crane', icon: '🦩', detail: '기온 상승으로 빙하가 무너지며 두루미의 한계선이 흔들립니다.' },
     amazon: { label: '아마존 대화재', coords: [220, 180], solved: false, required: 'eagle', icon: '🦅', detail: '산불 연기로 산소가 파괴되고 있습니다. 독수리의 정화가 필요합니다.' },
@@ -13,6 +15,13 @@ class Level6Manager {
   };
 
   static init() {
+    // 재진입 시 이전 게이지 인터벌이 남아 있으면 정리
+    if (Level6Manager._heartbeatInterval) {
+      clearInterval(Level6Manager._heartbeatInterval);
+      Level6Manager._heartbeatInterval = null;
+    }
+    Level6Manager._lastBearFeed = 0;
+
     Level6Manager.currentPhase = 1;
     level6_phase = 1;
     level6_conditions.bridgeCutscenePlayed = false;
@@ -242,7 +251,8 @@ class Level6Manager {
     // 도토리 획득 퀵바 지급
     if (typeof hotbar !== 'undefined') {
       hotbar[5] = 'acorn'; // 도토리
-      if (typeof renderHotbar === 'function') renderHotbar();
+      if (typeof initInventoryUI === 'function') initInventoryUI();
+      if (typeof applyCurrentTool === 'function') applyCurrentTool();
     }
 
     if (typeof showNpcDialogue === 'function') {
@@ -309,6 +319,7 @@ class Level6Manager {
     document.body.appendChild(board);
 
     // 12마리 심장 활성화 시각 연출 및 맥동 루프
+    if (Level6Manager._heartbeatInterval) clearInterval(Level6Manager._heartbeatInterval);
     let score = 0;
     const interval = setInterval(() => {
       score += 5;
@@ -333,8 +344,9 @@ class Level6Manager {
 
       if (score >= 100) {
         clearInterval(interval);
+        Level6Manager._heartbeatInterval = null;
         board.remove();
-        
+
         Level6Manager.currentPhase = 4;
         level6_phase = 4;
         level6_conditions.globalStabilized = true;
@@ -348,6 +360,7 @@ class Level6Manager {
         }, 4000);
       }
     }, 500); // 10초간 상승
+    Level6Manager._heartbeatInterval = interval;
   }
 
   static showFinalEndingOverlay() {
@@ -393,7 +406,16 @@ class Level6Manager {
   }
 
   static handleClick(x, y, z) {
-    // Level 6 상호작용은 세계지도 팝업과 블록 설치 훅(checkBearFeed)으로 처리
+    // 기후 이상 파견(1단계) 중 지도를 실수로 닫았다면 빈 곳 클릭으로 다시 연다
+    if (Level6Manager.currentPhase === 1 &&
+        level6_conditions.bridgeCutscenePlayed &&
+        level6_conditions.dispatchedCount < 5 &&
+        !document.getElementById('world-map-popup') &&
+        !document.getElementById('dispatch-confirm-popup')) {
+      Level6Manager.showWorldMapPopup();
+      return true;
+    }
+    // 그 외 Level 6 상호작용은 세계지도 팝업과 블록 설치 훅(checkBearFeed)으로 처리
     return false;
   }
 

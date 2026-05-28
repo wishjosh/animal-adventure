@@ -7,6 +7,7 @@ const Level4Logic = {
     isEventPlaying: false,
     rainParticles: null,
     riverCells: [], // 강줄기 타겟 경로 셀 목록
+    _floodInterval: null, // 100년 홍수 카운트다운 타이머 핸들
 
     enqueueEvent(eventMsg, duration = 3000) {
         this.eventQueue.push({ msg: eventMsg, duration });
@@ -37,12 +38,14 @@ const Level4Logic = {
         if (obj.userData && obj.userData.isTrashDam) {
             if (level4_phase === 1 && !level4_conditions.soyaRescued) {
                 if (activeItem === 'shovel' || activeItem === 'pickaxe') {
-                    const pos = obj.position;
-                    const key = `${Math.round(pos.x)},${Math.round(pos.y)},${Math.round(pos.z)}`;
-                    
+                    // 생성 시 저장한 grid key를 사용해 정합성 보장 (position.y가 +0.5 오프셋이라 재계산 시 어긋남)
+                    const key = obj.userData.gridKey ||
+                        `${Math.round(obj.position.x)},${Math.round(obj.position.y)},${Math.round(obj.position.z)}`;
+
                     // 쓰레기 블록 파괴
                     scene.remove(obj);
                     delete gridData[key];
+                    delete meshByKey[key];
                     deletedBlocks.add(key);
                     
                     // 남은 쓰레기 댐 검사
@@ -122,18 +125,23 @@ const Level4Logic = {
         if (obj.userData && obj.userData.isCementDam) {
             if (level4_phase === 2) {
                 if (activeItem === 'pickaxe') {
-                    const pos = obj.position;
-                    const key = `${Math.round(pos.x)},${Math.round(pos.y)},${Math.round(pos.z)}`;
-                    
+                    // 생성 시 저장한 grid key를 사용해 정합성 보장
+                    const key = obj.userData.gridKey ||
+                        `${Math.round(obj.position.x)},${Math.round(obj.position.y)},${Math.round(obj.position.z)}`;
+
                     scene.remove(obj);
                     delete gridData[key];
+                    delete meshByKey[key];
                     deletedBlocks.add(key);
 
                     level4_conditions.cementDamRemovedCount++;
                     const removed = level4_conditions.cementDamRemovedCount;
 
                     this.enqueueEvent(`🧱 시멘트 보 블록을 하나 부수었습니다. (${removed} / 3)`, 3500);
-                    
+
+                    // 시멘트 보 제거는 removeBlock()을 거치지 않으므로 진행도 UI를 직접 갱신
+                    Level4Manager.updateUI();
+
                     if (removed >= 3) {
                         Level4Manager.check();
                     }
@@ -255,10 +263,13 @@ const Level4Logic = {
         // 비 효과 활성화
         this.createRainEffect();
 
+        // 재대비(재호출) 시 이전 타이머가 살아있으면 정리해 중복 카운트다운 방지
+        if (this._floodInterval) clearInterval(this._floodInterval);
+
         // 60초 타이머 개시
-        const timerInterval = setInterval(() => {
+        this._floodInterval = setInterval(() => {
             if (!level4_conditions.isFlooding) {
-                clearInterval(timerInterval);
+                clearInterval(this._floodInterval);
                 return;
             }
 
@@ -266,7 +277,7 @@ const Level4Logic = {
             const time = level4_conditions.floodTimer;
 
             if (time <= 0) {
-                clearInterval(timerInterval);
+                clearInterval(this._floodInterval);
                 this.evaluateFloodDefense();
             } else {
                 Level4Manager.updateUI();
@@ -369,6 +380,7 @@ const Level4Logic = {
             if (mesh) {
                 scene.remove(mesh);
                 delete gridData[k];
+                delete meshByKey[k];
                 deletedBlocks.add(k);
             }
             this.alert(`🌊 폭우로 인해 강둑(${target.x}, ${target.z})의 흙이 유실되어 무너졌습니다! 신속히 보강해 주세요!`);
@@ -619,7 +631,7 @@ const Level4Manager = {
             const mat = new THREE.MeshLambertMaterial({ color: 0xa0a0a0 });
             const mesh = new THREE.Mesh(geom, mat);
             mesh.position.set(c.x, c.y + 0.5, c.z);
-            mesh.userData = { isCementDam: true };
+            mesh.userData = { isCementDam: true, gridKey: key };
             scene.add(mesh);
             meshByKey[key] = mesh;
         });
@@ -638,7 +650,7 @@ const Level4Manager = {
             const mat = new THREE.MeshLambertMaterial({ color: 0x6e5c45 });
             const mesh = new THREE.Mesh(geom, mat);
             mesh.position.set(c.x, c.y + 0.5, c.z);
-            mesh.userData = { isTrashDam: true };
+            mesh.userData = { isTrashDam: true, gridKey: key };
             scene.add(mesh);
             meshByKey[key] = mesh;
         });
@@ -911,7 +923,10 @@ const Level4Manager = {
         if (distEl) distEl.textContent = `약 ${Math.round(dist)}칸`;
         if (hintEl) hintEl.innerHTML = hintText;
 
-        const camFwd = new THREE.Vector3(ox - camera.position.x, 0, oz - camera.position.z).normalize();
+        // 1인칭에서는 camera.position === orbitTarget 이라 (ox-cam) 가 0벡터가 되므로 시선 방향을 직접 사용
+        const camFwd = new THREE.Vector3();
+        camera.getWorldDirection(camFwd);
+        camFwd.y = 0; camFwd.normalize();
         const camRgt = new THREE.Vector3().crossVectors(camFwd, new THREE.Vector3(0, 1, 0)).normalize();
         const wDir   = new THREE.Vector3(dx, 0, dz).normalize();
 

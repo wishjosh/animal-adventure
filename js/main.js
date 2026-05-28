@@ -87,6 +87,7 @@ function isFenced(x, z) {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const orbitTarget = new THREE.Vector3(CHUNK, 38, CHUNK);
 let theta = 0.7, phi = 0.85, radius = 36;
+let firstPerson = true; // 마인크래프트형 1인칭 시점 (V키로 3인칭 전환)
 
 const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false, ' ': false, Shift: false };
 window.addEventListener('keydown', e => { if (keys.hasOwnProperty(e.key)) keys[e.key] = true; if (e.key === ' ') keys[' '] = true; });
@@ -95,9 +96,30 @@ window.addEventListener('keyup', e => { if (keys.hasOwnProperty(e.key)) keys[e.k
 function syncCam() {
   phi = Math.max(0.05, Math.min(Math.PI * 0.95, phi));
   radius = Math.max(8, Math.min(140, radius));
-  camera.position.set(orbitTarget.x + radius * Math.sin(phi) * Math.sin(theta), orbitTarget.y + radius * Math.cos(phi), orbitTarget.z + radius * Math.sin(phi) * Math.cos(theta));
-  camera.lookAt(orbitTarget);
+  // 시선 방향 단위벡터 (구면좌표)
+  const dx = Math.sin(phi) * Math.sin(theta);
+  const dy = Math.cos(phi);
+  const dz = Math.sin(phi) * Math.cos(theta);
+  if (firstPerson) {
+    // 1인칭: 카메라가 곧 플레이어의 눈(orbitTarget)이며 -d 방향을 바라본다
+    camera.position.set(orbitTarget.x, orbitTarget.y, orbitTarget.z);
+    camera.lookAt(orbitTarget.x - dx, orbitTarget.y - dy, orbitTarget.z - dz);
+  } else {
+    // 3인칭: orbitTarget을 중심으로 radius 거리에서 공전
+    camera.position.set(orbitTarget.x + radius * dx, orbitTarget.y + radius * dy, orbitTarget.z + radius * dz);
+    camera.lookAt(orbitTarget);
+  }
 }
+
+// 카메라의 수평 전방 단위벡터 (1인칭/3인칭 모두 동작; orbitTarget==camera 인 1인칭에서도 안전)
+function camForwardFlat() {
+  const wd = new THREE.Vector3();
+  camera.getWorldDirection(wd);
+  wd.y = 0;
+  if (wd.lengthSq() < 1e-6) wd.set(-Math.sin(theta), 0, -Math.cos(theta));
+  return wd.normalize();
+}
+
 syncCam();
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -119,6 +141,78 @@ function isUIBlocking() {
     || (ptEl && ptEl.style.display === 'flex')
     || (crEl && crEl.style.display === 'flex');
 }
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  1인칭 시점 — 포인터 락 / 크로스헤어 / 시점 토글
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// 포인터 락 중 상호작용에 쓸 화면 좌표 (락 상태면 화면 중앙 = 크로스헤어 지점)
+function interactCoords(e) {
+  if (firstPerson && document.pointerLockElement === canvas) {
+    const r = canvas.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  }
+  return { x: e.clientX, y: e.clientY };
+}
+
+// 커서가 필요한 모달 UI(대화·퍼즐·도감·지도 등)가 열려 있으면 포인터 락을 풀어야 한다
+const _CURSOR_MODAL_IDS = [
+  'inventory-overlay', 'guardian-book-overlay', 'message-log-overlay', 'map-overlay',
+  'mission-clear', 'level2-clear', 'level3-clear', 'level4-clear',
+  'level5-clear-overlay', 'final-ending-overlay', 'creature-report', 'grandma-popup',
+  'phase-transition', 'foodchain-overlay', 'owner-dialogue-board',
+  'officer-convince-popup', 'world-map-popup', 'dispatch-confirm-popup',
+  'npc-dialogue-popup'
+];
+function needsCursor() {
+  if (isUIBlocking()) return true;
+  for (const id of _CURSOR_MODAL_IDS) {
+    const el = document.getElementById(id);
+    if (el && el.style.display !== 'none' && el.offsetParent !== null) return true;
+  }
+  return false;
+}
+
+// 크로스헤어 + 안내 HUD 생성
+const fpCrosshair = document.createElement('div');
+fpCrosshair.id = 'fp-crosshair';
+fpCrosshair.textContent = '✛';
+fpCrosshair.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);' +
+  'font-size:26px;line-height:1;color:rgba(255,255,255,0.85);text-shadow:0 0 4px #000;' +
+  'pointer-events:none;z-index:500;display:none;';
+document.body.appendChild(fpCrosshair);
+
+const fpHint = document.createElement('div');
+fpHint.id = 'fp-hint';
+fpHint.textContent = '🖱️ 화면을 클릭하면 마인크래프트처럼 둘러볼 수 있어요 (V: 시점 전환 · ESC: 커서)';
+fpHint.style.cssText = 'position:fixed;left:50%;bottom:90px;transform:translateX(-50%);' +
+  'background:rgba(0,0,0,0.6);color:#fff;padding:6px 14px;border-radius:14px;font-size:13px;' +
+  'font-family:sans-serif;pointer-events:none;z-index:500;display:none;white-space:nowrap;';
+document.body.appendChild(fpHint);
+
+function updateFpHud() {
+  const locked = document.pointerLockElement === canvas;
+  fpCrosshair.style.display = (firstPerson && locked) ? 'block' : 'none';
+  fpHint.style.display = (firstPerson && !locked && !needsCursor()) ? 'block' : 'none';
+}
+
+function setFirstPerson(on) {
+  firstPerson = on;
+  if (!on && document.pointerLockElement === canvas) document.exitPointerLock();
+  if (on) mouse2D.set(0, 0);
+  syncCam();
+  updateFpHud();
+  if (typeof toast === 'function') toast(on ? '👁️ 1인칭 시점 (마인크래프트 모드)' : '🎥 3인칭 시점');
+}
+
+document.addEventListener('pointerlockchange', updateFpHud);
+
+// V 키로 시점 토글
+window.addEventListener('keydown', e => {
+  if (e.key === 'v' || e.key === 'V') setFirstPerson(!firstPerson);
+});
+
+updateFpHud();
 
 // getRayTargets 는 mousemove마다 호출되므로 프레임당 최대 1회만 재구성
 let _rtStamp = -1, _rtCache = [];
@@ -186,10 +280,16 @@ function doDig(clientX, clientY) {
 
 canvas.addEventListener('mousedown', e => {
   if (isUIBlocking()) return;
+  // 1인칭: 아직 시점이 고정(포인터 락)되지 않았다면, 이 클릭은 락만 걸고 끝낸다
+  if (firstPerson && document.pointerLockElement !== canvas) {
+    canvas.requestPointerLock();
+    return;
+  }
   if (e.button === 2 && pickedAnimal) { cancelCarry(); return; }
   if (e.button === 0 || e.button === 2) {
+    const ic = interactCoords(e);
     isDragging = true; clickMoved = false; dragButton = e.button;
-    mouseStart = { x: e.clientX, y: e.clientY }; currentMouseX = e.clientX; currentMouseY = e.clientY;
+    mouseStart = { x: e.clientX, y: e.clientY }; currentMouseX = ic.x; currentMouseY = ic.y;
     if (e.button === 0 && toolMode === 'pickaxe') {
       const now = Date.now();
       if (now - lastClickTime < 300) { isHoldingPickaxe = true; doDig(currentMouseX, currentMouseY); digInterval = setInterval(() => { if (isHoldingPickaxe) doDig(currentMouseX, currentMouseY); }, 150); }
@@ -200,6 +300,14 @@ canvas.addEventListener('mousedown', e => {
 });
 
 canvas.addEventListener('mousemove', e => {
+  // 1인칭(포인터 락): 마우스 이동량으로 자유롭게 둘러보기
+  if (firstPerson && document.pointerLockElement === canvas) {
+    theta -= e.movementX * 0.0025;
+    phi   += e.movementY * 0.0025;
+    mouse2D.set(0, 0); // 하이라이트/레이캐스트는 화면 중앙(크로스헤어) 기준
+    syncCam();
+    return;
+  }
   currentMouseX = e.clientX; currentMouseY = e.clientY;
   mouse2D.x = (e.clientX / window.innerWidth) * 2 - 1; mouse2D.y = -(e.clientY / window.innerHeight) * 2 + 1;
   if (!isDragging) return;
@@ -215,7 +323,7 @@ canvas.addEventListener('mousemove', e => {
 
 canvas.addEventListener('mouseup', e => {
   clearInterval(digInterval); digInterval = null; isHoldingPickaxe = false;
-  if (isDragging && !clickMoved && e.button === 0) { if (toolMode !== 'pickaxe') handleClick(e.clientX, e.clientY); }
+  if (isDragging && !clickMoved && e.button === 0) { if (toolMode !== 'pickaxe') { const ic = interactCoords(e); handleClick(ic.x, ic.y); } }
   isDragging = false;
 });
 
@@ -252,7 +360,7 @@ canvas.addEventListener('touchmove', e => {
     const dist = Math.sqrt(dx * dx + dy * dy); radius = initialRadius * (initialPinchDist / dist);
     const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2, cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
     const pdx = cx - initialPanCenter.x, pdy = cy - initialPanCenter.y;
-    if (Math.abs(pdx) > 2 || Math.abs(pdy) > 2) { const forward = new THREE.Vector3(orbitTarget.x - camera.position.x, 0, orbitTarget.z - camera.position.z).normalize(); const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize(); orbitTarget.addScaledVector(right, -pdx * 0.05); orbitTarget.addScaledVector(forward, pdy * 0.05); initialPanCenter = { x: cx, y: cy }; }
+    if (Math.abs(pdx) > 2 || Math.abs(pdy) > 2) { const forward = camForwardFlat(); const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize(); orbitTarget.addScaledVector(right, -pdx * 0.05); orbitTarget.addScaledVector(forward, pdy * 0.05); initialPanCenter = { x: cx, y: cy }; }
     syncCam();
   }
 }, { passive: false });
@@ -512,9 +620,15 @@ function animate() {
   if (stats) stats.begin();
   requestAnimationFrame(animate); t += .016;
 
+  // 1인칭: 커서가 필요한 모달 UI가 뜨면 포인터 락을 풀어 버튼/대화를 조작할 수 있게 한다
+  if (firstPerson && document.pointerLockElement === canvas && needsCursor()) {
+    document.exitPointerLock();
+  }
+  updateFpHud();
+
   let camMoved = false;
   const spd = 0.4;
-  const fwd = new THREE.Vector3(orbitTarget.x - camera.position.x, 0, orbitTarget.z - camera.position.z).normalize();
+  const fwd = camForwardFlat();
   const rgt = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
   if (keys.w || keys.ArrowUp) { orbitTarget.addScaledVector(fwd, spd); camMoved = true; }
   if (keys.s || keys.ArrowDown) { orbitTarget.addScaledVector(fwd, -spd); camMoved = true; }

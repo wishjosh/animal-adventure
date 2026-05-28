@@ -36,48 +36,45 @@ const Level3Logic = {
         if (deerEntry && obj.userData.agr === deerEntry.group) {
             if (level3_phase === 1) {
                 if (!level3_conditions.deerRescued) {
-                    // 노루가 지정 위치(풀밭)로 이송되었는지 검사
-                    const dx = Math.abs(deerEntry.x - Level3Manager.DEER_TARGET.x);
-                    const dz = Math.abs(deerEntry.z - Level3Manager.DEER_TARGET.z);
-                    if (dx > 4 || dz > 4) {
-                        // heal 아이템으로 클릭했을 때만 경고; 맨손이면 픽업 허용
-                        if (activeItem === 'heal') {
-                            this.alert('노루를 먼저 ⬇️ 파란 마커가 표시된 풀밭 안전지대로 옮겨주세요!');
-                            return true;
-                        }
+                    // 맨손(또는 구급상자 외 도구)일 때는 픽업/재배치를 허용 → main.js 맨손 핸들러로 위임
+                    if (activeItem !== 'heal') {
                         return false;
                     }
 
-                    if (activeItem === 'heal') {
-                        // 구급상자 소모
-                        hotbar[activeSlot] = null;
-                        if (typeof initInventoryUI === 'function') initInventoryUI();
-                        if (typeof applyCurrentTool === 'function') applyCurrentTool();
-                        
-                        level3_conditions.deerRescued = true;
-                        deerEntry.isInjured = false;
-                        
-                        // 다친 상태 비주얼 복원 (회색 -> 원래 노루 색상)
-                        scene.remove(deerEntry.group);
-                        deerEntry.group = buildAnimal('deer', false);
-                        deerEntry.group.position.set(deerEntry.x, deerEntry.y, deerEntry.z);
-                        scene.add(deerEntry.group);
-
-                        this.enqueueEvent('🦌 노루 초롱이가 치료되어 생기를 되찾았습니다!', 4000);
-                        
-                        setTimeout(() => {
-                            if (typeof showNpcDialogue === 'function') {
-                                showNpcDialogue('l3_deer_healed', { autoClose: 6000 });
-                            }
-                            level3_phase = 2;
-                            Level3Manager.currentPhase = 2;
-                            Level3Manager.check();
-                        }, 1500);
-                        return true;
-                    } else {
-                        this.alert('구급상자(🩹)를 가방에서 장착하고 노루를 치료해 주세요!');
+                    // 이하 구급상자(heal) 장착 상태 — 안전지대 안에서만 치료 가능
+                    const dx = Math.abs(deerEntry.x - Level3Manager.DEER_TARGET.x);
+                    const dz = Math.abs(deerEntry.z - Level3Manager.DEER_TARGET.z);
+                    if (dx > 4 || dz > 4) {
+                        this.alert('노루를 먼저 ⬇️ 파란 마커가 표시된 풀밭 안전지대로 옮겨주세요!');
                         return true;
                     }
+
+                    // 구급상자 소모
+                    hotbar[activeSlot] = null;
+                    if (typeof initInventoryUI === 'function') initInventoryUI();
+                    if (typeof applyCurrentTool === 'function') applyCurrentTool();
+
+                    level3_conditions.deerRescued = true;
+                    deerEntry.isInjured = false;
+
+                    // 다친 상태 비주얼 복원 (회색 -> 원래 노루 색상)
+                    scene.remove(deerEntry.group);
+                    deerEntry.group = buildAnimal('deer', false);
+                    deerEntry.group.position.set(deerEntry.x, deerEntry.y, deerEntry.z);
+                    scene.add(deerEntry.group);
+
+                    this.enqueueEvent('🦌 노루 초롱이가 치료되어 생기를 되찾았습니다!', 4000);
+
+                    setTimeout(() => {
+                        if (typeof showNpcDialogue === 'function') {
+                            showNpcDialogue('l3_deer_healed', { autoClose: 6000 });
+                        }
+                        level3_phase = 2;
+                        Level3Manager.currentPhase = 2;
+                        Level3Manager.showCarcassGuides();
+                        Level3Manager.check();
+                    }, 1500);
+                    return true;
                 }
             }
         }
@@ -152,54 +149,69 @@ const Level3Logic = {
     checkWildDogIsolation() {
         if (level3_conditions.wildDogIsolated) return;
 
-        // 임의의 들개 한 마리 기준 출발
-        const dogEntry = animalData.find(a => a.type === 'dog');
-        if (!dogEntry) { console.warn('[Level3] 들개 없음'); return; }
+        const dogs = animalData.filter(a => a.type === 'dog');
+        if (dogs.length === 0) { console.warn('[Level3] 들개 없음'); return; }
 
-        const startX = Math.round(dogEntry.x);
-        const startZ = Math.round(dogEntry.z);
-
-        const visited = new Set();
-        const queue = [[startX, startZ]];
-        visited.add(`${startX},${startZ}`);
-        
-        let containsProtectedAnimal = false;
         const MAX_CELLS = 120; // 들개 가두기 허용 면적 제한
 
-        while (queue.length > 0) {
-            if (visited.size > MAX_CELLS) return; // 아직 격리되지 않음
+        // 한 출발점에서 BFS로 폐곡선(가둠) 영역을 탐색한다.
+        // escaped=true 이면 영역이 열려 있어 아직 격리되지 않은 것.
+        const floodFrom = (startX, startZ) => {
+            const visited = new Set();
+            const queue = [[startX, startZ]];
+            visited.add(`${startX},${startZ}`);
+            let hasProtected = false;
+            let escaped = false;
 
-            const [cx, cz] = queue.shift();
+            while (queue.length > 0) {
+                if (visited.size > MAX_CELLS) { escaped = true; break; }
+                const [cx, cz] = queue.shift();
 
-            // 격리 구역 내에 노루나 여우가 있는지 확인
-            const localAnimals = animalData.filter(a => Math.round(a.x) === cx && Math.round(a.z) === cz);
-            for (const a of localAnimals) {
-                if (a.type === 'deer' || a.type === 'fox') containsProtectedAnimal = true;
-            }
+                // 이 영역에 보호 동물(노루/여우)이 함께 갇혀 있는지 확인
+                for (const a of animalData) {
+                    if ((a.type === 'deer' || a.type === 'fox') &&
+                        Math.round(a.x) === cx && Math.round(a.z) === cz) {
+                        hasProtected = true;
+                    }
+                }
 
-            const curTopY = getTopY(cx, cz) - 1;
-            for (const [nx, nz] of [[cx+1, cz], [cx-1, cz], [cx, cz+1], [cx, cz-1]]) {
-                const nKey = `${nx},${nz}`;
-                if (visited.has(nKey)) continue;
+                for (const [nx, nz] of [[cx+1, cz], [cx-1, cz], [cx, cz+1], [cx, cz-1]]) {
+                    const nKey = `${nx},${nz}`;
+                    if (visited.has(nKey)) continue;
 
-                // 솔리드 블록(관목 bush, 울타리 fence, 흙, 돌 등)은 벽으로 취급
-                const block = gridData[bk(nx, curTopY + 1, nz)] || gridData[bk(nx, curTopY + 2, nz)];
-                const blocked = !isActive(nx, nz) || isSolid(block) || (block && (block.startsWith('fence_') || block.startsWith('bush') || block.startsWith('plant_')));
+                    // 비활성 청크는 벽으로 취급 (BFS가 빠져나가지 못함)
+                    if (!isActive(nx, nz)) continue;
 
-                if (!blocked) {
-                    visited.add(nKey);
-                    queue.push([nx, nz]);
+                    // 이웃 칸 '자체'의 지표면 기준으로 벽(솔리드: 울타리/관목/흙/돌) 검사
+                    const nTopY = getTopY(nx, nz) - 1;
+                    const blocked = isSolid(gridData[bk(nx, nTopY + 1, nz)]) ||
+                                    isSolid(gridData[bk(nx, nTopY + 2, nz)]);
+
+                    if (!blocked) {
+                        visited.add(nKey);
+                        queue.push([nx, nz]);
+                    }
                 }
             }
+            return { visited, hasProtected, escaped };
+        };
+
+        // 들개 전원이 각자 폐곡선 영역에 갇혀 있어야 격리 완료
+        let anyProtectedTrapped = false;
+        let tooSmall = false;
+        for (const dog of dogs) {
+            const res = floodFrom(Math.round(dog.x), Math.round(dog.z));
+            if (res.escaped) return; // 한 마리라도 빠져나갈 수 있으면 아직 미완 (조용히 대기)
+            if (res.hasProtected) anyProtectedTrapped = true;
+            if (res.visited.size < 4) tooSmall = true;
         }
 
-        // BFS가 제한 이내 종료 = 격리됨!
-        if (visited.size < 4) {
-            this.alert('격리 구역이 들개들에게 너무 좁습니다! (최소 4칸 필요)');
+        if (anyProtectedTrapped) {
+            this.alert('⚠️ 노루나 여우가 들개와 함께 갇혀 있습니다! 공간을 다시 나누어 주세요.');
             return;
         }
-        if (containsProtectedAnimal) {
-            this.alert('⚠️ 노루나 여우가 들개와 함께 갇혀 있습니다! 공간을 다시 나누어 주세요.');
+        if (tooSmall) {
+            this.alert('격리 구역이 들개들에게 너무 좁습니다! (최소 4칸 필요)');
             return;
         }
 
@@ -222,7 +234,10 @@ const Level3Logic = {
         if (cleared) {
             global_protectors.eagle = true;
             this.enqueueEvent('🦅 들판이 정화되자 용감한 독수리 수리가 날아왔습니다!', 4000);
-            
+
+            // 모든 사체가 제거되었으므로 가이드 화살표 정리
+            Level3Manager.clearCarcassGuides();
+
             // 나뭇가지 꼭대기에 독수리 스폰
             const TX = -80, TZ = 5;
             const TY = getTopY(TX, TZ);
@@ -230,13 +245,17 @@ const Level3Logic = {
 
             if (typeof GuardianSystem !== 'undefined') GuardianSystem.updateState('eagle', 3);
             if (typeof updateProtectorSlots === 'function') updateProtectorSlots();
-            
+
             setTimeout(() => {
                 if (typeof showNpcDialogue === 'function') {
                     showNpcDialogue('l3_eagle_join', { autoClose: 5000 });
                 }
                 Level3Manager.check();
             }, 1500);
+        } else {
+            // 일부만 제거된 경우: 남아 있는 사체 위에만 가이드를 다시 표시
+            if (level3_phase === 2) Level3Manager.showCarcassGuides();
+            Level3Manager.updateUI();
         }
     }
 };
@@ -463,7 +482,7 @@ const Level3Manager = {
                 }
             }
 
-            if (!this._foxArrow) {
+            if (!this._foxArrow && !global_protectors.fox) {
                 const fox = animalData.find(a => a.type === 'fox');
                 if (fox) {
                     const arr = new THREE.Mesh(
@@ -484,6 +503,13 @@ const Level3Manager = {
                         arr._label = label;
                     }
                 }
+            }
+
+            // 여우가 합류하면 안내 화살표 제거
+            if (this._foxArrow && global_protectors.fox) {
+                if (this._foxArrow._label) scene.remove(this._foxArrow._label);
+                scene.remove(this._foxArrow);
+                this._foxArrow = null;
             }
 
             if (this._foxArrow) {
@@ -540,7 +566,10 @@ const Level3Manager = {
         if (distEl) distEl.textContent = `약 ${Math.round(dist)}칸`;
         if (hintEl) hintEl.innerHTML = '평원 방향으로<br>나아가세요!';
 
-        const camFwd = new THREE.Vector3(ox - camera.position.x, 0, oz - camera.position.z).normalize();
+        // 1인칭에서는 camera.position === orbitTarget 이라 (ox-cam) 가 0벡터가 되므로 시선 방향을 직접 사용
+        const camFwd = new THREE.Vector3();
+        camera.getWorldDirection(camFwd);
+        camFwd.y = 0; camFwd.normalize();
         const camRgt = new THREE.Vector3().crossVectors(camFwd, new THREE.Vector3(0, 1, 0)).normalize();
         const wDir = new THREE.Vector3(dx, 0, dz).normalize();
 
@@ -712,11 +741,14 @@ const Level3Manager = {
             slot.addEventListener('dragover', (e) => e.preventDefault());
             slot.addEventListener('drop', () => {
                 if (!draggedCard) return;
-                
+
                 // 기존 슬롯에 내용이 있는지 확인
                 if (slot.children.length > 0) return;
 
-                const clone = draggedCard.cloneNode(true);
+                // dragend에서 draggedCard가 null로 초기화되므로 원본 참조를 고정 보관
+                const sourceCard = draggedCard;
+
+                const clone = sourceCard.cloneNode(true);
                 clone.style.width = '90%';
                 clone.style.height = '80%';
                 clone.style.justifyContent = 'center';
@@ -730,7 +762,7 @@ const Level3Manager = {
                         : slot.dataset.slot === '3' ? '[3층] 2차 소비자 슬롯'
                         : '[4층] 최상위 포식자 슬롯';
                     slot.style.borderColor = 'rgba(255,255,255,0.15)';
-                    draggedCard.style.display = 'flex';
+                    sourceCard.style.display = 'flex';
                 });
 
                 slot.innerHTML = '';
@@ -738,7 +770,7 @@ const Level3Manager = {
                 slot.style.borderColor = '#ffcc44';
 
                 // 원본 카드 숨김
-                draggedCard.style.display = 'none';
+                sourceCard.style.display = 'none';
             });
         });
 
