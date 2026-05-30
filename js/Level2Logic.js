@@ -350,10 +350,14 @@ const Level2Manager = {
         if (distEl) distEl.textContent = `약 ${distBlocks}칸`;
         if (hintEl) hintEl.innerHTML = '이 방향으로<br>탐험하세요!';
 
-        // 카메라 fwd / rgt 벡터 (main.js animate() 와 동일 계산)
-        const camFwd = new THREE.Vector3(
-            ox - camera.position.x, 0, oz - camera.position.z
-        ).normalize();
+        // 카메라 정면 / 우측 벡터 (orbit/first-person 양 모드 호환)
+        // ※ 1인칭에선 camera.position === orbitTarget이라 (ox-camera.position.x)는 0이 됨.
+        //    camera.getWorldDirection을 써야 양 모드 모두 정상 동작.
+        const camFwd = new THREE.Vector3();
+        camera.getWorldDirection(camFwd);
+        camFwd.y = 0;
+        if (camFwd.lengthSq() < 1e-6) camFwd.set(0, 0, -1);
+        camFwd.normalize();
         const camRgt = new THREE.Vector3()
             .crossVectors(camFwd, new THREE.Vector3(0, 1, 0))
             .normalize();
