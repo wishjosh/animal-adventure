@@ -8,19 +8,24 @@ const QuestManager = {
   getCurrentPhase() {
     return this.levels[currentLevel] ? this.levels[currentLevel].currentPhase : 0;
   },
+  // 레벨 5·6은 class(static) 구조라 check/updateUI/advance를 구현하지 않는다.
+  // 이들은 자체적으로 onBlockPlaced(systems.js) / handleClick / update(animate)로 진행을
+  // 관리하므로, 공통 폴링 메서드가 없을 때는 안전하게 무시한다 (TypeError 크래시 방지).
   check() {
-    if (this.levels[currentLevel]) this.levels[currentLevel].check();
+    const lv = this.levels[currentLevel];
+    if (lv && typeof lv.check === 'function') lv.check();
   },
   updateUI() {
-    if (this.levels[currentLevel]) this.levels[currentLevel].updateUI();
+    const lv = this.levels[currentLevel];
+    if (lv && typeof lv.updateUI === 'function') lv.updateUI();
   },
   advance() {
-    if (this.levels[currentLevel]) this.levels[currentLevel].advance();
+    const lv = this.levels[currentLevel];
+    if (lv && typeof lv.advance === 'function') lv.advance();
   },
   onTreeChopped() {
-    if (this.levels[currentLevel] && this.levels[currentLevel].onTreeChopped) {
-      this.levels[currentLevel].onTreeChopped();
-    }
+    const lv = this.levels[currentLevel];
+    if (lv && typeof lv.onTreeChopped === 'function') lv.onTreeChopped();
   }
 };
 
