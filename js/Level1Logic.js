@@ -138,6 +138,11 @@ const LeafSystem = {
       toast('⚠️ 낙엽 덮기는 레벨 1에서만 가능해요!');
       return false;
     }
+    // 한 번 클리어한 후에는 다시 트리거하지 않음 (반복 미니게임 방지)
+    if (Level1Manager.phase1State && Level1Manager.phase1State.wormDone) {
+      toast('✅ 지렁이는 이미 흙을 살려냈어요!');
+      return false;
+    }
     if (this.collected < this.needed) {
       toast(`⚠️ 낙엽이 부족해요! (${this.collected}/${this.needed})`);
       return false;
@@ -818,7 +823,9 @@ const Phase2System = {
   branchMesh: null,
   trashMeshes: [],
   nestZoneMesh: null,
-  conditions: { hiveFull: false, nestBuilt: false, treeBlooming: false },
+  // _phase3Triggered: 페이즈 2→3 전환의 일회성 락. treeBlooming은 외부(checkSheepCondition 등)에서
+  // "고목나무가 회복됨"의 의미로도 사용돼 페이즈 1에서 set되는 경우가 있어 전환 가드로 못 씀.
+  conditions: { hiveFull: false, nestBuilt: false, treeBlooming: false, _phase3Triggered: false },
   envFlags: { riverTrashCount: 3, hasMud: false, birdHoleSize: 0, toxicPlantsRemoved: true },
 
   init() {
@@ -978,11 +985,12 @@ const Phase2System = {
   },
 
   check() {
-    const { hiveFull, nestBuilt, treeBlooming } = this.conditions;
+    const { hiveFull, nestBuilt, _phase3Triggered } = this.conditions;
     DBG('[Phase2] 조건 체크 — hiveFull:', hiveFull, '| nestBuilt:', nestBuilt);
     QuestManager.updateUI();
-    if (hiveFull && nestBuilt && !treeBlooming) {
-      this.conditions.treeBlooming = true;
+    if (hiveFull && nestBuilt && !_phase3Triggered) {
+      this.conditions._phase3Triggered = true;
+      this.conditions.treeBlooming = true; // 의미상 마감 (이미 set돼있을 수 있음)
       DBG('🦋 하늘이 활기로 가득해요! 페이즈 3 시작');
       if (typeof showEcoPopup === 'function') showEcoPopup('🌳🦋', '생명이 돌아왔어요!<br>하늘이 활기로 가득해요!');
       setTimeout(() => {
