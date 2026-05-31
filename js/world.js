@@ -147,23 +147,73 @@ function bldActive(cx, cz) {
   }
 }
 
+// ── 배경(프리뷰) 청크 병합 렌더링 ────────────────────────────
+// 미탐험 영역은 블록 단위로 편집되지 않으므로(클릭 시 청크 전체 활성화),
+// 청크당 64개 개별 메시 대신 정점을 병합해 메시 1개(채움) + 라인 1개(외곽선)로 그린다.
+// 결과: 청크당 draw call 128 → 2, 고유 geometry/material 256 → 4.
+const _PV_BOX = new THREE.BoxGeometry(1, 1, 1); // 정점/노멀/인덱스 추출용 템플릿 (1회 생성)
+const _PV_CORNERS = [
+  [-.5, -.5, -.5], [.5, -.5, -.5], [.5, -.5, .5], [-.5, -.5, .5],
+  [-.5, .5, -.5], [.5, .5, -.5], [.5, .5, .5], [-.5, .5, .5]
+];
+const _PV_EDGES = [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7]];
+
 function bldPreview(cx, cz) {
-  const k = ck(cx, cz); if (chunkGroups[k]) scene.remove(chunkGroups[k]);
+  const k = ck(cx, cz);
+  if (chunkGroups[k]) {
+    scene.remove(chunkGroups[k]);
+    chunkGroups[k].traverse(c => { if (c.geometry) c.geometry.dispose(); if (c.material) c.material.dispose(); });
+  }
   const g = new THREE.Group(), x0 = cx * CHUNK, z0 = cz * CHUNK;
+
+  const bp = _PV_BOX.attributes.position.array;
+  const bn = _PV_BOX.attributes.normal.array;
+  const bi = _PV_BOX.index.array;
+  const vCount = _PV_BOX.attributes.position.count; // 24
+
+  const positions = [], normals = [], colors = [], indices = [], edgePos = [];
+  let vOff = 0;
+  const _c = new THREE.Color();
+
   for (let lx = 0; lx < CHUNK; lx++) for (let lz = 0; lz < CHUNK; lz++) {
     const wx = x0 + lx, wz = z0 + lz, sh = getH(wx, wz);
     const dominant = BiomeSystem.getDominantBiome(wx, wz);
     const visH = sh < dominant.waterLevel ? Math.ceil(dominant.waterLevel) : sh;
-    const col = colColor(wx, wz, sh);
-    const geo = new THREE.BoxGeometry(1, 1, 1);
-    const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: col, transparent: true, opacity: 0.15 }));
-    mesh.position.set(wx, visH + 0.5, wz);
-    mesh.add(new THREE.LineSegments(
-      new THREE.EdgesGeometry(geo),
-      new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.25 })
-    ));
-    mesh.userData = { isPreview: true, cx, cz }; g.add(mesh);
+    const cy = visH + 0.5;
+    _c.set(colColor(wx, wz, sh));
+
+    // 채움 박스 정점/노멀/색 병합
+    for (let i = 0; i < vCount; i++) {
+      positions.push(bp[i * 3] + wx, bp[i * 3 + 1] + cy, bp[i * 3 + 2] + wz);
+      normals.push(bn[i * 3], bn[i * 3 + 1], bn[i * 3 + 2]);
+      colors.push(_c.r, _c.g, _c.b);
+    }
+    for (let i = 0; i < bi.length; i++) indices.push(bi[i] + vOff);
+    vOff += vCount;
+
+    // 외곽선 12개 에지 병합
+    for (const [a, b] of _PV_EDGES) {
+      const ca = _PV_CORNERS[a], cb = _PV_CORNERS[b];
+      edgePos.push(ca[0] + wx, ca[1] + cy, ca[2] + wz, cb[0] + wx, cb[1] + cy, cb[2] + wz);
+    }
   }
+
+  // 채움 메시 (draw call 1) — 블록별 색은 vertex color로 유지
+  const fillGeo = new THREE.BufferGeometry();
+  fillGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  fillGeo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  fillGeo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  fillGeo.setIndex(indices);
+  const fillMesh = new THREE.Mesh(fillGeo, new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true, opacity: 0.15 }));
+  fillMesh.userData = { isPreview: true, cx, cz }; // 클릭 시 청크 활성화
+  g.add(fillMesh);
+
+  // 외곽선 (draw call 1)
+  const edgeGeo = new THREE.BufferGeometry();
+  edgeGeo.setAttribute('position', new THREE.Float32BufferAttribute(edgePos, 3));
+  const edgeLines = new THREE.LineSegments(edgeGeo, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.25 }));
+  g.add(edgeLines);
+
   scene.add(g); chunkGroups[k] = g;
 }
 
