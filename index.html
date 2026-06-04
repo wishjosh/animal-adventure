@@ -253,9 +253,10 @@
     /* ── 다음 할 일 가이드 카드 ── */
     #next-action-card {
       position: fixed;
-      top: 150px;
-      right: 14px;
-      z-index: 26;
+      top: calc(max(6px, env(safe-area-inset-top, 0px)) + 42px);
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 45;
       width: 260px;
       background: linear-gradient(135deg, rgba(10, 30, 12, 0.94), rgba(8, 22, 10, 0.94));
       border: 2px solid rgba(255, 215, 0, 0.55);
@@ -359,6 +360,22 @@
 
 <body>
   <canvas id="canvas"></canvas>
+
+  <div id="compact-top-controls" aria-label="게임 메뉴">
+    <button class="top-icon-btn" onclick="toggleMissionPanel(event)" title="미션">🎯</button>
+    <button class="top-icon-btn" onclick="NextActionGuide.toggleVisibility(event)" title="다음 할 일">💬</button>
+    <button class="top-icon-btn" id="message-log-action" onclick="toggleMessageLog(event)" title="중요 기록">📩</button>
+    <button class="top-icon-btn" onclick="toggleGameMenu(event)" title="메뉴">☰</button>
+  </div>
+
+  <div id="quick-menu-panel" class="hud-popover hidden">
+    <button onclick="toggleInventory()">🎒 가방</button>
+    <button onclick="toggleGuardianBook()">📖 수호대</button>
+    <button onclick="openMap()">🗺️ 지도</button>
+    <button onclick="saveGame()">💾 저장</button>
+    <button onclick="loadGame()">📂 불러오기</button>
+    <button onclick="clearAll()">🗑️ 초기화</button>
+  </div>
 
   <!-- 다음 할 일 가이드 카드 (항상 표시, 우측) -->
   <div id="next-action-card" class="hidden" onclick="NextActionGuide.onCardClick(event)" title="클릭하면 펼칩니다">
@@ -473,14 +490,7 @@
       <div id="hotbar-container"></div>
       <div id="hotbar-actions">
         <button class="action-btn" onclick="toggleRotation()" title="방향 회전 (R)">🔄</button>
-        <button class="action-btn" onclick="toggleInventory()" title="가방 (E)">🎒</button>
-        <button class="action-btn" onclick="toggleGuardianBook()" title="수호대 도감 (B)" style="color:#f2c94c;">📖</button>
-        <button class="action-btn" onclick="openMap()" title="지도 (M)">🗺️</button>
-        <button class="action-btn" onclick="NextActionGuide.toggleVisibility()" title="다음 할 일 (G)" style="color:#ffd700;">🎯</button>
-        <button class="action-btn" id="message-log-action" onclick="toggleMessageLog()" title="알림 기록 (L)" style="color:#a8d0e6;">📩</button>
-        <button class="action-btn" onclick="saveGame()" title="저장" style="color:#6fcf97;">💾</button>
-        <button class="action-btn" onclick="loadGame()" title="불러오기">📂</button>
-        <button class="action-btn" onclick="clearAll()" title="초기화" style="color:#eb5757;">🗑️</button>
+        <button class="action-btn more-btn" onclick="toggleInventory()" title="더보기/가방">⋯</button>
       </div>
     </div>
   </div>
@@ -547,7 +557,7 @@
 
   <div id="message-log-overlay" style="display:none;">
     <div class="inv-header">
-      <h2 id="message-log-title">📩 알림 기록</h2>
+      <h2 id="message-log-title">📩 중요 기록</h2>
       <button class="close-btn" onclick="toggleMessageLog()">✖</button>
     </div>
     <div class="message-log-content" id="message-log-content">
@@ -644,6 +654,7 @@
     <div id="mobile-action-pad" aria-label="모바일 액션 버튼">
       <button id="mobile-dig-btn" class="touch-action-btn" type="button">⛏<small>파기</small></button>
       <button id="mobile-use-btn" class="touch-action-btn primary" type="button">✋<small>사용</small></button>
+      <button id="mobile-sprint-btn" class="touch-action-btn sprint" type="button">»<small>빠름</small></button>
       <button id="cam-up-btn" class="touch-action-btn" type="button">▲<small>상승</small></button>
       <button id="cam-down-btn" class="touch-action-btn" type="button">▼<small>하강</small></button>
       <button id="mobile-fly-btn" class="touch-action-btn active" type="button">✦<small>비행</small></button>

@@ -140,9 +140,11 @@ let mouseStart = { x: 0, y: 0 }, currentMouseX = 0, currentMouseY = 0;
 let touchMode = null;
 let digInterval = null, isHoldingPickaxe = false;
 let lastClickTime = 0, lastTouchTime = 0;
+let touchHoldTimer = null, touchHoldTriggered = false;
 let mobileDigInterval = null;
 let lastSpaceTap = 0;
 let creativeFlight = true;
+let mobileSprint = false;
 const mobileMove = { x: 0, y: 0, active: false };
 
 const ptEl = document.getElementById('phase-transition');
@@ -383,17 +385,23 @@ canvas.addEventListener('touchstart', e => {
   const canvasTouches = Array.from(e.touches).filter(t => t.target === canvas);
   if (canvasTouches.length === 1) {
     const touch = canvasTouches[0];
-    touchMode = 'single'; isDragging = true; clickMoved = false; isHoldingPickaxe = false;
+    touchMode = 'single'; isDragging = true; clickMoved = false; isHoldingPickaxe = false; touchHoldTriggered = false;
     currentMouseX = touch.clientX; currentMouseY = touch.clientY;
     mouseStart = { x: currentMouseX, y: currentMouseY };
-    if (toolMode === 'pickaxe') {
-      const now = Date.now();
-      if (now - lastTouchTime < 300) { isHoldingPickaxe = true; doDig(currentMouseX, currentMouseY); if (navigator.vibrate) navigator.vibrate(50); digInterval = setInterval(() => { if (isHoldingPickaxe) doDig(currentMouseX, currentMouseY); }, 150); }
-      else { doDig(currentMouseX, currentMouseY); if (navigator.vibrate) navigator.vibrate(20); }
-      lastTouchTime = now;
-    }
+    clearTimeout(touchHoldTimer);
+    clearInterval(digInterval);
+    touchHoldTimer = setTimeout(() => {
+      if (touchMode !== 'single' || clickMoved || isUIBlocking()) return;
+      touchHoldTriggered = true;
+      mobileDigAtCrosshair();
+      if (navigator.vibrate) navigator.vibrate(25);
+      if (toolMode === 'pickaxe' || toolMode === 'shovel') {
+        digInterval = setInterval(mobileDigAtCrosshair, 180);
+      }
+    }, 380);
   } else if (canvasTouches.length === 2) {
     touchMode = 'zoom_pan'; isDragging = false; clearInterval(digInterval); isHoldingPickaxe = false;
+    clearTimeout(touchHoldTimer);
     const dx = canvasTouches[0].clientX - canvasTouches[1].clientX, dy = canvasTouches[0].clientY - canvasTouches[1].clientY;
     initialPinchDist = Math.sqrt(dx * dx + dy * dy); initialRadius = radius;
     initialPanCenter = { x: (canvasTouches[0].clientX + canvasTouches[1].clientX) / 2, y: (canvasTouches[0].clientY + canvasTouches[1].clientY) / 2 };
@@ -408,7 +416,11 @@ canvas.addEventListener('touchmove', e => {
     currentMouseX = touch.clientX; currentMouseY = touch.clientY;
     const dx = currentMouseX - mouseStart.x, dy = currentMouseY - mouseStart.y;
     if (Math.abs(dx) > 5 || Math.abs(dy) > 5) clickMoved = true;
-    if (clickMoved) { if (digInterval || isHoldingPickaxe) return; theta -= dx * .007; phi += dy * .007; mouseStart = { x: currentMouseX, y: currentMouseY }; syncCam(); }
+    if (clickMoved) {
+      clearTimeout(touchHoldTimer);
+      if (digInterval || isHoldingPickaxe) return;
+      theta -= dx * .007; phi += dy * .007; mouseStart = { x: currentMouseX, y: currentMouseY }; syncCam();
+    }
   } else if (touchMode === 'zoom_pan' && canvasTouches.length === 2) {
     const dx = canvasTouches[0].clientX - canvasTouches[1].clientX, dy = canvasTouches[0].clientY - canvasTouches[1].clientY;
     const dist = Math.sqrt(dx * dx + dy * dy); radius = initialRadius * (initialPinchDist / dist);
@@ -421,8 +433,11 @@ canvas.addEventListener('touchmove', e => {
 
 canvas.addEventListener('touchend', e => {
   if(!isUIBlocking()) e.preventDefault(); // 아이패드 등 터치 기기에서 클릭 이벤트 중복 발생(더블 클릭) 방지
+  clearTimeout(touchHoldTimer);
   clearInterval(digInterval); digInterval = null; isHoldingPickaxe = false;
-  if (touchMode === 'single' && !clickMoved && e.changedTouches.length === 1) { if (toolMode !== 'pickaxe') handleClick(e.changedTouches[0].clientX, e.changedTouches[0].clientY); }
+  if (touchMode === 'single' && !clickMoved && !touchHoldTriggered && e.changedTouches.length === 1) {
+    mobileUseAtCrosshair();
+  }
   const canvasTouches = Array.from(e.touches).filter(t => t.target === canvas);
   if (canvasTouches.length === 0) { touchMode = null; isDragging = false; }
 }, { passive: false });
@@ -697,7 +712,7 @@ function animate() {
   }
 
   let camMoved = false;
-  const spd = 0.4 * (keys.Control ? 1.45 : 1);
+  const spd = 0.4 * ((keys.Control || mobileSprint) ? 1.55 : 1);
   const fwd = camForwardFlat();
   const rgt = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
   let moveForward = (keys.w || keys.ArrowUp ? 1 : 0) - (keys.s || keys.ArrowDown ? 1 : 0) + mobileMove.y;
@@ -844,6 +859,24 @@ if (mobileUseBtn) {
     stopMobileControlEvent(e);
     mobileUseAtCrosshair();
   }, { passive: false });
+}
+
+const mobileSprintBtn = document.getElementById('mobile-sprint-btn');
+if (mobileSprintBtn) {
+  const startSprint = e => {
+    stopMobileControlEvent(e);
+    mobileSprint = true;
+    mobileSprintBtn.classList.add('active');
+  };
+  const stopSprint = e => {
+    stopMobileControlEvent(e);
+    mobileSprint = false;
+    mobileSprintBtn.classList.remove('active');
+  };
+  mobileSprintBtn.addEventListener('pointerdown', startSprint, { passive: false });
+  mobileSprintBtn.addEventListener('pointerup', stopSprint, { passive: false });
+  mobileSprintBtn.addEventListener('pointercancel', stopSprint, { passive: false });
+  mobileSprintBtn.addEventListener('pointerleave', stopSprint, { passive: false });
 }
 
 const mobileDigBtn = document.getElementById('mobile-dig-btn');

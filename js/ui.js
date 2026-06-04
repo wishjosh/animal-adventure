@@ -11,7 +11,7 @@ function isCompactHud() {
 }
 function isImportantToast(msg) {
   const text = String(msg).replace(/<[^>]*>/g, '');
-  return /⚠️|🎉|✅|💾|📂|📖|레벨|완료|성공|실패|합류|구출|해금|시작|클리어|수호대|도감|엔딩/.test(text);
+  return /🎉|📖|레벨|합류|구출|해금|클리어|수호대|도감|엔딩|새로운 퀘스트|초록별|생태계/.test(text);
 }
 function updateMessageLogBadge() {
   const btn = document.getElementById('message-log-action');
@@ -20,19 +20,21 @@ function updateMessageLogBadge() {
   btn.title = messageLogUnreadCount > 0 ? `알림 기록 (새 알림 ${messageLogUnreadCount}개)` : '알림 기록 (L)';
 }
 function toast(msg, opts = {}) {
-  // 로그에 추가
-  const timeStr = new Date().toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  messageHistory.push({ time: timeStr, text: msg });
-  if (messageHistory.length > 140) messageHistory.shift();
-  if (isMessageLogOpen) {
-    renderMessageLog();
-  } else {
-    messageLogUnreadCount = Math.min(99, messageLogUnreadCount + 1);
-    updateMessageLogBadge();
-  }
   const compact = isCompactHud();
   const text = String(msg).replace(/<[^>]*>/g, '');
   const important = opts.important === true || isImportantToast(msg);
+  const shouldLog = opts.log === true || important;
+  if (shouldLog) {
+    const timeStr = new Date().toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    messageHistory.push({ time: timeStr, text: msg });
+    if (messageHistory.length > 80) messageHistory.shift();
+    if (isMessageLogOpen) {
+      renderMessageLog();
+    } else {
+      messageLogUnreadCount = Math.min(99, messageLogUnreadCount + 1);
+      updateMessageLogBadge();
+    }
+  }
   if (compact && !important) return;
   const now = Date.now();
   if (text === lastToastText && now - lastToastAt < 1600) return;
@@ -54,9 +56,48 @@ function toast(msg, opts = {}) {
     if (el.parentNode === container) container.removeChild(el);
   }, compact ? 3100 : 4600);
 }
-function toggleMessageLog() {
+function closeHudPopovers(except = '') {
+  const topbar = document.getElementById('topbar');
+  const menu = document.getElementById('quick-menu-panel');
+  if (except !== 'mission' && topbar) {
+    topbar.classList.remove('open');
+    const missionBox = document.getElementById('mission-box');
+    if (missionBox) missionBox.classList.remove('open');
+  }
+  if (except !== 'menu' && menu) menu.classList.add('hidden');
+  if (except !== 'next' && typeof NextActionGuide !== 'undefined' && NextActionGuide._visible) {
+    NextActionGuide.hide();
+  }
+  if (except !== 'log' && isMessageLogOpen) toggleMessageLog();
+}
+
+function toggleMissionPanel(event) {
+  if (event && event.stopPropagation) event.stopPropagation();
+  const topbar = document.getElementById('topbar');
+  const box = document.getElementById('mission-box');
+  if (!topbar || !box) return;
+  const opening = !topbar.classList.contains('open');
+  closeHudPopovers('mission');
+  topbar.classList.toggle('open', opening);
+  box.classList.toggle('open', opening);
+}
+
+function toggleGameMenu(event) {
+  if (event && event.stopPropagation) event.stopPropagation();
+  const menu = document.getElementById('quick-menu-panel');
+  if (!menu) return;
+  const opening = menu.classList.contains('hidden');
+  closeHudPopovers('menu');
+  menu.classList.toggle('hidden', !opening);
+}
+
+function toggleMessageLog(event) {
+  if (event && event.stopPropagation) event.stopPropagation();
   const overlay = document.getElementById('message-log-overlay');
-  isMessageLogOpen = overlay.style.display === 'none';
+  if (!overlay) return;
+  const opening = overlay.style.display === 'none' || getComputedStyle(overlay).display === 'none';
+  if (opening) closeHudPopovers('log');
+  isMessageLogOpen = opening;
   overlay.style.display = isMessageLogOpen ? 'flex' : 'none';
   if (isMessageLogOpen) {
     messageLogUnreadCount = 0;
@@ -68,7 +109,7 @@ function renderMessageLog() {
   const content = document.getElementById('message-log-content');
   if (!content) return;
   if (messageHistory.length === 0) {
-    content.innerHTML = '<div class="log-item" style="text-align:center; color:#888;">아직 기록된 알림이 없습니다.</div>';
+    content.innerHTML = '<div class="log-item" style="text-align:center; color:#888;">아직 저장된 중요 기록이 없습니다.</div>';
     return;
   }
   content.innerHTML = messageHistory.map(log => `
@@ -109,11 +150,14 @@ function showPhaseTransition(phase) {
 function _buildHotbarSlot(i) {
   const slot = document.createElement('div');
   slot.className = `hotbar-slot ${i === activeSlot ? 'active' : ''}`;
+  slot.dataset.slot = String(i);
   slot.onclick = () => selectHotbarSlot(i);
   const num = document.createElement('div'); num.className = 'slot-num'; num.textContent = i + 1; slot.appendChild(num);
   const itemId = hotbar[i];
   if (itemId && ITEM_DB[itemId]) {
     const item = ITEM_DB[itemId]; slot.title = item.label;
+    slot.dataset.item = itemId;
+    slot.dataset.category = item.category || 'misc';
     if (item.icon) { const ic = document.createElement('div'); ic.className = 'slot-icon'; ic.textContent = item.icon; slot.appendChild(ic); }
     else if (item.color) { const sw = document.createElement('div'); sw.className = 'slot-swatch'; sw.style.background = item.color; slot.appendChild(sw); }
     const ph = QuestManager.getCurrentPhase(), lm = QuestManager.levels[1];
@@ -184,7 +228,9 @@ function applyCurrentTool() {
 }
 
 function toggleInventory() {
-  isInventoryOpen=!isInventoryOpen;
+  const opening = !isInventoryOpen;
+  if (opening) closeHudPopovers();
+  isInventoryOpen=opening;
   document.getElementById('inventory-overlay').style.display=isInventoryOpen?'flex':'none';
   if(isInventoryOpen) initInventoryUI();
 }
@@ -221,7 +267,9 @@ window.addEventListener('keydown',e=>{
 
 let isGuardianBookOpen = false;
 function toggleGuardianBook() {
-  isGuardianBookOpen = !isGuardianBookOpen;
+  const opening = !isGuardianBookOpen;
+  if (opening) closeHudPopovers();
+  isGuardianBookOpen = opening;
   document.getElementById('guardian-book-overlay').style.display = isGuardianBookOpen ? 'flex' : 'none';
   if(isGuardianBookOpen) renderGuardianBook();
 }
@@ -307,7 +355,7 @@ function updateMapOverlay(){
     grid.appendChild(cell);
   }
 }
-function openMap(){updateMapOverlay();document.getElementById('map-overlay').style.display='flex';}
+function openMap(){closeHudPopovers();updateMapOverlay();document.getElementById('map-overlay').style.display='flex';}
 function closeMap(){document.getElementById('map-overlay').style.display='none';}
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1186,7 +1234,7 @@ const CenterUI = {
 //  다음 할 일 가이드 카드 — 항상 보이는 진행 안내
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const NextActionGuide = {
-  _visible: true,
+  _visible: false,
   _collapsed: false,
 
   steps: {
@@ -1605,13 +1653,19 @@ const NextActionGuide = {
     }
   },
 
-  toggleVisibility() {
-    this._visible = !this._visible;
+  hide() {
+    this._visible = false;
+    const card = document.getElementById('next-action-card');
+    if (card) card.classList.add('hidden');
+  },
+
+  toggleVisibility(event) {
+    if (event && event.stopPropagation) event.stopPropagation();
+    const opening = !this._visible;
+    closeHudPopovers('next');
+    this._visible = opening;
     if (this._visible) this.refresh();
-    else {
-      const card = document.getElementById('next-action-card');
-      if (card) card.classList.add('hidden');
-    }
+    else this.hide();
   },
 
   toggleMinimize(event) {
@@ -1637,14 +1691,6 @@ document.addEventListener('phaseAdvanced', () => NextActionGuide.refresh());
 // 초기 렌더 + 주기 갱신 (꽃 심기/구슬 클릭 같은 중간 상태도 진행도 반영)
 setInterval(() => { if (NextActionGuide._visible) NextActionGuide.refresh(); }, 500);
 
-// 페이즈 진입 시 상단 미션 박스를 자동으로 펼침 (사용자가 다시 접을 수는 있음)
-document.addEventListener('phaseAdvanced', () => {
-  const box = document.getElementById('mission-box');
-  if (box) box.classList.add('open');
-});
-// 페이지 로드 직후에도 한 번 펼치고 가이드 카드 초기 렌더
 setTimeout(() => {
-  const box = document.getElementById('mission-box');
-  if (box) box.classList.add('open');
   if (typeof NextActionGuide !== 'undefined') NextActionGuide.refresh();
 }, 200);
