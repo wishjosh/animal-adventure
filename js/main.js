@@ -247,14 +247,24 @@ function isTouchLayout() {
 function mobileUseAtCrosshair() {
   if (isUIBlocking()) return;
   const c = getCrosshairCoords();
-  handleClick(c.x, c.y, { allowNearby: true, purpose: 'use' });
+  mobileUseAt(c.x, c.y);
+}
+
+function mobileUseAt(clientX, clientY) {
+  if (isUIBlocking()) return;
+  handleClick(clientX, clientY, { allowNearby: true, purpose: 'use' });
 }
 
 function mobileDigAtCrosshair() {
   if (isUIBlocking()) return;
   const c = getCrosshairCoords();
-  if (toolMode === 'pickaxe') doDig(c.x, c.y, { allowNearby: true, purpose: 'dig' });
-  else handleClick(c.x, c.y, { allowNearby: true, purpose: 'dig' });
+  mobileDigAt(c.x, c.y);
+}
+
+function mobileDigAt(clientX, clientY) {
+  if (isUIBlocking()) return;
+  if (toolMode === 'pickaxe') doDig(clientX, clientY, { allowNearby: true, purpose: 'dig' });
+  else handleClick(clientX, clientY, { allowNearby: true, purpose: 'dig' });
 }
 
 document.addEventListener('pointerlockchange', updateFpHud);
@@ -363,6 +373,15 @@ function isNearbyInteractionCandidate(obj, purpose) {
   return flags.some(flag => data[flag] || parentData[flag]);
 }
 
+function isDirectMarkerTarget(obj, purpose) {
+  if (!obj) return false;
+  const data = obj.userData || {};
+  const parentData = (obj.parent && obj.parent.userData) || {};
+  if (data.isClue || parentData.isClue) return true;
+  if (purpose !== 'dig' && (data.isPreview || parentData.isPreview)) return true;
+  return false;
+}
+
 function findNearbyInteractionHit(options = {}) {
   const purpose = options.purpose || 'use';
   const reach = getInteractionReach(options);
@@ -409,6 +428,8 @@ function findNearbyInteractionHit(options = {}) {
 
 function castInteractionRay(clientX, clientY, options = {}) {
   const hits = castRay(clientX, clientY);
+  const directMarkers = hits.filter(hit => isDirectMarkerTarget(hit.object, options.purpose || 'use'));
+  if (directMarkers.length) return directMarkers;
   if (!options.allowNearby) return hits;
 
   const reach = getInteractionReach(options);
@@ -507,10 +528,10 @@ canvas.addEventListener('touchstart', e => {
     touchHoldTimer = setTimeout(() => {
       if (touchMode !== 'single' || clickMoved || isUIBlocking()) return;
       touchHoldTriggered = true;
-      mobileDigAtCrosshair();
+      mobileDigAt(currentMouseX, currentMouseY);
       if (navigator.vibrate) navigator.vibrate(25);
       if (toolMode === 'pickaxe' || toolMode === 'shovel') {
-        digInterval = setInterval(mobileDigAtCrosshair, 180);
+        digInterval = setInterval(() => mobileDigAt(currentMouseX, currentMouseY), 180);
       }
     }, 380);
   } else if (canvasTouches.length === 2) {
@@ -550,7 +571,8 @@ canvas.addEventListener('touchend', e => {
   clearTimeout(touchHoldTimer);
   clearInterval(digInterval); digInterval = null; isHoldingPickaxe = false;
   if (touchMode === 'single' && !clickMoved && !touchHoldTriggered && e.changedTouches.length === 1) {
-    mobileUseAtCrosshair();
+    const touch = e.changedTouches[0];
+    mobileUseAt(touch.clientX, touch.clientY);
   }
   const canvasTouches = Array.from(e.touches).filter(t => t.target === canvas);
   if (canvasTouches.length === 0) { touchMode = null; isDragging = false; }

@@ -350,7 +350,17 @@ function updateMapOverlay(){
     const st=chunkState[ck(cx,cz)]||'hidden';
     const cell=document.createElement('div'); cell.className=`mc-cell ${st}`;
     if(st==='active') cell.textContent='🟢';
-    else if(st==='visible'){cell.textContent='🟠';cell.onclick=()=>{activateChunk(cx,cz);toast('✨ 탐험!');closeMap();};}
+    else if(st==='visible'){
+      cell.textContent='🟠';
+      const explore=ev=>{
+        if(ev){ev.preventDefault();ev.stopPropagation();}
+        if(cell.dataset.explored==='1') return;
+        cell.dataset.explored='1';
+        activateChunk(cx,cz);toast('✨ 탐험!');closeMap();
+      };
+      cell.addEventListener('pointerdown',explore,{passive:false});
+      cell.addEventListener('click',explore);
+    }
     else cell.textContent='⬛';
     grid.appendChild(cell);
   }
