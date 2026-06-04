@@ -24,10 +24,10 @@ class Level5Manager {
       spawnLevel5Animals();
     }
 
-    // 2. 카메라를 경계 도시 중심으로 부드럽게 이동
-    if (typeof controls !== 'undefined' && controls.target) {
-      controls.target.set(-45, 35, 75);
-      camera.position.set(-20, 55, 110);
+    // 2. 카메라를 경계 도시 중심으로 이동
+    if (typeof orbitTarget !== 'undefined' && typeof syncCam === 'function') {
+      orbitTarget.set(-45, 35, 75);
+      syncCam();
     }
 
     // 3. 할머니 인트로 대화 팝업

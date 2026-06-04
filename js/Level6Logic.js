@@ -42,10 +42,10 @@ class Level6Manager {
       spawnLevel6Animals();
     }
 
-    // 2. 카메라를 심장부 중심으로
-    if (typeof controls !== 'undefined' && controls.target) {
-      controls.target.set(0, 32, -80);
-      camera.position.set(20, 50, -45);
+    // 2. 카메라를 심장부 중심으로 이동
+    if (typeof orbitTarget !== 'undefined' && typeof syncCam === 'function') {
+      orbitTarget.set(0, 32, -80);
+      syncCam();
     }
 
     // 3. 브릿지 물방울 컷신 연출 (10초 시뮬레이션 후 세계 지도 오픈)

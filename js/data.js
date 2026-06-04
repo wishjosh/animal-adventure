@@ -53,7 +53,17 @@ const ITEM_DB = {
   biotope:           { category:'material', type:'block', label:'옥상 비오톱', color:'#556b2f', hex:0x556b2f, solid:true, icon:'🌱' },
   wildlife_tunnel:   { category:'material', type:'block', label:'동물 터널', color:'#4a4a4a', hex:0x4a4a4a, solid:true, icon:'🚇' },
   acorn:             { category:'material', type:'block', label:'도토리', color:'#a0522d', hex:0xa0522d, solid:true, icon:'🌰' },
-  city_trash:        { category:'plant', type:'block', label:'도심 쓰레기', color:'#708090', hex:0x708090, solid:false, icon:'🗑' }
+  city_trash:        { category:'plant', type:'block', label:'도심 쓰레기', color:'#708090', hex:0x708090, solid:false, icon:'🗑' },
+
+  deco_grass_tuft:   { category:'decor', type:'decor', label:'풀 포기', color:'#5fae47', hex:0x5fae47, solid:false, icon:'🌿' },
+  deco_dry_grass:    { category:'decor', type:'decor', label:'마른 풀', color:'#b8a15a', hex:0xb8a15a, solid:false, icon:'🌾' },
+  deco_wildflower:   { category:'decor', type:'decor', label:'야생화', color:'#f2d36b', hex:0xf2d36b, solid:false, icon:'🌼' },
+  deco_reed:         { category:'decor', type:'decor', label:'갈대', color:'#8a7a3a', hex:0x8a7a3a, solid:false, icon:'🌾' },
+  deco_shrub:        { category:'decor', type:'decor', label:'작은 관목', color:'#2f7d32', hex:0x2f7d32, solid:false, icon:'🌿' },
+  deco_tree_oak:     { category:'decor', type:'decor', label:'참나무', color:'#2f7d32', hex:0x2f7d32, solid:false, icon:'🌳' },
+  deco_tree_pine:    { category:'decor', type:'decor', label:'소나무', color:'#1f5f37', hex:0x1f5f37, solid:false, icon:'🌲' },
+  deco_tree_willow:  { category:'decor', type:'decor', label:'강가 버드나무', color:'#3c8f4b', hex:0x3c8f4b, solid:false, icon:'🌳' },
+  deco_street_tree:  { category:'decor', type:'decor', label:'가로수', color:'#3f8f46', hex:0x3f8f46, solid:false, icon:'🌳' }
 };
 
 const TERRAIN_BLOCKS = {
@@ -173,7 +183,7 @@ const BIOME_CONFIG = {
   },
   river_source: {
     id: 'river_source',
-    centerX: 0, centerZ: 80, radius: 40,
+    centerX: 45, centerZ: 0, radius: 30,
     baseHeight: 33, roughness: 0.12,
     surface: 'r_sub', subsurface: 'r_gravel',
     waterLevel: 30

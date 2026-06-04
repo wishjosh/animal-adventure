@@ -287,8 +287,9 @@ function getRayTargets() {
 
   const bm = []; for (const obj of Object.values(meshByKey)) {
     if(!obj.parent) continue;
+    if (obj.userData && obj.userData.isDecorative) continue;
     if (obj.isMesh || obj.isSprite) bm.push(obj);
-    else if (obj.isGroup) obj.traverse(c => { if (c.isMesh || c.isSprite) bm.push(c); });
+    else if (obj.isGroup) obj.traverse(c => { if ((c.isMesh || c.isSprite) && !(c.userData && c.userData.isDecorative)) bm.push(c); });
   }
   const lm = []; for (const m of LeafSystem.meshes) {
     if (m.isMesh || m.isSprite) lm.push(m);
@@ -467,7 +468,7 @@ canvas.addEventListener('mousedown', e => {
 canvas.addEventListener('mousemove', e => {
   // 1인칭(포인터 락): 마우스 이동량으로 자유롭게 둘러보기
   if (firstPerson && document.pointerLockElement === canvas) {
-    theta += e.movementX * 0.0025;
+    theta -= e.movementX * 0.0025;
     phi   -= e.movementY * 0.0025;
     mouse2D.set(0, 0); // 하이라이트/레이캐스트는 화면 중앙(크로스헤어) 기준
     syncCam();
@@ -481,7 +482,7 @@ canvas.addEventListener('mousemove', e => {
   if (clickMoved) {
     if (digInterval || isHoldingPickaxe) return;
     if (dragButton === 0) { const fwd = new THREE.Vector3(orbitTarget.x - camera.position.x, 0, orbitTarget.z - camera.position.z).normalize(); const rgt = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize(); const panSpd = radius * 0.0018; orbitTarget.addScaledVector(rgt, -dx * panSpd); orbitTarget.addScaledVector(fwd, dy * panSpd); }
-    else if (dragButton === 2) { theta += dx * .007; phi -= dy * .007; }
+    else if (dragButton === 2) { theta -= dx * .007; phi -= dy * .007; }
     mouseStart = { x: e.clientX, y: e.clientY }; syncCam();
   }
 });
@@ -532,7 +533,7 @@ canvas.addEventListener('touchmove', e => {
     if (clickMoved) {
       clearTimeout(touchHoldTimer);
       if (digInterval || isHoldingPickaxe) return;
-      theta += dx * .007; phi -= dy * .007; mouseStart = { x: currentMouseX, y: currentMouseY }; syncCam();
+      theta -= dx * .007; phi -= dy * .007; mouseStart = { x: currentMouseX, y: currentMouseY }; syncCam();
     }
   } else if (touchMode === 'zoom_pan' && canvasTouches.length === 2) {
     const dx = canvasTouches[0].clientX - canvasTouches[1].clientX, dy = canvasTouches[0].clientY - canvasTouches[1].clientY;
@@ -802,22 +803,8 @@ if (window.visualViewport) {
   window.visualViewport.addEventListener('scroll', resizeGameViewport);
 }
 
-// Stats 모니터
-let stats;
-if (typeof Stats !== 'undefined') {
-  stats = new Stats();
-  stats.showPanel(0);
-  document.body.appendChild(stats.dom);
-  stats.dom.style.position = 'absolute';
-  stats.dom.style.bottom = '10px';
-  stats.dom.style.left = '10px';
-  stats.dom.style.top = 'auto';
-  stats.dom.style.zIndex = '9999';
-}
-
 let t = 0;
 function animate() {
-  if (stats) stats.begin();
   requestAnimationFrame(animate); t += .016;
 
   // 1인칭: 커서가 필요한 모달 UI가 뜨면 포인터 락을 풀어 버튼/대화를 조작할 수 있게 한다
@@ -893,7 +880,6 @@ function animate() {
 
   for (const c of cloudGroups) { c.mesh.position.x = c.bx + Math.sin(t * .035 + c.bz * .1) * 4; c.mesh.position.z = c.bz + Math.cos(t * .025 + c.bx * .08) * 3; }
   renderer.render(scene, camera);
-  if (stats) stats.end();
 }
 
 // 모바일 조이스틱 + 액션 버튼 로직

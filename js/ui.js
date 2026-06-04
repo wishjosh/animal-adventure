@@ -716,67 +716,69 @@ function showEcoPopup(emoji, htmlText) {
   setTimeout(() => { popup.classList.remove('show'); }, 4000);
 }
 
-// 개발 테스트용 — 브라우저 콘솔에서 goPhase(2) 또는 goPhase(3) 으로 호출
-window.goPhase = function(n) {
-  isOpeningActive = false;
-  document.getElementById('opening-overlay').style.display = 'none';
-  Level1Manager.phaseComplete = {};
-  for(let i = 1; i < n; i++) Level1Manager.phaseComplete[i] = true;
-  Level1Manager.phase1State = { toxicRemoved:true, tomatoFruited:true, wormDone:true, treeGrowing:true };
-  Level1Manager.currentPhase = n;
-  if (n >= 1) { Level1Manager.phase1State.toxicRemoved = true; ClueSystem.foundCount = 4; }
-  if (n >= 2) { Level1Manager.phase1State.tomatoFruited = true; }
-  if (n >= 3) { LeafSystem.collected = 5; OldTree.state = 'withered'; }
-  if (n >= 4) { OldTree.state = 'bloomed'; Phase2System.conditions.treeBlooming = true; }
-  if(n === 2) Phase2System.init();
-  else if(n >= 3) { Phase2System._clearAll(); Phase3System.init(); }
-  QuestManager.updateUI();
-  updateProtectorSlots();
-  toast(`🔧 페이즈 ${n}로 이동했어요 (개발자 모드)`);
-};
-
-// 개발 테스트용 — 브라우저 콘솔에서 goLevel2() 로 레벨 2를 즉시 시작
-window.goLevel2 = function () {
-  isOpeningActive = false;
-  document.getElementById('opening-overlay').style.display = 'none';
-
-  // 레벨 1 클리어 상태 강제 설정
-  global_protectors.bee = true;
-  global_protectors.swallow = true;
-  global_protectors.sheep = true;
-  Level1Manager.phaseComplete = { 1: true, 2: true, 3: true };
-  Level1Manager.phase1State = { toxicRemoved: true, tomatoFruited: true, wormDone: true, treeGrowing: true };
-  Level1Manager.currentPhase = 3;
-  Level1Manager.phase1State = { toxicRemoved: true, tomatoFruited: true, wormDone: true, treeGrowing: true };
-  ClueSystem.foundCount = 4; LeafSystem.collected = 5;
-  OldTree.state = 'bloomed'; Phase2System.conditions.treeBlooming = true;
-
-  // 중복 스폰 방지: 기존 Level2 동물 제거
-  for (let i = animalData.length - 1; i >= 0; i--) {
-    if (LEVEL2_ANIMAL_TYPES.includes(animalData[i].type)) {
-      if (animalData[i].group) scene.remove(animalData[i].group);
-      animalData.splice(i, 1);
-    }
-  }
-
-  currentLevel = 2;
-  spawnLevel2WhiteBoxElements();
-
-  if (typeof Level2Manager !== 'undefined') {
-    Level2Manager.init();
+if (typeof DEBUG !== 'undefined' && DEBUG) {
+  // 개발 테스트용 — 브라우저 콘솔에서 goPhase(2) 또는 goPhase(3) 으로 호출
+  window.goPhase = function(n) {
+    isOpeningActive = false;
+    document.getElementById('opening-overlay').style.display = 'none';
+    Level1Manager.phaseComplete = {};
+    for(let i = 1; i < n; i++) Level1Manager.phaseComplete[i] = true;
+    Level1Manager.phase1State = { toxicRemoved:true, tomatoFruited:true, wormDone:true, treeGrowing:true };
+    Level1Manager.currentPhase = n;
+    if (n >= 1) { Level1Manager.phase1State.toxicRemoved = true; ClueSystem.foundCount = 4; }
+    if (n >= 2) { Level1Manager.phase1State.tomatoFruited = true; }
+    if (n >= 3) { LeafSystem.collected = 5; OldTree.state = 'withered'; }
+    if (n >= 4) { OldTree.state = 'bloomed'; Phase2System.conditions.treeBlooming = true; }
+    if(n === 2) Phase2System.init();
+    else if(n >= 3) { Phase2System._clearAll(); Phase3System.init(); }
     QuestManager.updateUI();
-  }
-  if (typeof updateProtectorSlots === 'function') updateProtectorSlots();
+    updateProtectorSlots();
+    toast(`🔧 페이즈 ${n}로 이동했어요 (개발자 모드)`);
+  };
 
-  // 두꾸 위치로 카메라 자동 이동
-  const td = animalData.find(a => a.type === 'toad');
-  if (td && typeof orbitTarget !== 'undefined' && typeof syncCam === 'function') {
-    orbitTarget.set(td.x, td.y + 5, td.z);
-    syncCam();
-  }
+  // 개발 테스트용 — 브라우저 콘솔에서 goLevel2() 로 레벨 2를 즉시 시작
+  window.goLevel2 = function () {
+    isOpeningActive = false;
+    document.getElementById('opening-overlay').style.display = 'none';
 
-  toast('🔧 레벨 2 [다양성의 숲]로 이동했어요 (개발자 모드)');
-};
+    // 레벨 1 클리어 상태 강제 설정
+    global_protectors.bee = true;
+    global_protectors.swallow = true;
+    global_protectors.sheep = true;
+    Level1Manager.phaseComplete = { 1: true, 2: true, 3: true };
+    Level1Manager.phase1State = { toxicRemoved: true, tomatoFruited: true, wormDone: true, treeGrowing: true };
+    Level1Manager.currentPhase = 3;
+    Level1Manager.phase1State = { toxicRemoved: true, tomatoFruited: true, wormDone: true, treeGrowing: true };
+    ClueSystem.foundCount = 4; LeafSystem.collected = 5;
+    OldTree.state = 'bloomed'; Phase2System.conditions.treeBlooming = true;
+
+    // 중복 스폰 방지: 기존 Level2 동물 제거
+    for (let i = animalData.length - 1; i >= 0; i--) {
+      if (LEVEL2_ANIMAL_TYPES.includes(animalData[i].type)) {
+        if (animalData[i].group) scene.remove(animalData[i].group);
+        animalData.splice(i, 1);
+      }
+    }
+
+    currentLevel = 2;
+    spawnLevel2WhiteBoxElements();
+
+    if (typeof Level2Manager !== 'undefined') {
+      Level2Manager.init();
+      QuestManager.updateUI();
+    }
+    if (typeof updateProtectorSlots === 'function') updateProtectorSlots();
+
+    // 두꾸 위치로 카메라 자동 이동
+    const td = animalData.find(a => a.type === 'toad');
+    if (td && typeof orbitTarget !== 'undefined' && typeof syncCam === 'function') {
+      orbitTarget.set(td.x, td.y + 5, td.z);
+      syncCam();
+    }
+
+    toast('🔧 레벨 2 [다양성의 숲]로 이동했어요 (개발자 모드)');
+  };
+}
 
 // 레벨 3 진입 — Level3Logic.js 로드 후 실제 구현으로 교체 예정
 window.startLevel3 = function () {
@@ -788,27 +790,29 @@ window.startLevel3 = function () {
   }
 };
 
-// 개발 테스트용 — 브라우저 콘솔에서 goLevel3() 로 레벨 3를 즉시 시작
-window.goLevel3 = function () {
-  isOpeningActive = false;
-  const overlay = document.getElementById('opening-overlay');
-  if (overlay) overlay.style.display = 'none';
-  const l2Clear = document.getElementById('level2-clear');
-  if (l2Clear) l2Clear.style.display = 'none';
+if (typeof DEBUG !== 'undefined' && DEBUG) {
+  // 개발 테스트용 — 브라우저 콘솔에서 goLevel3() 로 레벨 3를 즉시 시작
+  window.goLevel3 = function () {
+    isOpeningActive = false;
+    const overlay = document.getElementById('opening-overlay');
+    if (overlay) overlay.style.display = 'none';
+    const l2Clear = document.getElementById('level2-clear');
+    if (l2Clear) l2Clear.style.display = 'none';
 
-  global_protectors.bee = true;
-  global_protectors.swallow = true;
-  global_protectors.sheep = true;
-  global_protectors.otter = true;
-  global_protectors.bat = true;
+    global_protectors.bee = true;
+    global_protectors.swallow = true;
+    global_protectors.sheep = true;
+    global_protectors.otter = true;
+    global_protectors.bat = true;
 
-  currentLevel = 3;
-  if (typeof Level3Manager !== 'undefined') {
-    Level3Manager.init();
-  }
-  if (typeof updateProtectorSlots === 'function') updateProtectorSlots();
-  toast('🔧 레벨 3 [연결의 평원]으로 이동했어요 (개발자 모드)');
-};
+    currentLevel = 3;
+    if (typeof Level3Manager !== 'undefined') {
+      Level3Manager.init();
+    }
+    if (typeof updateProtectorSlots === 'function') updateProtectorSlots();
+    toast('🔧 레벨 3 [연결의 평원]으로 이동했어요 (개발자 모드)');
+  };
+}
 
 // 레벨 4 진입 — level3-clear 배너의 "레벨 4 시작" 버튼에서 호출
 window.startLevel4 = function () {
@@ -822,29 +826,31 @@ window.startLevel4 = function () {
   }
 };
 
-// 개발 테스트용 — 브라우저 콘솔에서 goLevel4() 로 레벨 4를 즉시 시작
-window.goLevel4 = function () {
-  isOpeningActive = false;
-  const overlay = document.getElementById('opening-overlay');
-  if (overlay) overlay.style.display = 'none';
-  const l3Clear = document.getElementById('level3-clear');
-  if (l3Clear) l3Clear.style.display = 'none';
+if (typeof DEBUG !== 'undefined' && DEBUG) {
+  // 개발 테스트용 — 브라우저 콘솔에서 goLevel4() 로 레벨 4를 즉시 시작
+  window.goLevel4 = function () {
+    isOpeningActive = false;
+    const overlay = document.getElementById('opening-overlay');
+    if (overlay) overlay.style.display = 'none';
+    const l3Clear = document.getElementById('level3-clear');
+    if (l3Clear) l3Clear.style.display = 'none';
 
-  global_protectors.bee = true;
-  global_protectors.swallow = true;
-  global_protectors.sheep = true;
-  global_protectors.otter = true;
-  global_protectors.bat = true;
-  global_protectors.fox = true;
-  global_protectors.eagle = true;
+    global_protectors.bee = true;
+    global_protectors.swallow = true;
+    global_protectors.sheep = true;
+    global_protectors.otter = true;
+    global_protectors.bat = true;
+    global_protectors.fox = true;
+    global_protectors.eagle = true;
 
-  currentLevel = 4;
-  if (typeof Level4Manager !== 'undefined') {
-    Level4Manager.init();
-  }
-  if (typeof updateProtectorSlots === 'function') updateProtectorSlots();
-  toast('🔧 레벨 4 [강의 근원지]로 이동했어요 (개발자 모드)');
-};
+    currentLevel = 4;
+    if (typeof Level4Manager !== 'undefined') {
+      Level4Manager.init();
+    }
+    if (typeof updateProtectorSlots === 'function') updateProtectorSlots();
+    toast('🔧 레벨 4 [강의 근원지]로 이동했어요 (개발자 모드)');
+  };
+}
 
 // 레벨 5 진입 — level4-clear 배너의 "레벨 5 시작" 버튼에서 호출
 window.startLevel5 = function () {
@@ -858,31 +864,33 @@ window.startLevel5 = function () {
   }
 };
 
-// 개발 테스트용 — goLevel5()
-window.goLevel5 = function () {
-  isOpeningActive = false;
-  const overlay = document.getElementById('opening-overlay');
-  if (overlay) overlay.style.display = 'none';
-  const l4Clear = document.getElementById('level4-clear');
-  if (l4Clear) l4Clear.style.display = 'none';
+if (typeof DEBUG !== 'undefined' && DEBUG) {
+  // 개발 테스트용 — goLevel5()
+  window.goLevel5 = function () {
+    isOpeningActive = false;
+    const overlay = document.getElementById('opening-overlay');
+    if (overlay) overlay.style.display = 'none';
+    const l4Clear = document.getElementById('level4-clear');
+    if (l4Clear) l4Clear.style.display = 'none';
 
-  global_protectors.bee = true;
-  global_protectors.swallow = true;
-  global_protectors.sheep = true;
-  global_protectors.otter = true;
-  global_protectors.bat = true;
-  global_protectors.fox = true;
-  global_protectors.eagle = true;
-  global_protectors.crane = true;
-  global_protectors.salmon = true;
+    global_protectors.bee = true;
+    global_protectors.swallow = true;
+    global_protectors.sheep = true;
+    global_protectors.otter = true;
+    global_protectors.bat = true;
+    global_protectors.fox = true;
+    global_protectors.eagle = true;
+    global_protectors.crane = true;
+    global_protectors.salmon = true;
 
-  currentLevel = 5;
-  if (typeof Level5Manager !== 'undefined') {
-    Level5Manager.init();
-  }
-  if (typeof updateProtectorSlots === 'function') updateProtectorSlots();
-  toast('🔧 레벨 5 [경계 도시]로 이동했어요 (개발자 모드)');
-};
+    currentLevel = 5;
+    if (typeof Level5Manager !== 'undefined') {
+      Level5Manager.init();
+    }
+    if (typeof updateProtectorSlots === 'function') updateProtectorSlots();
+    toast('🔧 레벨 5 [경계 도시]로 이동했어요 (개발자 모드)');
+  };
+}
 
 // 레벨 6 진입 — startLevel5 배너 버튼 또는 level5Cleared 이벤트에서 호출
 window.startLevel6 = function () {
@@ -896,22 +904,24 @@ window.startLevel6 = function () {
   }
 };
 
-// 개발 테스트용 — goLevel6()
-window.goLevel6 = function () {
-  isOpeningActive = false;
-  const overlay = document.getElementById('opening-overlay');
-  if (overlay) overlay.style.display = 'none';
+if (typeof DEBUG !== 'undefined' && DEBUG) {
+  // 개발 테스트용 — goLevel6()
+  window.goLevel6 = function () {
+    isOpeningActive = false;
+    const overlay = document.getElementById('opening-overlay');
+    if (overlay) overlay.style.display = 'none';
 
-  // 모든 수호대 획득
-  Object.keys(global_protectors).forEach(k => global_protectors[k] = true);
+    // 모든 수호대 획득
+    Object.keys(global_protectors).forEach(k => global_protectors[k] = true);
 
-  currentLevel = 6;
-  if (typeof Level6Manager !== 'undefined') {
-    Level6Manager.init();
-  }
-  if (typeof updateProtectorSlots === 'function') updateProtectorSlots();
-  toast('🔧 레벨 6 [초록별 심장부]로 이동했어요 (개발자 모드)');
-};
+    currentLevel = 6;
+    if (typeof Level6Manager !== 'undefined') {
+      Level6Manager.init();
+    }
+    if (typeof updateProtectorSlots === 'function') updateProtectorSlots();
+    toast('🔧 레벨 6 [초록별 심장부]로 이동했어요 (개발자 모드)');
+  };
+}
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  레벨 1 UI 함수

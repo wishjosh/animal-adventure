@@ -145,6 +145,109 @@ function bldActive(cx, cz) {
       }
     }
   }
+  spawnVegetationInChunk(cx, cz);
+}
+
+function placeDecorativeBlock(x, y, z, type) {
+  if (y < 0 || y >= GH) return;
+  const k = bk(x, y, z);
+  if (gridData[k] || deletedBlocks.has(k)) return;
+  gridData[k] = type;
+  const mesh = buildMesh(type, x, y, z);
+  if (mesh) {
+    meshByKey[k] = mesh;
+    scene.add(mesh);
+  }
+}
+
+function pickVegetationType(biomeId, wx, wz, sh, surfaceType) {
+  if (surfaceType === 't_rock' || sh >= 44) return null;
+  const biome = BiomeSystem.getDominantBiome(wx, wz);
+  const nearWater = Math.abs(sh - biome.waterLevel) <= 2;
+  const r = stableRand(wx, wz, 91);
+
+  if (biomeId === 'green_village') {
+    if (r < 0.018) return 'deco_tree_oak';
+    if (r < 0.052) return 'deco_shrub';
+    if (r < 0.105) return 'deco_wildflower';
+    if (r < 0.205) return 'deco_grass_tuft';
+    return null;
+  }
+
+  if (biomeId === 'diversity_forest') {
+    if (r < 0.038) return stableRand(wx, wz, 92) < 0.55 ? 'deco_tree_pine' : 'deco_tree_oak';
+    if (r < 0.105) return 'deco_shrub';
+    if (r < 0.155) return 'deco_wildflower';
+    if (r < 0.265) return 'deco_grass_tuft';
+    return null;
+  }
+
+  if (biomeId === 'river_source') {
+    if (nearWater && r < 0.055) return 'deco_reed';
+    if (nearWater && r < 0.082) return 'deco_tree_willow';
+    if (r < 0.12) return 'deco_grass_tuft';
+    if (r < 0.145) return 'deco_wildflower';
+    return null;
+  }
+
+  if (biomeId === 'coastal_shore') {
+    if (nearWater && r < 0.07) return 'deco_reed';
+    if (r < 0.15) return 'deco_dry_grass';
+    if (r < 0.18) return 'deco_shrub';
+    return null;
+  }
+
+  if (biomeId === 'connection_plains') {
+    if (r < 0.08) return 'deco_dry_grass';
+    if (r < 0.115) return 'deco_grass_tuft';
+    if (r < 0.13) return 'deco_shrub';
+    return null;
+  }
+
+  if (biomeId === 'urban_border') {
+    if (r < 0.022) return 'deco_street_tree';
+    if (r < 0.06) return 'deco_shrub';
+    if (r < 0.11) return 'deco_dry_grass';
+    return null;
+  }
+
+  if (biomeId === 'green_heart') {
+    if (r < 0.045) return stableRand(wx, wz, 93) < 0.45 ? 'deco_tree_pine' : 'deco_tree_oak';
+    if (r < 0.115) return 'deco_shrub';
+    if (r < 0.18) return 'deco_wildflower';
+    if (r < 0.25) return 'deco_grass_tuft';
+    return null;
+  }
+
+  return null;
+}
+
+function spawnVegetationInChunk(cx, cz) {
+  const x0 = cx * CHUNK, z0 = cz * CHUNK;
+  for (let lx = 0; lx < CHUNK; lx++) {
+    for (let lz = 0; lz < CHUNK; lz++) {
+      const wx = x0 + lx, wz = z0 + lz;
+      const sh = getH(wx, wz);
+      const biome = BiomeSystem.getDominantBiome(wx, wz);
+      if (!biome || sh < biome.waterLevel) continue;
+
+      const slope = Math.max(
+        Math.abs(getH(wx - 1, wz) - sh),
+        Math.abs(getH(wx + 1, wz) - sh),
+        Math.abs(getH(wx, wz - 1) - sh),
+        Math.abs(getH(wx, wz + 1) - sh)
+      );
+      if (slope > 2) continue;
+
+      const surfaceType = terrainType(wx, sh, wz, sh);
+      const decoType = pickVegetationType(biome.id, wx, wz, sh, surfaceType);
+      if (!decoType) continue;
+
+      const y = sh + 1;
+      if (gridData[bk(wx, y, wz)]) continue;
+      placeDecorativeBlock(wx, y, wz, decoType);
+    }
+  }
 }
 
 function bldPreview(cx, cz) {
@@ -169,81 +272,6 @@ function bldPreview(cx, cz) {
 
 function rmVisible(cx, cz) { const k = ck(cx, cz); if (chunkGroups[k]) { scene.remove(chunkGroups[k]); delete chunkGroups[k]; } }
 
-let gridHelperMesh = null;
-let terrainOverviewMesh = null;
-let terrainOverviewMat = null;
-
-// HALF=80블록(반경), STEP=4(4블록 간격) → 41×41=1681 버텍스, 재생성 비용 매우 낮음
-function buildTerrainOverview(centerX = 0, centerZ = 0) {
-  const HALF = 80, STEP = 4;
-  const X0 = centerX - HALF, Z0 = centerZ - HALF;
-  const cols = HALF * 2 / STEP + 1, rows = HALF * 2 / STEP + 1;
-
-  const positions = new Float32Array(cols * rows * 3);
-  const colors    = new Float32Array(cols * rows * 3);
-  const indices   = [];
-
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const wx = X0 + c * STEP, wz = Z0 + r * STEP;
-      const h  = getH(wx, wz);
-      const i  = r * cols + c;
-      positions[i * 3]     = wx;
-      positions[i * 3 + 1] = h + 0.5;
-      positions[i * 3 + 2] = wz;
-      const col = new THREE.Color(colColor(wx, wz, h));
-      colors[i * 3]     = col.r;
-      colors[i * 3 + 1] = col.g;
-      colors[i * 3 + 2] = col.b;
-    }
-  }
-
-  for (let r = 0; r < rows - 1; r++) {
-    for (let c = 0; c < cols - 1; c++) {
-      const a = r * cols + c, b = a + 1, d = a + cols, e = d + 1;
-      indices.push(a, d, b, b, d, e);
-    }
-  }
-
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geo.setAttribute('color',    new THREE.BufferAttribute(colors, 3));
-  geo.setIndex(indices);
-  geo.computeVertexNormals();
-
-  if (terrainOverviewMesh) {
-    terrainOverviewMesh.geometry.dispose();
-    terrainOverviewMesh.geometry = geo;
-  } else {
-    if (!terrainOverviewMat) {
-      terrainOverviewMat = new THREE.MeshLambertMaterial({
-        vertexColors: true,
-        polygonOffset: true,
-        polygonOffsetFactor: 2,
-        polygonOffsetUnits: 2
-      });
-    }
-    terrainOverviewMesh = new THREE.Mesh(geo, terrainOverviewMat);
-    terrainOverviewMesh.receiveShadow = true;
-    terrainOverviewMesh.visible = false;
-    scene.add(terrainOverviewMesh);
-  }
-}
-
-function rebuildGrid() {
-  if (gridHelperMesh) scene.remove(gridHelperMesh);
-  let mnX = Infinity, mxX = -Infinity, mnZ = Infinity, mxZ = -Infinity;
-  for (const [k, s] of Object.entries(chunkState)) {
-    if (s === 'active') { const [cx, cz] = k.split(',').map(Number); mnX = Math.min(mnX, cx); mxX = Math.max(mxX, cx); mnZ = Math.min(mnZ, cz); mxZ = Math.max(mxZ, cz); }
-  }
-  if (mxX < mnX) return;
-  const maxDim = Math.max(mxX - mnX + 1, mxZ - mnZ + 1);
-  gridHelperMesh = new THREE.GridHelper(maxDim * CHUNK, maxDim * CHUNK, 0x000000, 0x000000);
-  gridHelperMesh.material.opacity = 0.07; gridHelperMesh.material.transparent = true;
-  gridHelperMesh.position.set(((mnX + mxX + 1) / 2) * CHUNK - .5, .02, ((mnZ + mxZ + 1) / 2) * CHUNK - .5);
-  scene.add(gridHelperMesh);
-}
-
 function activateChunk(cx, cz, isInit = false) {
   if (chunkState[ck(cx, cz)] === 'active') return;
   rmVisible(cx, cz); chunkState[ck(cx, cz)] = 'active'; bldActive(cx, cz);
@@ -254,7 +282,7 @@ function activateChunk(cx, cz, isInit = false) {
     const nx = cx + dx, nz = cz + dz, nk = ck(nx, nz);
     if (!chunkState[nk] || chunkState[nk] === 'hidden') { chunkState[nk] = 'visible'; bldPreview(nx, nz); }
   }
-  rebuildGrid(); updateMapOverlay();
+  updateMapOverlay();
 }
 
 let lastCenterCx = null;
@@ -268,9 +296,6 @@ function updateVisibleChunks(orbitTarget) {
   if (lastCenterCx === centerCx && lastCenterCz === centerCz) return;
   lastCenterCx = centerCx;
   lastCenterCz = centerCz;
-
-  // terrain overview 메시를 카메라 중심으로 재생성 (80블록 반경, STEP=4)
-  buildTerrainOverview(centerCx * CHUNK, centerCz * CHUNK);
 
   const R        = 5;  // 활성+프리뷰 표시 반경 (청크, fog near=35 ≈ 4.4청크)
   const R_PREV   = 7;  // 프리뷰 자동 생성 반경
@@ -354,7 +379,6 @@ function initOldTree() {
 }
 
 function initWorld() {
-  buildTerrainOverview();
   activateChunk(0, 0, true); activateChunk(1, 0, true);
   activateChunk(0, 1, true); activateChunk(1, 1, true);
   initOldTree();
@@ -368,7 +392,13 @@ function initWorld() {
 //  블록 함수
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const bk = (x, y, z) => `${x},${y},${z}`;
-function getTopY(x, z) { for (let y = GH; y >= 0; y--) { if (gridData[bk(x, y, z)]) return y + 1; } return 0; }
+function getTopY(x, z) {
+  for (let y = GH; y >= 0; y--) {
+    const type = gridData[bk(x, y, z)];
+    if (type && !isDecorativeType(type)) return y + 1;
+  }
+  return 0;
+}
 
 function getBlockData(rawType) {
   if (!rawType) return null;
@@ -414,9 +444,123 @@ function createEmojiSprite(emoji) {
   return sprite;
 }
 
+function stableRand(x, z, salt = 0) {
+  const v = Math.sin(x * 127.1 + z * 311.7 + salt * 74.7) * 43758.5453;
+  return v - Math.floor(v);
+}
+
+function isDecorativeType(rawType) {
+  return !!rawType && rawType.startsWith('deco_');
+}
+
+function markDecorative(obj) {
+  obj.userData = { ...(obj.userData || {}), isDecorative: true };
+  obj.traverse?.(child => {
+    child.userData = { ...(child.userData || {}), isDecorative: true };
+    if (child.isMesh || child.isSprite) {
+      child.castShadow = true;
+      child.receiveShadow = true;
+    }
+  });
+  return obj;
+}
+
+function buildDecorMesh(rawType, x, y, z, def) {
+  const M = hex => new THREE.MeshLambertMaterial({ color: hex });
+  const B = (w, h, d) => new THREE.BoxGeometry(w, h, d);
+  const g = new THREE.Group();
+  g.position.set(x, y, z);
+
+  const addBox = (w, h, d, px, py, pz, hex) => {
+    const mesh = new THREE.Mesh(B(w, h, d), M(hex));
+    mesh.position.set(px, py, pz);
+    g.add(mesh);
+    return mesh;
+  };
+
+  if (rawType === 'deco_grass_tuft' || rawType === 'deco_dry_grass') {
+    const color = rawType === 'deco_dry_grass' ? 0xb8a15a : 0x5fae47;
+    const count = rawType === 'deco_dry_grass' ? 4 : 5;
+    for (let i = 0; i < count; i++) {
+      const blade = addBox(0.08, 0.42 + stableRand(x, z, i) * 0.22, 0.08,
+        (stableRand(x, z, i + 10) - 0.5) * 0.55,
+        0.2,
+        (stableRand(x, z, i + 20) - 0.5) * 0.55,
+        color);
+      blade.rotation.z = (stableRand(x, z, i + 30) - 0.5) * 0.55;
+    }
+    return markDecorative(g);
+  }
+
+  if (rawType === 'deco_wildflower') {
+    addBox(0.06, 0.42, 0.06, 0, 0.2, 0, 0x4f9c3f);
+    const bloomColors = [0xf2d36b, 0xffffff, 0xf08bb3, 0xcaa6ff];
+    const bloom = new THREE.Mesh(
+      new THREE.SphereGeometry(0.16, 8, 8),
+      M(bloomColors[Math.floor(stableRand(x, z, 41) * bloomColors.length)])
+    );
+    bloom.position.set(0, 0.48, 0);
+    g.add(bloom);
+    return markDecorative(g);
+  }
+
+  if (rawType === 'deco_reed') {
+    for (let i = 0; i < 4; i++) {
+      const px = (stableRand(x, z, i + 50) - 0.5) * 0.55;
+      const pz = (stableRand(x, z, i + 60) - 0.5) * 0.55;
+      const h = 0.8 + stableRand(x, z, i + 70) * 0.55;
+      addBox(0.06, h, 0.06, px, h / 2, pz, 0x6b7a34);
+      addBox(0.12, 0.34, 0.12, px, h + 0.08, pz, 0x9a7b3f);
+    }
+    return markDecorative(g);
+  }
+
+  if (rawType === 'deco_shrub') {
+    addBox(0.75, 0.45, 0.75, 0, 0.22, 0, 0x2f7d32);
+    addBox(0.52, 0.36, 0.52, -0.18, 0.48, 0.16, 0x3b8d3b);
+    addBox(0.48, 0.34, 0.48, 0.2, 0.48, -0.14, 0x276f2d);
+    return markDecorative(g);
+  }
+
+  if (rawType === 'deco_tree_oak' || rawType === 'deco_street_tree') {
+    const canopy = rawType === 'deco_street_tree' ? 0x3f8f46 : 0x2f7d32;
+    const trunkH = rawType === 'deco_street_tree' ? 1.5 : 1.8;
+    addBox(0.28, trunkH, 0.28, 0, trunkH / 2, 0, 0x6a4728);
+    addBox(1.15, 0.9, 1.15, 0, trunkH + 0.32, 0, canopy);
+    addBox(0.85, 0.7, 0.85, -0.38, trunkH + 0.12, 0.12, 0x4f9c3f);
+    addBox(0.85, 0.7, 0.85, 0.34, trunkH + 0.08, -0.18, 0x2f7d32);
+    return markDecorative(g);
+  }
+
+  if (rawType === 'deco_tree_pine') {
+    addBox(0.24, 1.9, 0.24, 0, 0.95, 0, 0x5c3a1f);
+    addBox(1.15, 0.7, 1.15, 0, 1.15, 0, 0x1f5f37);
+    addBox(0.92, 0.64, 0.92, 0, 1.65, 0, 0x266d40);
+    addBox(0.62, 0.56, 0.62, 0, 2.08, 0, 0x2b7c48);
+    return markDecorative(g);
+  }
+
+  if (rawType === 'deco_tree_willow') {
+    addBox(0.25, 1.65, 0.25, 0, 0.82, 0, 0x6a4728);
+    addBox(1.0, 0.55, 1.0, 0, 1.55, 0, 0x3c8f4b);
+    [[-0.42, 0], [0.42, 0], [0, -0.42], [0, 0.42]].forEach(([px, pz], i) => {
+      addBox(0.18, 1.05, 0.18, px, 1.0 - i * 0.04, pz, 0x58a85e);
+    });
+    return markDecorative(g);
+  }
+
+  const sprite = createEmojiSprite(def.icon || '🌿');
+  sprite.position.set(x, y + 0.6, z);
+  return markDecorative(sprite);
+}
+
 function buildMesh(rawType, x, y, z) {
   const def = getBlockData(rawType);
   if (!def) return null;
+
+  if (def.category === 'decor' || isDecorativeType(rawType)) {
+    return buildDecorMesh(rawType, x, y, z, def);
+  }
 
   // 코너 울타리: 두 패널이 직각으로 교차하는 십자형 메시
   if (rawType.startsWith('fence_c')) {
@@ -893,8 +1037,8 @@ function getVisualTopY(x, z) {
 
 function isSolid(rawType) {
   if (!rawType) return false;
-  const base = rawType.split('_')[0];
-  const def = ITEM_DB[base] || TERRAIN_BLOCKS[base];
+  if (isDecorativeType(rawType)) return false;
+  const def = getBlockData(rawType);
   return def && def.solid;
 }
 
@@ -1533,45 +1677,6 @@ document.addEventListener('level3Cleared', () => {
   DBG('[World] level3Cleared 이벤트 수신 — 강의 근원지(Level 4) 해금');
   clearLevelFog();
 });
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  [레벨 2 화이트박스] Named Placeholder 생성 헬퍼
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-function createNamedPlaceholder(name, colorHex, w = 1, h = 1, d = 1) {
-  const group = new THREE.Group();
-
-  // 1. 단순 박스 메쉬
-  const mat = new THREE.MeshLambertMaterial({ color: colorHex });
-  const box = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-  box.position.y = h / 2;
-  box.castShadow = true;
-  group.add(box);
-
-  // 2. 텍스트 라벨 부착 (CanvasTexture + Sprite)
-  const canvas = document.createElement('canvas');
-  canvas.width = 256; canvas.height = 64;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, 256, 64);
-  ctx.fillStyle = '#000000';
-  ctx.font = 'bold 32px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(name, 128, 32);
-
-  const texture = new THREE.CanvasTexture(canvas);
-  const spriteMat = new THREE.SpriteMaterial({ map: texture });
-  const sprite = new THREE.Sprite(spriteMat);
-
-  // 박스 바로 위에 텍스트 부착
-  sprite.scale.set(2, 0.5, 1);
-  sprite.position.y = h + 0.4;
-  group.add(sprite);
-
-  // 상호작용 검증을 위해 그룹 반환
-  group.traverse(c => { if (c.isMesh) c.userData.agr = group; });
-  return group;
-}
 
 // ──────────────────────────────────────────────
 // 화이트박스용 동물 스폰 테스트 함수

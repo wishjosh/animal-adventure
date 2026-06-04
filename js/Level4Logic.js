@@ -902,7 +902,9 @@ const Level4Manager = {
             TX = 42; TZ = 20;  // 쏘가리 위치
             hintText = '쏘가리 쏘야<br>방향으로!';
         } else {
-            TX = 0; TZ = 80;   // river_source 바이옴 중심
+            const riverSource = BIOME_CONFIG.river_source;
+            TX = riverSource.centerX;
+            TZ = riverSource.centerZ;
             hintText = '강의 근원지<br>탐험하세요!';
         }
 
