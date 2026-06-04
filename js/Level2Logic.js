@@ -341,7 +341,7 @@ const Level2Manager = {
             compass.classList.add('nc-nearby');
             arrowEl.textContent = '✅';
             if (distEl) distEl.textContent = '도착!';
-            if (hintEl) hintEl.innerHTML = '미지의 영역을<br>클릭해 탐험하세요!';
+            if (hintEl) hintEl.innerHTML = '가까이 가면<br>자동으로 탐험돼요!';
             arrowEl.style.transform = 'rotate(0deg)';
             return;
         }

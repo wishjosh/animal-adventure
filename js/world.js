@@ -270,19 +270,36 @@ function bldPreview(cx, cz) {
   scene.add(g); chunkGroups[k] = g;
 }
 
-function rmVisible(cx, cz) { const k = ck(cx, cz); if (chunkGroups[k]) { scene.remove(chunkGroups[k]); delete chunkGroups[k]; } }
+function disposeChunkGroup(group) {
+  group.traverse(c => {
+    if (c.geometry) c.geometry.dispose();
+    if (c.material) c.material.dispose();
+  });
+}
 
-function activateChunk(cx, cz, isInit = false) {
-  if (chunkState[ck(cx, cz)] === 'active') return;
-  rmVisible(cx, cz); chunkState[ck(cx, cz)] = 'active'; bldActive(cx, cz);
-  if (!isInit) spawnAnimalsInChunk(cx, cz);
-  const viewRadius = 4;
-  for (let dx = -viewRadius; dx <= viewRadius; dx++) for (let dz = -viewRadius; dz <= viewRadius; dz++) {
-    if (dx === 0 && dz === 0) continue;
-    const nx = cx + dx, nz = cz + dz, nk = ck(nx, nz);
-    if (!chunkState[nk] || chunkState[nk] === 'hidden') { chunkState[nk] = 'visible'; bldPreview(nx, nz); }
+function rmVisible(cx, cz) {
+  const k = ck(cx, cz);
+  if (chunkGroups[k]) {
+    scene.remove(chunkGroups[k]);
+    disposeChunkGroup(chunkGroups[k]);
+    delete chunkGroups[k];
   }
-  updateMapOverlay();
+}
+
+function activateChunk(cx, cz, isInit = false, options = {}) {
+  if (chunkState[ck(cx, cz)] === 'active') return false;
+  rmVisible(cx, cz); chunkState[ck(cx, cz)] = 'active'; bldActive(cx, cz);
+  if (!isInit && options.spawn !== false) spawnAnimalsInChunk(cx, cz);
+  if (options.expandPreview !== false) {
+    const viewRadius = 4;
+    for (let dx = -viewRadius; dx <= viewRadius; dx++) for (let dz = -viewRadius; dz <= viewRadius; dz++) {
+      if (dx === 0 && dz === 0) continue;
+      const nx = cx + dx, nz = cz + dz, nk = ck(nx, nz);
+      if (!chunkState[nk] || chunkState[nk] === 'hidden') { chunkState[nk] = 'visible'; bldPreview(nx, nz); }
+    }
+  }
+  if (options.refreshMap !== false) updateMapOverlay();
+  return true;
 }
 
 let lastCenterCx = null;
@@ -297,9 +314,21 @@ function updateVisibleChunks(orbitTarget) {
   lastCenterCx = centerCx;
   lastCenterCz = centerCz;
 
+  const R_ACTIVE = 2;  // 플레이어 주변 청크는 마인크래프트처럼 자동으로 실제 탐험 영역이 된다
   const R        = 5;  // 활성+프리뷰 표시 반경 (청크, fog near=35 ≈ 4.4청크)
   const R_PREV   = 7;  // 프리뷰 자동 생성 반경
   const R_UNLOAD = 10; // 이 거리 밖 프리뷰는 메모리 해제
+  let mapDirty = false;
+
+  // ── 현재 위치 주변은 터치 없이 자동 활성화 ──
+  for (let dx = -R_ACTIVE; dx <= R_ACTIVE; dx++) {
+    for (let dz = -R_ACTIVE; dz <= R_ACTIVE; dz++) {
+      const nx = centerCx + dx, nz = centerCz + dz;
+      if (chunkState[ck(nx, nz)] !== 'active') {
+        if (activateChunk(nx, nz, false, { expandPreview: false, refreshMap: false })) mapDirty = true;
+      }
+    }
+  }
 
   // ── 미탐험 영역 자동 프리뷰 생성 ──
   for (let dx = -R_PREV; dx <= R_PREV; dx++) {
@@ -308,6 +337,7 @@ function updateVisibleChunks(orbitTarget) {
       if (!chunkState[nk] || chunkState[nk] === 'hidden') {
         chunkState[nk] = 'visible';
         bldPreview(nx, nz);
+        mapDirty = true;
       }
     }
   }
@@ -331,16 +361,16 @@ function updateVisibleChunks(orbitTarget) {
       if (!group.parent) scene.add(group);
     } else if (distX > R_UNLOAD || distZ > R_UNLOAD) {
       if (group.parent) scene.remove(group);
-      group.traverse(c => {
-        if (c.geometry) c.geometry.dispose();
-        if (c.material) c.material.dispose();
-      });
+      disposeChunkGroup(group);
       delete chunkGroups[k];
       chunkState[k] = 'hidden';
+      mapDirty = true;
     } else {
       if (group.parent) scene.remove(group);
     }
   }
+
+  if (mapDirty) updateMapOverlay();
 }
 
 function initOldTree() {
