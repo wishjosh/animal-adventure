@@ -576,6 +576,49 @@ function removeBlock(x, y, z) {
   if (typeof onBlockRemoved === 'function') onBlockRemoved(removedType, x, y, z);
 }
 
+function _remove(x, y, z) {
+  removeBlock(x, y, z);
+}
+
+function playBlockBreakEffect(x, y, z, color = 0xffffff) {
+  if (typeof THREE === 'undefined' || typeof scene === 'undefined') return;
+
+  const particles = [];
+  const geo = new THREE.BoxGeometry(0.12, 0.12, 0.12);
+  for (let i = 0; i < 10; i++) {
+    const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85 });
+    const particle = new THREE.Mesh(geo, mat);
+    particle.position.set(x + (Math.random() - 0.5) * 0.6, y + 0.5 + Math.random() * 0.4, z + (Math.random() - 0.5) * 0.6);
+    particle.userData.velocity = {
+      x: (Math.random() - 0.5) * 0.08,
+      y: 0.08 + Math.random() * 0.08,
+      z: (Math.random() - 0.5) * 0.08
+    };
+    scene.add(particle);
+    particles.push(particle);
+  }
+
+  let frame = 0;
+  const timer = setInterval(() => {
+    frame++;
+    particles.forEach(particle => {
+      particle.position.x += particle.userData.velocity.x;
+      particle.position.y += particle.userData.velocity.y;
+      particle.position.z += particle.userData.velocity.z;
+      particle.userData.velocity.y -= 0.01;
+      particle.material.opacity = Math.max(0, particle.material.opacity - 0.045);
+    });
+    if (frame >= 22) {
+      clearInterval(timer);
+      particles.forEach(particle => {
+        scene.remove(particle);
+        if (particle.material && typeof particle.material.dispose === 'function') particle.material.dispose();
+      });
+      if (typeof geo.dispose === 'function') geo.dispose();
+    }
+  }, 30);
+}
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  동물 함수
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1489,15 +1532,6 @@ document.addEventListener('phaseAdvanced', (e) => {
 document.addEventListener('level3Cleared', () => {
   DBG('[World] level3Cleared 이벤트 수신 — 강의 근원지(Level 4) 해금');
   clearLevelFog();
-
-  // 3.2초 후 레벨 4 시작
-  setTimeout(() => {
-    currentLevel = 4;
-    DBG('[World] currentLevel → 4, 레벨4 요소 스폰');
-    if (typeof Level4Manager !== 'undefined') {
-      Level4Manager.init();
-    }
-  }, 3200);
 });
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1737,15 +1771,6 @@ function spawnLevel6Animals() {
 document.addEventListener('level4Cleared', () => {
   DBG('[World] level4Cleared 이벤트 수신 — 경계 도시(Level 5) 해금');
   clearLevelFog();
-
-  // 3.2초 후 레벨 5 시작
-  setTimeout(() => {
-    currentLevel = 5;
-    DBG('[World] currentLevel → 5, 레벨5 요소 스폰');
-    if (typeof Level5Manager !== 'undefined') {
-      Level5Manager.init();
-    }
-  }, 3200);
 });
 
 // 레벨 5 클리어 이벤트 수신 등록
@@ -1755,10 +1780,7 @@ document.addEventListener('level5Cleared', () => {
 
   // 3.2초 후 레벨 6 시작
   setTimeout(() => {
-    currentLevel = 6;
-    DBG('[World] currentLevel → 6, 레벨6 요소 스폰');
-    if (typeof Level6Manager !== 'undefined') {
-      Level6Manager.init();
-    }
+    DBG('[World] 레벨6 시작 요청');
+    if (typeof window.startLevel6 === 'function') window.startLevel6();
   }, 3200);
 });

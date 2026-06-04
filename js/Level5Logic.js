@@ -36,6 +36,8 @@ class Level5Manager {
     } else if (typeof showNpcDialogue === 'function') {
       showNpcDialogue('l5_intro');
     }
+
+    Level5Manager.updateUI();
   }
 
   static update(t) {
@@ -54,6 +56,48 @@ class Level5Manager {
         Level5Manager.completeAudit();
       }
       Level5Manager.updateAuditProgressUI();
+    }
+  }
+
+  static check() {
+    if (Level5Manager.currentPhase >= 2 && level5_conditions.officerConvinced) {
+      Level5Manager.checkViaductConnection();
+      Level5Manager.checkTunnel();
+      Level5Manager.checkBiotope();
+      Level5Manager.checkTransitionToAudit();
+    }
+    Level5Manager.updateUI();
+  }
+
+  static updateUI() {
+    const title = document.getElementById('mission-title');
+    const desc = document.getElementById('mission-desc');
+    const status = document.getElementById('mission-status');
+    if (!title || !desc || !status) return;
+
+    const trashCount = Object.values(gridData).filter(type => type && type.startsWith('city_trash')).length;
+    const tunnelCount = Object.values(gridData).filter(type => type && type.startsWith('wildlife_tunnel')).length;
+    const score = Math.round(level5_conditions.auditScore || 0);
+
+    title.textContent = 'Level 5. 경계 도시';
+
+    if (Level5Manager.currentPhase === 1) {
+      desc.textContent = '회색 도시의 쓰레기를 치워 라쿤이를 구출하세요.';
+      status.innerHTML = `<div class="mc">도심 쓰레기: ${trashCount}개 남음</div><div class="mc">라쿤이 구조: ${level5_conditions.raccoonRescued ? '완료' : '진행 중'}</div>`;
+    } else if (Level5Manager.currentPhase === 2) {
+      desc.textContent = '생태 육교, 동물 터널, 옥상 비오톱으로 도시와 숲을 연결하세요.';
+      status.innerHTML = `
+        <div class="mc">공무원 설득: ${level5_conditions.officerConvinced ? '완료' : '필요'}</div>
+        <div class="mc">생태 육교: ${level5_conditions.viaductConnected ? '연결됨' : '미완성'}</div>
+        <div class="mc">동물 터널: ${level5_conditions.tunnelBuilt ? '완성' : `${Math.min(tunnelCount, 2)} / 2`}</div>
+        <div class="mc">옥상 비오톱: ${Math.min(level5_conditions.biotopePlacedCount, 4)} / 4</div>
+      `;
+    } else if (Level5Manager.currentPhase === 3) {
+      desc.textContent = '생태통로 심사 기준을 통과해 경계 도시를 안정화하세요.';
+      status.innerHTML = `<div class="mc">심사 점수: ${score}점 / 80점</div><div class="mc">남은 시간: ${Math.ceil(level5_conditions.auditTimer || 0)}초</div>`;
+    } else if (Level5Manager.currentPhase >= 4) {
+      desc.textContent = '도심과 자연을 잇는 생태 연결망이 완성되었습니다.';
+      status.innerHTML = '<div class="mc">레벨 5 완료</div>';
     }
   }
 
@@ -85,6 +129,7 @@ class Level5Manager {
           
           Level5Manager.currentPhase = 2;
           level5_phase = 2;
+          Level5Manager.updateUI();
           
           setTimeout(() => {
             if (typeof showNpcDialogue === 'function') {
@@ -92,6 +137,7 @@ class Level5Manager {
             }
           }, 1200);
         }
+        Level5Manager.updateUI();
       } else {
         toast('🛠️ 삽이나 곡괭이를 사용하여 쓰레기를 치워주세요.');
       }
@@ -192,6 +238,7 @@ class Level5Manager {
       if (typeof initInventoryUI === 'function') initInventoryUI();
     }
     toast('⚙️ 생태 육교, 비오톱, 동물 터널 블록을 획득했습니다!');
+    Level5Manager.updateUI();
     
     if (typeof showNpcDialogue === 'function') {
       showNpcDialogue('l5_officer_convinced');
@@ -275,6 +322,8 @@ class Level5Manager {
         guardianState.raccoon = 3;
         if (typeof renderGuardians === 'function') renderGuardians();
       }
+      if (typeof updateProtectorSlots === 'function') updateProtectorSlots();
+      Level5Manager.updateUI();
       
       // 너구리 합류 다이얼로그
       setTimeout(() => {
@@ -301,6 +350,7 @@ class Level5Manager {
     if (tunnelCount >= 2) {
       level5_conditions.tunnelBuilt = true;
       toast('🚇 소형 동물을 위한 하부 통로 터널이 구축되었습니다!');
+      Level5Manager.updateUI();
       Level5Manager.checkTransitionToAudit();
     }
   }
@@ -322,6 +372,7 @@ class Level5Manager {
 
     level5_conditions.biotopePlacedCount = count;
     level5_conditions.biotopeCells = cells;
+    Level5Manager.updateUI();
 
     if (count >= 4 && !global_protectors.kestrel) {
       // 황조롱이 영입 (수호대 합류 플래그를 항상 직접 설정)
@@ -332,6 +383,8 @@ class Level5Manager {
         guardianState.kestrel = 3;
         if (typeof renderGuardians === 'function') renderGuardians();
       }
+      if (typeof updateProtectorSlots === 'function') updateProtectorSlots();
+      Level5Manager.updateUI();
       
       toast('🦅 황조롱이 삐루가 비오톱 텃밭에 둥지를 지어 합류했습니다!');
       
@@ -347,9 +400,11 @@ class Level5Manager {
 
   // 세 조건이 모두 충족되었을 때 심사 챌린지로 전환
   static checkTransitionToAudit() {
+    if (Level5Manager.currentPhase >= 3) return;
     if (level5_conditions.viaductConnected && level5_conditions.tunnelBuilt && global_protectors.kestrel) {
       Level5Manager.currentPhase = 3;
       level5_phase = 3;
+      Level5Manager.updateUI();
       
       setTimeout(() => {
         if (typeof showNpcDialogue === 'function') {
@@ -366,6 +421,7 @@ class Level5Manager {
     level5_conditions.auditTimer = 30;
     level5_conditions.auditScore = 0;
     Level5Manager._auditLastTick = null; // 첫 update에서 기준 시각 초기화
+    Level5Manager.updateUI();
     
     // 심사 전광판 UI 생성
     const board = document.createElement('div');
@@ -401,6 +457,7 @@ class Level5Manager {
 
     const total = Math.round((drainage + traffic + satisfaction) / 3);
     level5_conditions.auditScore = total;
+    Level5Manager.updateUI();
 
     board.innerHTML = `
       <h4 style="margin: 0 0 12px 0; color: #4fc3f7; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 6px; font-size: 16px;">📋 생태통로 심사 검증</h4>
@@ -426,6 +483,7 @@ class Level5Manager {
     if (level5_conditions.auditScore >= 80) {
       Level5Manager.currentPhase = 4;
       level5_phase = 4;
+      Level5Manager.updateUI();
       
       if (typeof showNpcDialogue === 'function') {
         showNpcDialogue('l5_clear');

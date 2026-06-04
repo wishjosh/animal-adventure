@@ -9,13 +9,16 @@ const QuestManager = {
     return this.levels[currentLevel] ? this.levels[currentLevel].currentPhase : 0;
   },
   check() {
-    if (this.levels[currentLevel]) this.levels[currentLevel].check();
+    const level = this.levels[currentLevel];
+    if (level && typeof level.check === 'function') level.check();
   },
   updateUI() {
-    if (this.levels[currentLevel]) this.levels[currentLevel].updateUI();
+    const level = this.levels[currentLevel];
+    if (level && typeof level.updateUI === 'function') level.updateUI();
   },
   advance() {
-    if (this.levels[currentLevel]) this.levels[currentLevel].advance();
+    const level = this.levels[currentLevel];
+    if (level && typeof level.advance === 'function') level.advance();
   },
   onTreeChopped() {
     if (this.levels[currentLevel] && this.levels[currentLevel].onTreeChopped) {

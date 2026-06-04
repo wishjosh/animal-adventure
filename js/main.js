@@ -387,7 +387,7 @@ function handleClick(clientX, clientY) {
   const getUD = o => o.userData.isBlock ? o.userData : (o.parent && o.parent.userData.isBlock ? o.parent.userData : null);
 
   // === [1순위] 시스템 기본 동작 (도구 무관) ===
-  if (QuestManager.currentPhase === 0) {
+  if (QuestManager.getCurrentPhase() === 0) {
     if (obj.userData.isClue) { ClueSystem.checkClick(obj.userData.clueId); return; }
     toast('탐험을 시작하기 전에 단서를 모두 모아주세요!');
     return;

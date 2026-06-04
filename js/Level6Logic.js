@@ -50,6 +50,38 @@ class Level6Manager {
 
     // 3. 브릿지 물방울 컷신 연출 (10초 시뮬레이션 후 세계 지도 오픈)
     Level6Manager.playWaterDropBridgeCutscene();
+    Level6Manager.updateUI();
+  }
+
+  static check() {
+    Level6Manager.updateUI();
+  }
+
+  static updateUI() {
+    const title = document.getElementById('mission-title');
+    const desc = document.getElementById('mission-desc');
+    const status = document.getElementById('mission-status');
+    if (!title || !desc || !status) return;
+
+    title.textContent = 'Level 6. 초록별 심장부';
+
+    if (Level6Manager.currentPhase === 1) {
+      const solved = Object.values(Level6Manager.activeSignals).filter(sig => sig.solved).length;
+      desc.textContent = '세계 곳곳의 기후 이상 신호에 알맞은 수호대를 파견하세요.';
+      status.innerHTML = `<div class="mc">안정화 구역: ${solved} / 5</div><div class="mc">세계 지도: ${level6_conditions.bridgeCutscenePlayed ? '활성화' : '컷신 진행 중'}</div>`;
+    } else if (Level6Manager.currentPhase === 2) {
+      desc.textContent = '도토리를 가까이에 놓아 반달곰 웅이의 신뢰를 얻으세요.';
+      status.innerHTML = `<div class="mc">웅이 신뢰도: ${level6_conditions.bearAcornFedCount} / 3</div>`;
+    } else if (Level6Manager.currentPhase === 3) {
+      desc.textContent = '모든 수호대의 힘으로 초록별 심장 박동을 회복하세요.';
+      status.innerHTML = `<div class="mc">심장 회복률: ${level6_conditions.heartBeatScore}%</div>`;
+    } else if (Level6Manager.currentPhase === 4) {
+      desc.textContent = '초록별 생태 순환망이 정상화되었습니다.';
+      status.innerHTML = '<div class="mc">최종 엔딩 진행 중</div>';
+    } else if (Level6Manager.currentPhase >= 5) {
+      desc.textContent = '모든 안개가 걷히고 자유 샌드박스가 열렸습니다.';
+      status.innerHTML = '<div class="mc">샌드박스 모드 해금</div>';
+    }
   }
 
   static playWaterDropBridgeCutscene() {
@@ -163,10 +195,14 @@ class Level6Manager {
 
   static clickSignalNode(key) {
     const sig = Level6Manager.activeSignals[key];
+    if (!sig) return;
     if (sig.solved) {
       toast(`✅ ${sig.label}은(는) 이미 안정화되었습니다.`);
       return;
     }
+
+    const existing = document.getElementById('dispatch-confirm-popup');
+    if (existing) existing.remove();
 
     // 파견 확인 창 생성
     const confirmPopup = document.createElement('div');
@@ -201,6 +237,12 @@ class Level6Manager {
     const confirmPopup = document.getElementById('dispatch-confirm-popup');
     if (confirmPopup) confirmPopup.remove();
 
+    if (!sig || sig.solved) {
+      toast('✅ 이미 안정화된 지역입니다.');
+      Level6Manager.showWorldMapPopup();
+      return;
+    }
+
     // 플레이어가 해당 수호대를 이미 영입했는지 확인
     const isRecruited = global_protectors[sig.required];
 
@@ -228,6 +270,7 @@ class Level6Manager {
     sig.solved = true;
     level6_conditions.dispatchedCount++;
     toast(`🦩 수호대 파견 완료! ${sig.label} 구역이 정상 복구 중입니다.`);
+    Level6Manager.updateUI();
 
     // 홀로그램 맵 갱신
     Level6Manager.showWorldMapPopup();
@@ -247,6 +290,7 @@ class Level6Manager {
     Level6Manager.currentPhase = 2;
     level6_phase = 2;
     level6_conditions.bearEncountered = true;
+    Level6Manager.updateUI();
 
     // 도토리 획득 퀵바 지급
     if (typeof hotbar !== 'undefined') {
@@ -263,6 +307,7 @@ class Level6Manager {
   // 매 프레임/블록 갱신 감지 웅이 도토리 먹기 체크
   static checkBearFeed(x, y, z) {
     if (Level6Manager.currentPhase !== 2) return;
+    if (level6_conditions.bearAcornFedCount >= 3) return;
 
     // 웅이 캐릭터 찾기
     const bear = animalData.find(a => a.type === 'bear');
@@ -273,25 +318,38 @@ class Level6Manager {
     const dist = Math.sqrt(dx*dx + dz*dz);
 
     if (dist <= 2.2) {
+      const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+      if (now - Level6Manager._lastBearFeed < 1200) return;
+      Level6Manager._lastBearFeed = now;
+
       // 웅이가 접근해서 먹음
+      bear.x = x;
+      bear.z = z;
+      bear.y = (typeof getH === 'function') ? getH(x, z) + 1 : y + 1;
+      if (bear.group) bear.group.position.set(bear.x, bear.y, bear.z);
+
       _remove(x, y, z);
       playBlockBreakEffect(x, y, z, 0xa0522d); // 도토리 브레이크 파티클
       
       level6_conditions.bearAcornFedCount++;
       toast(`🐻 웅이가 도토리를 맛있게 먹었습니다! (신뢰도: ${level6_conditions.bearAcornFedCount} / 3)`);
+      Level6Manager.updateUI();
 
       // 3단계 클리어 시 최종 수호대 합류
       if (level6_conditions.bearAcornFedCount >= 3) {
+        global_protectors.bear = true;
         if (typeof GuardianSystem !== 'undefined' && typeof GuardianSystem.updateState === 'function') {
           GuardianSystem.updateState('bear', 3);
         } else {
-          global_protectors.bear = true;
           guardianState.bear = 3;
           if (typeof renderGuardians === 'function') renderGuardians();
         }
+        if (guardianState.bear < 3) guardianState.bear = 3;
+        if (typeof updateProtectorSlots === 'function') updateProtectorSlots();
 
         Level6Manager.currentPhase = 3;
         level6_phase = 3;
+        Level6Manager.updateUI();
 
         setTimeout(() => {
           if (typeof showNpcDialogue === 'function') {
@@ -324,6 +382,7 @@ class Level6Manager {
     const interval = setInterval(() => {
       score += 5;
       level6_conditions.heartBeatScore = score;
+      Level6Manager.updateUI();
 
       board.innerHTML = `
         <h4 style="margin: 0 0 12px 0; color: #ef5350; font-size: 16px; font-weight: bold;">💓 초록별 심장 박동 회복</h4>
@@ -350,6 +409,7 @@ class Level6Manager {
         Level6Manager.currentPhase = 4;
         level6_phase = 4;
         level6_conditions.globalStabilized = true;
+        Level6Manager.updateUI();
 
         if (typeof showNpcDialogue === 'function') {
           showNpcDialogue('l6_clear');
@@ -425,6 +485,7 @@ class Level6Manager {
 
     Level6Manager.currentPhase = 5;
     level6_phase = 5;
+    Level6Manager.updateUI();
 
     // 무한 샌드박스 치트 도구 지급 및 안개 제거
     if (typeof scene !== 'undefined' && scene.fog) {

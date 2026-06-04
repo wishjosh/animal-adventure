@@ -817,11 +817,6 @@ window.startLevel6 = function () {
   }
 };
 
-// Level5Manager.proceedToLevel6() 가 발생시키는 level5Cleared 이벤트 수신
-document.addEventListener('level5Cleared', () => {
-  window.startLevel6();
-});
-
 // 개발 테스트용 — goLevel6()
 window.goLevel6 = function () {
   isOpeningActive = false;
