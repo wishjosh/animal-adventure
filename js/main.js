@@ -98,6 +98,18 @@ function isFenced(x, z) {
 const orbitTarget = new THREE.Vector3(CHUNK, 38, CHUNK);
 let theta = 0.7, phi = 0.85, radius = 36;
 let firstPerson = true; // 마인크래프트형 1인칭 시점 (V키로 3인칭 전환)
+let cameraBobOffset = 0;
+let walkBobPhase = 0;
+
+const WALK_SPEED = 4.3;
+const SPRINT_SPEED = 5.6;
+const FLY_VERTICAL_SPEED = 5.2;
+const PLAYER_RADIUS = 0.35;
+const PLAYER_EYE_HEIGHT = 1.62;
+const PLAYER_STEP_HEIGHT = 1.12;
+const LOOK_SENS_MOUSE = 0.00165;
+const LOOK_SENS_DRAG = 0.0035;
+const LOOK_SENS_TOUCH = 0.0031;
 
 const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false, ' ': false, Shift: false, Control: false };
 window.addEventListener('keydown', e => { if (keys.hasOwnProperty(e.key)) keys[e.key] = true; if (e.key === ' ') keys[' '] = true; });
@@ -112,8 +124,8 @@ function syncCam() {
   const dz = Math.sin(phi) * Math.cos(theta);
   if (firstPerson) {
     // 1인칭: 카메라가 곧 플레이어의 눈(orbitTarget)이며 -d 방향을 바라본다
-    camera.position.set(orbitTarget.x, orbitTarget.y, orbitTarget.z);
-    camera.lookAt(orbitTarget.x - dx, orbitTarget.y - dy, orbitTarget.z - dz);
+    camera.position.set(orbitTarget.x, orbitTarget.y + cameraBobOffset, orbitTarget.z);
+    camera.lookAt(orbitTarget.x - dx, orbitTarget.y + cameraBobOffset - dy, orbitTarget.z - dz);
   } else {
     // 3인칭: orbitTarget을 중심으로 radius 거리에서 공전
     camera.position.set(orbitTarget.x + radius * dx, orbitTarget.y + radius * dy, orbitTarget.z + radius * dz);
@@ -130,6 +142,83 @@ function camForwardFlat() {
   return wd.normalize();
 }
 
+function getNaturalTopY(x, z) {
+  return getH(Math.round(x), Math.round(z)) + 1;
+}
+
+function getWalkingEyeY(x, z) {
+  return getNaturalTopY(x, z) + PLAYER_EYE_HEIGHT;
+}
+
+function isPlayerBlockingType(type) {
+  if (!type) return false;
+  if (type === 'grass' || type === 'straw') return false;
+  if (type.startsWith('plant_') || type.startsWith('seed_')) return false;
+  if (type.startsWith('fence')) return true;
+  if (type.startsWith('deco_tree') || type === 'deco_street_tree' || type === 'deco_shrub') return true;
+  const def = typeof getBlockData === 'function' ? getBlockData(type) : (ITEM_DB[type] || TERRAIN_BLOCKS[type]);
+  if (!def || !def.solid) return false;
+  return def.category !== 'nature';
+}
+
+function getObstacleHeight(type) {
+  if (!type) return 0;
+  if (type.startsWith('deco_tree') || type === 'deco_street_tree') return 2.8;
+  if (type === 'deco_shrub' || type === 'bush') return 1.2;
+  if (type.startsWith('fence')) return 1.1;
+  return 1.0;
+}
+
+function getPlayerSampleCells(x, z) {
+  const r = PLAYER_RADIUS;
+  const d = r * 0.72;
+  const samples = [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r], [d, d], [d, -d], [-d, d], [-d, -d]];
+  return samples.map(([ox, oz]) => [Math.round(x + ox), Math.round(z + oz)]);
+}
+
+function isPlayerBlockedAt(x, z, eyeY, currentX, currentZ) {
+  const currentCells = new Set(getPlayerSampleCells(currentX, currentZ).map(([cx, cz]) => `${cx},${cz}`));
+  const currentNaturalTop = getNaturalTopY(currentX, currentZ);
+  const bodyBottom = eyeY - PLAYER_EYE_HEIGHT;
+  const bodyTop = eyeY + 0.2;
+
+  for (const [rx, rz] of getPlayerSampleCells(x, z)) {
+    const cellKey = `${rx},${rz}`;
+    const naturalTop = getNaturalTopY(rx, rz);
+    if (naturalTop - currentNaturalTop > PLAYER_STEP_HEIGHT && bodyBottom < naturalTop + 0.25) return true;
+
+    for (let y = naturalTop; y <= naturalTop + 3; y++) {
+      const type = gridData[bk(rx, y, rz)];
+      if (!isPlayerBlockingType(type)) continue;
+      if (currentCells.has(cellKey)) continue;
+      const obstacleBottom = y - 0.05;
+      const obstacleTop = y + getObstacleHeight(type);
+      if (bodyBottom < obstacleTop && bodyTop > obstacleBottom) return true;
+    }
+  }
+
+  return false;
+}
+
+function movePlayerWithCollision(dx, dz) {
+  let moved = false;
+  if (Math.abs(dx) > 0.0001) {
+    const nextX = orbitTarget.x + dx;
+    if (!isPlayerBlockedAt(nextX, orbitTarget.z, orbitTarget.y, orbitTarget.x, orbitTarget.z)) {
+      orbitTarget.x = nextX;
+      moved = true;
+    }
+  }
+  if (Math.abs(dz) > 0.0001) {
+    const nextZ = orbitTarget.z + dz;
+    if (!isPlayerBlockedAt(orbitTarget.x, nextZ, orbitTarget.y, orbitTarget.x, orbitTarget.z)) {
+      orbitTarget.z = nextZ;
+      moved = true;
+    }
+  }
+  return moved;
+}
+
 syncCam();
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -143,7 +232,7 @@ let lastClickTime = 0, lastTouchTime = 0;
 let touchHoldTimer = null, touchHoldTriggered = false;
 let mobileDigInterval = null;
 let lastSpaceTap = 0;
-let creativeFlight = true;
+let creativeFlight = false;
 let mobileSprint = false;
 const mobileMove = { x: 0, y: 0, active: false };
 const TOUCH_LAYOUT_QUERY = '(pointer: coarse), (max-width: 760px), (max-height: 520px)';
@@ -224,6 +313,7 @@ function setFirstPerson(on) {
 
 function setCreativeFlight(on, silent = false) {
   creativeFlight = on;
+  if (creativeFlight) cameraBobOffset = 0;
   document.body.classList.toggle('flight-off', !creativeFlight);
   document.body.classList.toggle('flight-on', creativeFlight);
   const flyBtn = document.getElementById('mobile-fly-btn');
@@ -489,8 +579,8 @@ canvas.addEventListener('mousedown', e => {
 canvas.addEventListener('mousemove', e => {
   // 1인칭(포인터 락): 마우스 이동량으로 자유롭게 둘러보기
   if (firstPerson && document.pointerLockElement === canvas) {
-    theta -= e.movementX * 0.0025;
-    phi   -= e.movementY * 0.0025;
+    theta -= e.movementX * LOOK_SENS_MOUSE;
+    phi   -= e.movementY * LOOK_SENS_MOUSE;
     mouse2D.set(0, 0); // 하이라이트/레이캐스트는 화면 중앙(크로스헤어) 기준
     syncCam();
     return;
@@ -503,7 +593,7 @@ canvas.addEventListener('mousemove', e => {
   if (clickMoved) {
     if (digInterval || isHoldingPickaxe) return;
     if (dragButton === 0) { const fwd = new THREE.Vector3(orbitTarget.x - camera.position.x, 0, orbitTarget.z - camera.position.z).normalize(); const rgt = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize(); const panSpd = radius * 0.0018; orbitTarget.addScaledVector(rgt, -dx * panSpd); orbitTarget.addScaledVector(fwd, dy * panSpd); }
-    else if (dragButton === 2) { theta -= dx * .007; phi -= dy * .007; }
+    else if (dragButton === 2) { theta -= dx * LOOK_SENS_DRAG; phi -= dy * LOOK_SENS_DRAG; }
     mouseStart = { x: e.clientX, y: e.clientY }; syncCam();
   }
 });
@@ -554,7 +644,7 @@ canvas.addEventListener('touchmove', e => {
     if (clickMoved) {
       clearTimeout(touchHoldTimer);
       if (digInterval || isHoldingPickaxe) return;
-      theta -= dx * .007; phi -= dy * .007; mouseStart = { x: currentMouseX, y: currentMouseY }; syncCam();
+      theta -= dx * LOOK_SENS_TOUCH; phi -= dy * LOOK_SENS_TOUCH; mouseStart = { x: currentMouseX, y: currentMouseY }; syncCam();
     }
   } else if (touchMode === 'zoom_pan' && canvasTouches.length === 2) {
     const dx = canvasTouches[0].clientX - canvasTouches[1].clientX, dy = canvasTouches[0].clientY - canvasTouches[1].clientY;
@@ -826,8 +916,13 @@ if (window.visualViewport) {
 }
 
 let t = 0;
+let lastFrameTime = performance.now();
 function animate() {
-  requestAnimationFrame(animate); t += .016;
+  requestAnimationFrame(animate);
+  const now = performance.now();
+  const dt = Math.min(0.05, Math.max(0.001, (now - lastFrameTime) / 1000));
+  lastFrameTime = now;
+  t += dt;
 
   // 1인칭: 커서가 필요한 모달 UI가 뜨면 포인터 락을 풀어 버튼/대화를 조작할 수 있게 한다
   if (firstPerson && document.pointerLockElement === canvas && needsCursor()) {
@@ -839,7 +934,9 @@ function animate() {
   }
 
   let camMoved = false;
-  const spd = 0.4 * ((keys.Control || mobileSprint) ? 1.55 : 1);
+  let horizontalMoved = false;
+  const sprinting = keys.Control || mobileSprint;
+  const spd = (sprinting ? SPRINT_SPEED : WALK_SPEED) * dt;
   const fwd = camForwardFlat();
   const rgt = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
   let moveForward = (keys.w || keys.ArrowUp ? 1 : 0) - (keys.s || keys.ArrowDown ? 1 : 0) + mobileMove.y;
@@ -849,11 +946,30 @@ function animate() {
     moveForward /= moveLen;
     moveRight /= moveLen;
   }
-  if (Math.abs(moveForward) > 0.01) { orbitTarget.addScaledVector(fwd, moveForward * spd); camMoved = true; }
-  if (Math.abs(moveRight) > 0.01) { orbitTarget.addScaledVector(rgt, moveRight * spd); camMoved = true; }
-  if (creativeFlight && (keys[' '] || camMoveDir === 1)) { orbitTarget.y += spd; camMoved = true; }
-  if (creativeFlight && (keys.Shift || camMoveDir === -1)) { orbitTarget.y -= spd; camMoved = true; }
-  if (camMoved) syncCam();
+  const dxMove = fwd.x * moveForward * spd + rgt.x * moveRight * spd;
+  const dzMove = fwd.z * moveForward * spd + rgt.z * moveRight * spd;
+  if (Math.abs(dxMove) > 0.0001 || Math.abs(dzMove) > 0.0001) {
+    horizontalMoved = movePlayerWithCollision(dxMove, dzMove);
+    camMoved = camMoved || horizontalMoved;
+  }
+  if (creativeFlight && (keys[' '] || camMoveDir === 1)) { orbitTarget.y += FLY_VERTICAL_SPEED * dt; camMoved = true; }
+  if (creativeFlight && (keys.Shift || camMoveDir === -1)) { orbitTarget.y -= FLY_VERTICAL_SPEED * dt; camMoved = true; }
+  if (!creativeFlight) {
+    const groundEyeY = getWalkingEyeY(orbitTarget.x, orbitTarget.z);
+    if (Math.abs(orbitTarget.y - groundEyeY) > 0.01) {
+      orbitTarget.y += (groundEyeY - orbitTarget.y) * Math.min(1, dt * 14);
+      camMoved = true;
+    }
+  }
+
+  const prevBob = cameraBobOffset;
+  if (horizontalMoved && !creativeFlight) {
+    walkBobPhase += dt * (sprinting ? 13.0 : 9.4);
+    cameraBobOffset = Math.sin(walkBobPhase) * 0.045 + Math.sin(walkBobPhase * 2) * 0.012;
+  } else {
+    cameraBobOffset *= Math.max(0, 1 - dt * 8);
+  }
+  if (camMoved || Math.abs(cameraBobOffset - prevBob) > 0.001) syncCam();
 
   const wL = typeof BiomeSystem !== 'undefined' ? BiomeSystem.getDominantBiome(orbitTarget.x, orbitTarget.z).waterLevel : 30;
   if (camera.position.y < wL) { scene.fog.color.setHex(0x021b3a); scene.fog.near = 2; scene.fog.far = 12; renderer.setClearColor(0x021b3a); }
