@@ -434,26 +434,6 @@ body.touch-controls-enabled #mobile-touch-controls {
     text-overflow: ellipsis;
   }
 
-  #protector-bar {
-    display: none;
-  }
-
-  #protector-bar::-webkit-scrollbar {
-    display: none;
-  }
-
-  .protector-slot {
-    width: 44px;
-    height: 44px;
-    min-width: 44px;
-    border-radius: 11px;
-    font-size: 21px;
-  }
-
-  .protector-slot .slot-label {
-    display: none;
-  }
-
   #hotbar-row,
   #hotbar-container,
   #hotbar-actions {
@@ -510,20 +490,6 @@ body.touch-controls-enabled #mobile-touch-controls {
   .mc,
   .step-body {
     font-size: 10.5px;
-  }
-
-  #protector-bar {
-    bottom: calc(136px + var(--safe-bottom));
-    gap: 4px;
-    padding: 3px 6px;
-  }
-
-  .protector-slot {
-    width: 30px;
-    height: 30px;
-    min-width: 30px;
-    border-radius: 8px;
-    font-size: 17px;
   }
 
   #hotbar-wrapper {
@@ -707,10 +673,6 @@ body.touch-controls-enabled #mobile-touch-controls {
     grid-template-columns: repeat(2, var(--action-size));
   }
 
-  #protector-bar {
-    bottom: calc(164px + var(--safe-bottom));
-  }
-
   #toast-container {
     bottom: calc(212px + var(--safe-bottom));
   }
@@ -738,17 +700,6 @@ body.touch-controls-enabled #mobile-touch-controls {
 
   #hotbar-actions {
     grid-template-columns: repeat(2, var(--action-size));
-  }
-
-  #protector-bar {
-    left: max(8px, var(--safe-left));
-    right: auto;
-    bottom: max(8px, var(--safe-bottom));
-    transform: none;
-    flex-direction: column;
-    flex-wrap: wrap;
-    max-height: calc(100dvh - 92px);
-    max-width: 96px;
   }
 
   #toast-container {

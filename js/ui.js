@@ -1006,43 +1006,9 @@ function startWormMinigame(centerX = 8, centerZ = 8) {
 }
 
 /**
- * 수호대가 영입될 때마다 화면 하단의 슬롯 아이콘을 활성화 상태로 변경한다.
- * systems.js의 global_protectors 변경 후 호출한다.
- * HTML에 id="protector-slot-bee", "protector-slot-swallow", "protector-slot-sheep" 요소가 있어야 한다.
+ * 수호대 상태 변경 후 클리어 배너를 갱신한다.
  */
 function updateProtectorSlots() {
-  const slotMap = {
-    bee:     { id: 'protector-slot-bee',     emoji: '🐝', label: '꿀벌' },
-    swallow: { id: 'protector-slot-swallow', emoji: '🐦', label: '제비' },
-    sheep:   { id: 'protector-slot-sheep',   emoji: '🐑', label: '양'   },
-    otter:   { id: 'protector-slot-otter',   emoji: '🦦', label: '수달' },
-    bat:     { id: 'protector-slot-bat',     emoji: '🦇', label: '금비' },
-    fox:     { id: 'protector-slot-fox',     emoji: '🦊', label: '여우' },
-    eagle:   { id: 'protector-slot-eagle',   emoji: '🦅', label: '독수리' },
-    crane:   { id: 'protector-slot-crane',   emoji: '🦩', label: '두루미' },
-    salmon:  { id: 'protector-slot-salmon',  emoji: '🐟', label: '연어' },
-    raccoon: { id: 'protector-slot-raccoon', emoji: '🦝', label: '너구리' },
-    kestrel: { id: 'protector-slot-kestrel', emoji: '🦅', label: '황조롱이' },
-    bear:    { id: 'protector-slot-bear',    emoji: '🐻', label: '반달곰' }
-  };
-
-  for (const [key, cfg] of Object.entries(slotMap)) {
-    const el = document.getElementById(cfg.id);
-    if (!el) continue;
-
-    const joined = global_protectors[key] === true;
-    el.classList.toggle('slot-active', joined);
-    el.classList.toggle('slot-inactive', !joined);
-    el.title = joined ? `${cfg.emoji} ${cfg.label} 합류 완료!` : `${cfg.emoji} ${cfg.label} (미합류)`;
-
-    if (joined) {
-      el.style.animation = 'none';
-      requestAnimationFrame(() => {
-        el.style.animation = 'protector-join-pulse 0.6s ease-out 2';
-      });
-    }
-  }
-
   // 레벨 1 클리어 배너: 꿀벌+제비+양 모두 합류 시
   const lv1Joined = global_protectors.bee && global_protectors.swallow && global_protectors.sheep;
   const clearBanner = document.getElementById('protector-clear-banner');

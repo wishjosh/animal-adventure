@@ -146,6 +146,7 @@ let lastSpaceTap = 0;
 let creativeFlight = true;
 let mobileSprint = false;
 const mobileMove = { x: 0, y: 0, active: false };
+const TOUCH_LAYOUT_QUERY = '(pointer: coarse), (max-width: 760px), (max-height: 520px)';
 
 const ptEl = document.getElementById('phase-transition');
 const crEl = document.getElementById('creature-report');
@@ -208,7 +209,7 @@ document.body.appendChild(fpHint);
 
 function updateFpHud() {
   const locked = document.pointerLockElement === canvas;
-  const touchLayout = window.matchMedia('(pointer: coarse), (max-width: 760px), (max-height: 520px)').matches;
+  const touchLayout = isTouchLayout();
   fpCrosshair.style.display = (firstPerson && (locked || touchLayout) && !needsCursor()) ? 'block' : 'none';
   fpHint.style.display = (firstPerson && !locked && !needsCursor() && !touchLayout) ? 'block' : 'none';
 }
@@ -239,17 +240,21 @@ function getCrosshairCoords() {
   return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
 }
 
+function isTouchLayout() {
+  return typeof window.matchMedia === 'function' && window.matchMedia(TOUCH_LAYOUT_QUERY).matches;
+}
+
 function mobileUseAtCrosshair() {
   if (isUIBlocking()) return;
   const c = getCrosshairCoords();
-  handleClick(c.x, c.y);
+  handleClick(c.x, c.y, { allowNearby: true, purpose: 'use' });
 }
 
 function mobileDigAtCrosshair() {
   if (isUIBlocking()) return;
   const c = getCrosshairCoords();
-  if (toolMode === 'pickaxe') doDig(c.x, c.y);
-  else handleClick(c.x, c.y);
+  if (toolMode === 'pickaxe') doDig(c.x, c.y, { allowNearby: true, purpose: 'dig' });
+  else handleClick(c.x, c.y, { allowNearby: true, purpose: 'dig' });
 }
 
 document.addEventListener('pointerlockchange', updateFpHud);
@@ -307,9 +312,117 @@ function castRay(cx, cy) {
   return raycaster.intersectObjects(getRayTargets(), false);
 }
 
-function doDig(clientX, clientY) {
-  if (isUIBlocking()) return;
+function getBlockUserData(obj) {
+  if (!obj) return null;
+  if (obj.userData && obj.userData.isBlock) return obj.userData;
+  if (obj.parent && obj.parent.userData && obj.parent.userData.isBlock) return obj.parent.userData;
+  return null;
+}
+
+function getInteractionRoot(obj) {
+  if (obj && obj.parent && obj.parent.userData && obj.parent.userData.isBlock) return obj.parent;
+  return obj;
+}
+
+function getInteractionReach(options = {}) {
+  if (options.range) return options.range;
+  return (firstPerson || isTouchLayout()) ? 5.6 : 9;
+}
+
+function getInteractionCenter(obj) {
+  const ud = getBlockUserData(obj);
+  if (ud) return new THREE.Vector3(ud.bx, ud.by + 0.5, ud.bz);
+  const target = obj && obj.parent && obj.parent.userData &&
+    (obj.parent.userData.isLeaf || obj.parent.userData.isClue || obj.parent.userData.isOldTree)
+    ? obj.parent
+    : obj;
+  if (!target) return null;
+  const box = new THREE.Box3().setFromObject(target);
+  if (!box.isEmpty()) return box.getCenter(new THREE.Vector3());
+  const pos = new THREE.Vector3();
+  target.getWorldPosition(pos);
+  return pos;
+}
+
+function isNearbyInteractionCandidate(obj, purpose) {
+  if (!obj || (obj.userData && obj.userData.isGround)) return false;
+  const ud = getBlockUserData(obj);
+  const data = obj.userData || {};
+  const parentData = (obj.parent && obj.parent.userData) || {};
+  const hasAnimal = !!data.agr || !!parentData.agr;
+  if (purpose === 'dig' && hasAnimal) return false;
+  if (ud || hasAnimal) return true;
+  const flags = [
+    'isLeaf', 'isClue', 'isPreview', 'isOldTree',
+    'isFlowerZone', 'isBranch', 'isTrash', 'isNestZone',
+    'isSheep', 'isShadeZone', 'isStrawZone', 'isHorse', 'isFence3',
+    'isGoat', 'isEscapeSphere', 'isRock3',
+    'isTrashDam', 'isCementDam', 'isFoam'
+  ];
+  return flags.some(flag => data[flag] || parentData[flag]);
+}
+
+function findNearbyInteractionHit(options = {}) {
+  const purpose = options.purpose || 'use';
+  const reach = getInteractionReach(options);
+  const forward = new THREE.Vector3();
+  camera.getWorldDirection(forward).normalize();
+  let best = null;
+  const seen = new Set();
+
+  for (const rawObj of getRayTargets()) {
+    const obj = getInteractionRoot(rawObj);
+    if (!obj || seen.has(obj.uuid)) continue;
+    seen.add(obj.uuid);
+    if (!isNearbyInteractionCandidate(obj, purpose)) continue;
+
+    const center = getInteractionCenter(obj);
+    if (!center) continue;
+    const fromPlayer = center.clone().sub(orbitTarget);
+    const playerDist = fromPlayer.length();
+    if (playerDist > reach || playerDist < 0.05) continue;
+
+    const fromCamera = center.clone().sub(camera.position);
+    if (fromCamera.lengthSq() < 1e-6) continue;
+    const aimDot = fromCamera.normalize().dot(forward);
+    if (aimDot < -0.15) continue;
+
+    const isBlock = !!getBlockUserData(obj);
+    const blockPenalty = isBlock && purpose !== 'dig' ? 1.15 : 0.15;
+    const score = playerDist + (1 - aimDot) * 2.2 + blockPenalty;
+    if (!best || score < best.score) {
+      best = {
+        score,
+        hit: {
+          object: obj,
+          point: center,
+          distance: center.distanceTo(camera.position),
+          face: isBlock ? { normal: new THREE.Vector3(0, 1, 0) } : null
+        }
+      };
+    }
+  }
+
+  return best ? best.hit : null;
+}
+
+function castInteractionRay(clientX, clientY, options = {}) {
   const hits = castRay(clientX, clientY);
+  if (!options.allowNearby) return hits;
+
+  const reach = getInteractionReach(options);
+  const reachableHits = hits.filter(hit => hit.point && hit.point.distanceTo(orbitTarget) <= reach + 0.35);
+  if (reachableHits.length && !(reachableHits[0].object.userData && reachableHits[0].object.userData.isGround)) {
+    return reachableHits;
+  }
+
+  const nearbyHit = findNearbyInteractionHit(options);
+  return nearbyHit ? [nearbyHit, ...reachableHits] : reachableHits;
+}
+
+function doDig(clientX, clientY, options = {}) {
+  if (isUIBlocking()) return;
+  const hits = castInteractionRay(clientX, clientY, options);
   if (!hits.length) return;
   const obj = hits[0].object;
 
@@ -323,7 +436,7 @@ function doDig(clientX, clientY) {
   }
 
   // Group 안 자식 Mesh인 경우 부모의 userData를 확인
-  const ud = obj.userData.isBlock ? obj.userData : (obj.parent && obj.parent.userData.isBlock ? obj.parent.userData : null);
+  const ud = getBlockUserData(obj);
 
   if (obj.userData.isPreview) { activateChunk(obj.userData.cx, obj.userData.cz); toast('✨ 미지의 영역을 탐험했습니다!'); return; }
   if (obj.userData.agr) { const a = animalData.find(a => a.group === obj.userData.agr); if (a) removeAnimalAt(a); }
@@ -344,8 +457,8 @@ canvas.addEventListener('mousedown', e => {
     mouseStart = { x: e.clientX, y: e.clientY }; currentMouseX = ic.x; currentMouseY = ic.y;
     if (e.button === 0 && toolMode === 'pickaxe') {
       const now = Date.now();
-      if (now - lastClickTime < 300) { isHoldingPickaxe = true; doDig(currentMouseX, currentMouseY); digInterval = setInterval(() => { if (isHoldingPickaxe) doDig(currentMouseX, currentMouseY); }, 150); }
-      else { doDig(currentMouseX, currentMouseY); }
+      if (now - lastClickTime < 300) { isHoldingPickaxe = true; doDig(currentMouseX, currentMouseY, { allowNearby: firstPerson, purpose: 'dig' }); digInterval = setInterval(() => { if (isHoldingPickaxe) doDig(currentMouseX, currentMouseY, { allowNearby: firstPerson, purpose: 'dig' }); }, 150); }
+      else { doDig(currentMouseX, currentMouseY, { allowNearby: firstPerson, purpose: 'dig' }); }
       lastClickTime = now;
     }
   }
@@ -354,8 +467,8 @@ canvas.addEventListener('mousedown', e => {
 canvas.addEventListener('mousemove', e => {
   // 1인칭(포인터 락): 마우스 이동량으로 자유롭게 둘러보기
   if (firstPerson && document.pointerLockElement === canvas) {
-    theta -= e.movementX * 0.0025;
-    phi   += e.movementY * 0.0025;
+    theta += e.movementX * 0.0025;
+    phi   -= e.movementY * 0.0025;
     mouse2D.set(0, 0); // 하이라이트/레이캐스트는 화면 중앙(크로스헤어) 기준
     syncCam();
     return;
@@ -368,14 +481,14 @@ canvas.addEventListener('mousemove', e => {
   if (clickMoved) {
     if (digInterval || isHoldingPickaxe) return;
     if (dragButton === 0) { const fwd = new THREE.Vector3(orbitTarget.x - camera.position.x, 0, orbitTarget.z - camera.position.z).normalize(); const rgt = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize(); const panSpd = radius * 0.0018; orbitTarget.addScaledVector(rgt, -dx * panSpd); orbitTarget.addScaledVector(fwd, dy * panSpd); }
-    else if (dragButton === 2) { theta -= dx * .007; phi += dy * .007; }
+    else if (dragButton === 2) { theta += dx * .007; phi -= dy * .007; }
     mouseStart = { x: e.clientX, y: e.clientY }; syncCam();
   }
 });
 
 canvas.addEventListener('mouseup', e => {
   clearInterval(digInterval); digInterval = null; isHoldingPickaxe = false;
-  if (isDragging && !clickMoved && e.button === 0) { if (toolMode !== 'pickaxe') { const ic = interactCoords(e); handleClick(ic.x, ic.y); } }
+  if (isDragging && !clickMoved && e.button === 0) { if (toolMode !== 'pickaxe') { const ic = interactCoords(e); handleClick(ic.x, ic.y, { allowNearby: firstPerson, purpose: 'use' }); } }
   isDragging = false;
 });
 
@@ -419,7 +532,7 @@ canvas.addEventListener('touchmove', e => {
     if (clickMoved) {
       clearTimeout(touchHoldTimer);
       if (digInterval || isHoldingPickaxe) return;
-      theta -= dx * .007; phi += dy * .007; mouseStart = { x: currentMouseX, y: currentMouseY }; syncCam();
+      theta += dx * .007; phi -= dy * .007; mouseStart = { x: currentMouseX, y: currentMouseY }; syncCam();
     }
   } else if (touchMode === 'zoom_pan' && canvasTouches.length === 2) {
     const dx = canvasTouches[0].clientX - canvasTouches[1].clientX, dy = canvasTouches[0].clientY - canvasTouches[1].clientY;
@@ -446,15 +559,15 @@ canvas.addEventListener('mouseleave', () => { isDragging = false; clearInterval(
 canvas.addEventListener('wheel', e => { radius += e.deltaY * .04; syncCam(); e.preventDefault(); }, { passive: false });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
-function handleClick(clientX, clientY) {
+function handleClick(clientX, clientY, options = {}) {
   if (isUIBlocking()) return;
-  const hits = castRay(clientX, clientY);
+  const hits = castInteractionRay(clientX, clientY, options);
   if (pickedAnimal && !hits.length) { cancelCarry(); return; }
   if (!hits.length) return;
   const hit = hits[0], obj = hit.object;
 
   // Group 안 자식 Mesh인 경우 부모의 userData를 확인
-  const getUD = o => o.userData.isBlock ? o.userData : (o.parent && o.parent.userData.isBlock ? o.parent.userData : null);
+  const getUD = getBlockUserData;
 
   // === [1순위] 시스템 기본 동작 (도구 무관) ===
   if (QuestManager.getCurrentPhase() === 0) {
@@ -479,7 +592,8 @@ function handleClick(clientX, clientY) {
   // 1-4. 들고 있는 동물 내려놓기
   if (pickedAnimal) {
     let dx, dy, dz;
-    if (obj.userData.isBlock) { if (!hit.face) return; const n = hit.face.normal.clone().transformDirection(obj.matrixWorld); dx = obj.userData.bx + Math.round(n.x); dy = obj.userData.by + Math.round(n.y); dz = obj.userData.bz + Math.round(n.z); }
+    const dropUD = getUD(obj);
+    if (dropUD) { if (!hit.face) return; const n = hit.face.normal.clone().transformDirection(obj.matrixWorld); dx = dropUD.bx + Math.round(n.x); dy = dropUD.by + Math.round(n.y); dz = dropUD.bz + Math.round(n.z); }
     else if (obj.userData.isGround) { dx = Math.round(hit.point.x); dz = Math.round(hit.point.z); dy = getTopY(dx, dz); }
     else return;
     dropAnimal(dx, dy, dz); return;
@@ -513,13 +627,15 @@ function handleClick(clientX, clientY) {
 
   // === [2순위] 도구 모드 (Tool Actions) ===
   if (toolMode === 'watering') {
-    if (obj.userData.isBlock) { WateringSystem.water(obj.userData.bx, obj.userData.by, obj.userData.bz); }
+    const waterUD = getUD(obj);
+    if (waterUD) { WateringSystem.water(waterUD.bx, waterUD.by, waterUD.bz); }
     else if (obj.userData.isGround) { const gx = Math.round(hit.point.x), gz = Math.round(hit.point.z); WateringSystem.water(gx, getTopY(gx, gz) - 1, gz); }
     return;
   }
 
   if (toolMode === 'seed') {
-    if (obj.userData.isBlock) { if (!hit.face) return; const n = hit.face.normal.clone().transformDirection(obj.matrixWorld); SeedSystem.plant(obj.userData.bx + Math.round(n.x), obj.userData.by + Math.round(n.y), obj.userData.bz + Math.round(n.z), selItem); }
+    const seedUD = getUD(obj);
+    if (seedUD) { if (!hit.face) return; const n = hit.face.normal.clone().transformDirection(obj.matrixWorld); SeedSystem.plant(seedUD.bx + Math.round(n.x), seedUD.by + Math.round(n.y), seedUD.bz + Math.round(n.z), selItem); }
     else if (obj.userData.isGround) { const gx = Math.round(hit.point.x), gz = Math.round(hit.point.z); SeedSystem.plant(gx, getTopY(gx, gz), gz, selItem); }
     return;
   }
@@ -540,7 +656,8 @@ function handleClick(clientX, clientY) {
       return;
     }
     let tx, tz;
-    if (obj.userData.isBlock) { tx = obj.userData.bx; tz = obj.userData.bz; }
+    const leafUD = getUD(obj);
+    if (leafUD) { tx = leafUD.bx; tz = leafUD.bz; }
     else if (obj.userData.isGround) { tx = Math.round(hit.point.x); tz = Math.round(hit.point.z); }
     else return;
     LeafSystem.placeOnSoil(tx, getTopY(tx, tz), tz);
@@ -578,7 +695,8 @@ function handleClick(clientX, clientY) {
   }
 
   if (toolMode === 'block' || toolMode === 'resource') {
-    if (obj.userData.isBlock) { if (!hit.face) return; const n = hit.face.normal.clone().transformDirection(obj.matrixWorld); placeBlock(obj.userData.bx + Math.round(n.x), obj.userData.by + Math.round(n.y), obj.userData.bz + Math.round(n.z), selItem); }
+    const blockUD = getUD(obj);
+    if (blockUD) { if (!hit.face) return; const n = hit.face.normal.clone().transformDirection(obj.matrixWorld); placeBlock(blockUD.bx + Math.round(n.x), blockUD.by + Math.round(n.y), blockUD.bz + Math.round(n.z), selItem); }
     else if (obj.userData.isGround) { const gx = Math.round(hit.point.x), gz = Math.round(hit.point.z); placeBlock(gx, getTopY(gx, gz), gz, selItem); }
     return;
   }
