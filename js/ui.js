@@ -3,36 +3,67 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const messageHistory = [];
 let isMessageLogOpen = false;
-
-function toast(msg) {
+let messageLogUnreadCount = 0;
+let lastToastText = '';
+let lastToastAt = 0;
+function isCompactHud() {
+  return window.matchMedia('(max-width: 760px), (max-height: 520px), (pointer: coarse)').matches;
+}
+function isImportantToast(msg) {
+  const text = String(msg).replace(/<[^>]*>/g, '');
+  return /⚠️|🎉|✅|💾|📂|📖|레벨|완료|성공|실패|합류|구출|해금|시작|클리어|수호대|도감|엔딩/.test(text);
+}
+function updateMessageLogBadge() {
+  const btn = document.getElementById('message-log-action');
+  if (!btn) return;
+  btn.classList.toggle('has-unread', messageLogUnreadCount > 0);
+  btn.title = messageLogUnreadCount > 0 ? `알림 기록 (새 알림 ${messageLogUnreadCount}개)` : '알림 기록 (L)';
+}
+function toast(msg, opts = {}) {
   // 로그에 추가
   const timeStr = new Date().toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
   messageHistory.push({ time: timeStr, text: msg });
-  if (isMessageLogOpen) renderMessageLog();
-
+  if (messageHistory.length > 140) messageHistory.shift();
+  if (isMessageLogOpen) {
+    renderMessageLog();
+  } else {
+    messageLogUnreadCount = Math.min(99, messageLogUnreadCount + 1);
+    updateMessageLogBadge();
+  }
+  const compact = isCompactHud();
+  const text = String(msg).replace(/<[^>]*>/g, '');
+  const important = opts.important === true || isImportantToast(msg);
+  if (compact && !important) return;
+  const now = Date.now();
+  if (text === lastToastText && now - lastToastAt < 1600) return;
+  lastToastText = text;
+  lastToastAt = now;
   // 화면 우측 하단에 스택 생성
   const container = document.getElementById('toast-container');
   if (!container) return;
+  const maxVisible = compact ? 1 : 3;
+  while (container.children.length >= maxVisible) {
+    container.removeChild(container.firstElementChild);
+  }
   const el = document.createElement('div');
   el.className = 'toast-msg';
   el.innerHTML = msg;
   container.appendChild(el);
-
   // 애니메이션 끝나면 자동 제거 (fadeOut은 4.5초 뒤 완전히 투명해짐)
   setTimeout(() => {
     if (el.parentNode === container) container.removeChild(el);
-  }, 4600);
+  }, compact ? 3100 : 4600);
 }
-
 function toggleMessageLog() {
   const overlay = document.getElementById('message-log-overlay');
   isMessageLogOpen = overlay.style.display === 'none';
   overlay.style.display = isMessageLogOpen ? 'flex' : 'none';
   if (isMessageLogOpen) {
+    messageLogUnreadCount = 0;
+    updateMessageLogBadge();
     renderMessageLog();
   }
 }
-
 function renderMessageLog() {
   const content = document.getElementById('message-log-content');
   if (!content) return;
@@ -148,8 +179,8 @@ function applyCurrentTool() {
   const item = ITEM_DB[itemId];
   toolMode=item.type; selItem=itemId; updateHlMesh();
   labelEl.textContent=item.label; labelEl.style.color='#FFD700'; labelEl.style.borderColor='rgba(255,215,0,0.5)';
-  labelEl.style.transform='translateX(-50%) scale(1.15)';
-  setTimeout(()=>{ labelEl.style.transform='translateX(-50%) scale(1)'; }, 150);
+  labelEl.style.transform='scale(1.08)';
+  setTimeout(()=>{ labelEl.style.transform='scale(1)'; }, 150);
 }
 
 function toggleInventory() {

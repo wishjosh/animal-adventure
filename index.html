@@ -3,9 +3,14 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#87CEEB">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="생태계 수호자">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>🐾 애니멀 어드벤쳐: 생태계 수호자</title>
   <link rel="icon" href="data:,">
+  <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="css/style.css">
   <style>
     /* ── 수호대 슬롯 ── */
@@ -472,7 +477,7 @@
         <button class="action-btn" onclick="toggleGuardianBook()" title="수호대 도감 (B)" style="color:#f2c94c;">📖</button>
         <button class="action-btn" onclick="openMap()" title="지도 (M)">🗺️</button>
         <button class="action-btn" onclick="NextActionGuide.toggleVisibility()" title="다음 할 일 (G)" style="color:#ffd700;">🎯</button>
-        <button class="action-btn" onclick="toggleMessageLog()" title="알림 기록 (L)" style="color:#a8d0e6;">📩</button>
+        <button class="action-btn" id="message-log-action" onclick="toggleMessageLog()" title="알림 기록 (L)" style="color:#a8d0e6;">📩</button>
         <button class="action-btn" onclick="saveGame()" title="저장" style="color:#6fcf97;">💾</button>
         <button class="action-btn" onclick="loadGame()" title="불러오기">📂</button>
         <button class="action-btn" onclick="clearAll()" title="초기화" style="color:#eb5757;">🗑️</button>
@@ -630,9 +635,19 @@
     <div id="eco-text"></div>
   </div>
 
-  <div id="mobile-cam-controls" style="display: none;">
-    <button id="cam-up-btn" class="cam-btn">▲<br><small>상승</small></button>
-    <button id="cam-down-btn" class="cam-btn">▼<br><small>잠수</small></button>
+  <div id="mobile-touch-controls" aria-label="모바일 조작">
+    <div id="mobile-joystick" aria-label="이동 조이스틱">
+      <div id="mobile-joystick-ring">
+        <div id="mobile-joystick-knob"></div>
+      </div>
+    </div>
+    <div id="mobile-action-pad" aria-label="모바일 액션 버튼">
+      <button id="mobile-dig-btn" class="touch-action-btn" type="button">⛏<small>파기</small></button>
+      <button id="mobile-use-btn" class="touch-action-btn primary" type="button">✋<small>사용</small></button>
+      <button id="cam-up-btn" class="touch-action-btn" type="button">▲<small>상승</small></button>
+      <button id="cam-down-btn" class="touch-action-btn" type="button">▼<small>하강</small></button>
+      <button id="mobile-fly-btn" class="touch-action-btn active" type="button">✦<small>비행</small></button>
+    </div>
   </div>
 
 

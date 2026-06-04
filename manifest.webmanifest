@@ -1,0 +1,19 @@
+{
+  "name": "애니멀 어드벤쳐: 생태계 수호자",
+  "short_name": "생태계 수호자",
+  "description": "초록별 수호대와 함께 생태계를 회복하는 3D 어드벤처 게임",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#87CEEB",
+  "theme_color": "#87CEEB",
+  "icons": [
+    {
+      "src": "icons/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -2,16 +2,26 @@
 //  THREE.JS 씬 설정 및 메인 로직
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const canvas = document.getElementById('canvas');
+
+function getGameViewportSize() {
+  const vv = window.visualViewport;
+  return {
+    width: Math.max(1, Math.round(vv ? vv.width : window.innerWidth)),
+    height: Math.max(1, Math.round(vv ? vv.height : window.innerHeight))
+  };
+}
+
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+const initialViewport = getGameViewportSize();
 renderer.setPixelRatio(1);
-renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setSize(initialViewport.width, initialViewport.height);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.setClearColor(0x87CEEB);
 
 const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(0x87CEEB, 35, 65);
-const camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 500);
+const camera = new THREE.PerspectiveCamera(62, initialViewport.width / initialViewport.height, 0.1, 500);
 
 const ambient = new THREE.AmbientLight(0xfff0dd, 0.52); scene.add(ambient);
 const sun = new THREE.DirectionalLight(0xfff4c8, 1.1);
@@ -89,7 +99,7 @@ const orbitTarget = new THREE.Vector3(CHUNK, 38, CHUNK);
 let theta = 0.7, phi = 0.85, radius = 36;
 let firstPerson = true; // 마인크래프트형 1인칭 시점 (V키로 3인칭 전환)
 
-const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false, ' ': false, Shift: false };
+const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false, ' ': false, Shift: false, Control: false };
 window.addEventListener('keydown', e => { if (keys.hasOwnProperty(e.key)) keys[e.key] = true; if (e.key === ' ') keys[' '] = true; });
 window.addEventListener('keyup', e => { if (keys.hasOwnProperty(e.key)) keys[e.key] = false; if (e.key === ' ') keys[' '] = false; });
 
@@ -130,6 +140,10 @@ let mouseStart = { x: 0, y: 0 }, currentMouseX = 0, currentMouseY = 0;
 let touchMode = null;
 let digInterval = null, isHoldingPickaxe = false;
 let lastClickTime = 0, lastTouchTime = 0;
+let mobileDigInterval = null;
+let lastSpaceTap = 0;
+let creativeFlight = true;
+const mobileMove = { x: 0, y: 0, active: false };
 
 const ptEl = document.getElementById('phase-transition');
 const crEl = document.getElementById('creature-report');
@@ -192,10 +206,10 @@ document.body.appendChild(fpHint);
 
 function updateFpHud() {
   const locked = document.pointerLockElement === canvas;
-  fpCrosshair.style.display = (firstPerson && locked) ? 'block' : 'none';
-  fpHint.style.display = (firstPerson && !locked && !needsCursor()) ? 'block' : 'none';
+  const touchLayout = window.matchMedia('(pointer: coarse), (max-width: 760px), (max-height: 520px)').matches;
+  fpCrosshair.style.display = (firstPerson && (locked || touchLayout) && !needsCursor()) ? 'block' : 'none';
+  fpHint.style.display = (firstPerson && !locked && !needsCursor() && !touchLayout) ? 'block' : 'none';
 }
-
 function setFirstPerson(on) {
   firstPerson = on;
   if (!on && document.pointerLockElement === canvas) document.exitPointerLock();
@@ -205,11 +219,47 @@ function setFirstPerson(on) {
   if (typeof toast === 'function') toast(on ? '👁️ 1인칭 시점 (마인크래프트 모드)' : '🎥 3인칭 시점');
 }
 
+function setCreativeFlight(on, silent = false) {
+  creativeFlight = on;
+  document.body.classList.toggle('flight-off', !creativeFlight);
+  document.body.classList.toggle('flight-on', creativeFlight);
+  const flyBtn = document.getElementById('mobile-fly-btn');
+  if (flyBtn) {
+    flyBtn.classList.toggle('active', creativeFlight);
+    const small = flyBtn.querySelector('small');
+    if (small) small.textContent = creativeFlight ? '비행' : '걷기';
+  }
+  if (!silent && typeof toast === 'function') toast(creativeFlight ? '✦ 비행 모드' : '🚶 걷기 모드', { important: true });
+}
+
+function getCrosshairCoords() {
+  const r = canvas.getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+}
+
+function mobileUseAtCrosshair() {
+  if (isUIBlocking()) return;
+  const c = getCrosshairCoords();
+  handleClick(c.x, c.y);
+}
+
+function mobileDigAtCrosshair() {
+  if (isUIBlocking()) return;
+  const c = getCrosshairCoords();
+  if (toolMode === 'pickaxe') doDig(c.x, c.y);
+  else handleClick(c.x, c.y);
+}
+
 document.addEventListener('pointerlockchange', updateFpHud);
 
 // V 키로 시점 토글
 window.addEventListener('keydown', e => {
   if (e.key === 'v' || e.key === 'V') setFirstPerson(!firstPerson);
+  if (e.key === ' ' && !e.repeat) {
+    const now = Date.now();
+    if (now - lastSpaceTap < 340) setCreativeFlight(!creativeFlight);
+    lastSpaceTap = now;
+  }
 });
 
 updateFpHud();
@@ -330,9 +380,11 @@ canvas.addEventListener('mouseup', e => {
 let initialPinchDist = null, initialRadius = null, initialPanCenter = null;
 canvas.addEventListener('touchstart', e => {
   if (isUIBlocking()) return;
-  if (e.touches.length === 1) {
+  const canvasTouches = Array.from(e.touches).filter(t => t.target === canvas);
+  if (canvasTouches.length === 1) {
+    const touch = canvasTouches[0];
     touchMode = 'single'; isDragging = true; clickMoved = false; isHoldingPickaxe = false;
-    currentMouseX = e.touches[0].clientX; currentMouseY = e.touches[0].clientY;
+    currentMouseX = touch.clientX; currentMouseY = touch.clientY;
     mouseStart = { x: currentMouseX, y: currentMouseY };
     if (toolMode === 'pickaxe') {
       const now = Date.now();
@@ -340,25 +392,27 @@ canvas.addEventListener('touchstart', e => {
       else { doDig(currentMouseX, currentMouseY); if (navigator.vibrate) navigator.vibrate(20); }
       lastTouchTime = now;
     }
-  } else if (e.touches.length === 2) {
+  } else if (canvasTouches.length === 2) {
     touchMode = 'zoom_pan'; isDragging = false; clearInterval(digInterval); isHoldingPickaxe = false;
-    const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY;
+    const dx = canvasTouches[0].clientX - canvasTouches[1].clientX, dy = canvasTouches[0].clientY - canvasTouches[1].clientY;
     initialPinchDist = Math.sqrt(dx * dx + dy * dy); initialRadius = radius;
-    initialPanCenter = { x: (e.touches[0].clientX + e.touches[1].clientX) / 2, y: (e.touches[0].clientY + e.touches[1].clientY) / 2 };
+    initialPanCenter = { x: (canvasTouches[0].clientX + canvasTouches[1].clientX) / 2, y: (canvasTouches[0].clientY + canvasTouches[1].clientY) / 2 };
   }
 }, { passive: false });
 
 canvas.addEventListener('touchmove', e => {
   if (isUIBlocking()) return; e.preventDefault();
-  if (touchMode === 'single' && e.touches.length === 1) {
-    currentMouseX = e.touches[0].clientX; currentMouseY = e.touches[0].clientY;
+  const canvasTouches = Array.from(e.touches).filter(t => t.target === canvas);
+  if (touchMode === 'single' && canvasTouches.length === 1) {
+    const touch = canvasTouches[0];
+    currentMouseX = touch.clientX; currentMouseY = touch.clientY;
     const dx = currentMouseX - mouseStart.x, dy = currentMouseY - mouseStart.y;
     if (Math.abs(dx) > 5 || Math.abs(dy) > 5) clickMoved = true;
     if (clickMoved) { if (digInterval || isHoldingPickaxe) return; theta -= dx * .007; phi += dy * .007; mouseStart = { x: currentMouseX, y: currentMouseY }; syncCam(); }
-  } else if (touchMode === 'zoom_pan' && e.touches.length === 2) {
-    const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY;
+  } else if (touchMode === 'zoom_pan' && canvasTouches.length === 2) {
+    const dx = canvasTouches[0].clientX - canvasTouches[1].clientX, dy = canvasTouches[0].clientY - canvasTouches[1].clientY;
     const dist = Math.sqrt(dx * dx + dy * dy); radius = initialRadius * (initialPinchDist / dist);
-    const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2, cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+    const cx = (canvasTouches[0].clientX + canvasTouches[1].clientX) / 2, cy = (canvasTouches[0].clientY + canvasTouches[1].clientY) / 2;
     const pdx = cx - initialPanCenter.x, pdy = cy - initialPanCenter.y;
     if (Math.abs(pdx) > 2 || Math.abs(pdy) > 2) { const forward = camForwardFlat(); const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize(); orbitTarget.addScaledVector(right, -pdx * 0.05); orbitTarget.addScaledVector(forward, pdy * 0.05); initialPanCenter = { x: cx, y: cy }; }
     syncCam();
@@ -369,7 +423,8 @@ canvas.addEventListener('touchend', e => {
   if(!isUIBlocking()) e.preventDefault(); // 아이패드 등 터치 기기에서 클릭 이벤트 중복 발생(더블 클릭) 방지
   clearInterval(digInterval); digInterval = null; isHoldingPickaxe = false;
   if (touchMode === 'single' && !clickMoved && e.changedTouches.length === 1) { if (toolMode !== 'pickaxe') handleClick(e.changedTouches[0].clientX, e.changedTouches[0].clientY); }
-  if (e.touches.length === 0) { touchMode = null; isDragging = false; }
+  const canvasTouches = Array.from(e.touches).filter(t => t.target === canvas);
+  if (canvasTouches.length === 0) { touchMode = null; isDragging = false; }
 }, { passive: false });
 
 canvas.addEventListener('mouseleave', () => { isDragging = false; clearInterval(digInterval); });
@@ -600,7 +655,19 @@ canvas.addEventListener('mousemove', () => {
   } else hlMesh.visible = false;
 });
 
-window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+function resizeGameViewport() {
+  const { width, height } = getGameViewportSize();
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+  renderer.setSize(width, height);
+  updateFpHud();
+}
+window.addEventListener('resize', resizeGameViewport);
+window.addEventListener('orientationchange', () => setTimeout(resizeGameViewport, 250));
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', resizeGameViewport);
+  window.visualViewport.addEventListener('scroll', resizeGameViewport);
+}
 
 // Stats 모니터
 let stats;
@@ -625,17 +692,25 @@ function animate() {
     document.exitPointerLock();
   }
   updateFpHud();
+  if (typeof mobileControls !== 'undefined' && mobileControls) {
+    mobileControls.classList.toggle('controls-hidden', needsCursor());
+  }
 
   let camMoved = false;
-  const spd = 0.4;
+  const spd = 0.4 * (keys.Control ? 1.45 : 1);
   const fwd = camForwardFlat();
   const rgt = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
-  if (keys.w || keys.ArrowUp) { orbitTarget.addScaledVector(fwd, spd); camMoved = true; }
-  if (keys.s || keys.ArrowDown) { orbitTarget.addScaledVector(fwd, -spd); camMoved = true; }
-  if (keys.a || keys.ArrowLeft) { orbitTarget.addScaledVector(rgt, -spd); camMoved = true; }
-  if (keys.d || keys.ArrowRight) { orbitTarget.addScaledVector(rgt, spd); camMoved = true; }
-  if (keys[' '] || camMoveDir === 1) { orbitTarget.y += spd; camMoved = true; }
-  if (keys.Shift || camMoveDir === -1) { orbitTarget.y -= spd; camMoved = true; }
+  let moveForward = (keys.w || keys.ArrowUp ? 1 : 0) - (keys.s || keys.ArrowDown ? 1 : 0) + mobileMove.y;
+  let moveRight = (keys.d || keys.ArrowRight ? 1 : 0) - (keys.a || keys.ArrowLeft ? 1 : 0) + mobileMove.x;
+  const moveLen = Math.hypot(moveForward, moveRight);
+  if (moveLen > 1) {
+    moveForward /= moveLen;
+    moveRight /= moveLen;
+  }
+  if (Math.abs(moveForward) > 0.01) { orbitTarget.addScaledVector(fwd, moveForward * spd); camMoved = true; }
+  if (Math.abs(moveRight) > 0.01) { orbitTarget.addScaledVector(rgt, moveRight * spd); camMoved = true; }
+  if (creativeFlight && (keys[' '] || camMoveDir === 1)) { orbitTarget.y += spd; camMoved = true; }
+  if (creativeFlight && (keys.Shift || camMoveDir === -1)) { orbitTarget.y -= spd; camMoved = true; }
   if (camMoved) syncCam();
 
   const wL = typeof BiomeSystem !== 'undefined' ? BiomeSystem.getDominantBiome(orbitTarget.x, orbitTarget.z).waterLevel : 30;
@@ -688,32 +763,128 @@ function animate() {
   if (stats) stats.end();
 }
 
-// 모바일 카메라 상승/하강 버튼 로직
+// 모바일 조이스틱 + 액션 버튼 로직
 let camMoveDir = 0;
+function stopMobileControlEvent(e) {
+  e.preventDefault();
+  e.stopPropagation();
+}
+
+function resetMobileJoystick() {
+  mobileMove.x = 0;
+  mobileMove.y = 0;
+  mobileMove.active = false;
+  const knob = document.getElementById('mobile-joystick-knob');
+  if (knob) knob.style.transform = 'translate(-50%, -50%)';
+}
+
+function updateMobileJoystick(e) {
+  const ring = document.getElementById('mobile-joystick-ring');
+  const knob = document.getElementById('mobile-joystick-knob');
+  if (!ring || !knob) return;
+  const rect = ring.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  const max = rect.width * 0.38;
+  let dx = e.clientX - cx;
+  let dy = e.clientY - cy;
+  const len = Math.hypot(dx, dy);
+  if (len > max) {
+    dx = dx / len * max;
+    dy = dy / len * max;
+  }
+  mobileMove.x = Math.max(-1, Math.min(1, dx / max));
+  mobileMove.y = Math.max(-1, Math.min(1, -dy / max));
+  knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+}
+
+const mobileControls = document.getElementById('mobile-touch-controls');
+const joystick = document.getElementById('mobile-joystick');
+if (joystick) {
+  joystick.addEventListener('pointerdown', e => {
+    stopMobileControlEvent(e);
+    mobileMove.active = true;
+    if (typeof joystick.setPointerCapture === 'function') joystick.setPointerCapture(e.pointerId);
+    updateMobileJoystick(e);
+  }, { passive: false });
+  joystick.addEventListener('pointermove', e => {
+    if (!mobileMove.active) return;
+    stopMobileControlEvent(e);
+    updateMobileJoystick(e);
+  }, { passive: false });
+  const endJoystick = e => {
+    stopMobileControlEvent(e);
+    resetMobileJoystick();
+  };
+  joystick.addEventListener('pointerup', endJoystick, { passive: false });
+  joystick.addEventListener('pointercancel', endJoystick, { passive: false });
+  joystick.addEventListener('lostpointercapture', resetMobileJoystick);
+}
+
 const camUpBtn = document.getElementById('cam-up-btn');
 const camDownBtn = document.getElementById('cam-down-btn');
 if(camUpBtn && camDownBtn) {
-  const startUp = (e) => { e.preventDefault(); camMoveDir = 1; };
-  const startDown = (e) => { e.preventDefault(); camMoveDir = -1; };
-  const stopMove = (e) => { e.preventDefault(); camMoveDir = 0; };
-  camUpBtn.addEventListener('touchstart', startUp, {passive:false});
-  camUpBtn.addEventListener('mousedown', startUp);
-  camUpBtn.addEventListener('touchend', stopMove);
-  camUpBtn.addEventListener('mouseup', stopMove);
-  camUpBtn.addEventListener('mouseleave', stopMove);
+  const startUp = (e) => { stopMobileControlEvent(e); camMoveDir = 1; };
+  const startDown = (e) => { stopMobileControlEvent(e); camMoveDir = -1; };
+  const stopMove = (e) => { stopMobileControlEvent(e); camMoveDir = 0; };
+  camUpBtn.addEventListener('pointerdown', startUp, { passive:false });
+  camUpBtn.addEventListener('pointerup', stopMove, { passive:false });
+  camUpBtn.addEventListener('pointercancel', stopMove, { passive:false });
+  camUpBtn.addEventListener('pointerleave', stopMove, { passive:false });
 
-  camDownBtn.addEventListener('touchstart', startDown, {passive:false});
-  camDownBtn.addEventListener('mousedown', startDown);
-  camDownBtn.addEventListener('touchend', stopMove);
-  camDownBtn.addEventListener('mouseup', stopMove);
-  camDownBtn.addEventListener('mouseleave', stopMove);
+  camDownBtn.addEventListener('pointerdown', startDown, { passive:false });
+  camDownBtn.addEventListener('pointerup', stopMove, { passive:false });
+  camDownBtn.addEventListener('pointercancel', stopMove, { passive:false });
+  camDownBtn.addEventListener('pointerleave', stopMove, { passive:false });
 }
 
-// 터치 기기인 경우에만 상승/하강 버튼 표시
-if('ontouchstart' in window || navigator.maxTouchPoints > 0) {
-  const mobCamControls = document.getElementById('mobile-cam-controls');
-  if(mobCamControls) mobCamControls.style.display = 'flex';
+const mobileUseBtn = document.getElementById('mobile-use-btn');
+if (mobileUseBtn) {
+  mobileUseBtn.addEventListener('pointerdown', e => {
+    stopMobileControlEvent(e);
+    mobileUseAtCrosshair();
+  }, { passive: false });
 }
+
+const mobileDigBtn = document.getElementById('mobile-dig-btn');
+if (mobileDigBtn) {
+  const startDig = e => {
+    stopMobileControlEvent(e);
+    mobileDigAtCrosshair();
+    clearInterval(mobileDigInterval);
+    if (toolMode === 'pickaxe' || toolMode === 'shovel') {
+      mobileDigInterval = setInterval(mobileDigAtCrosshair, 180);
+    }
+  };
+  const stopDig = e => {
+    stopMobileControlEvent(e);
+    clearInterval(mobileDigInterval);
+    mobileDigInterval = null;
+  };
+  mobileDigBtn.addEventListener('pointerdown', startDig, { passive: false });
+  mobileDigBtn.addEventListener('pointerup', stopDig, { passive: false });
+  mobileDigBtn.addEventListener('pointercancel', stopDig, { passive: false });
+  mobileDigBtn.addEventListener('pointerleave', stopDig, { passive: false });
+}
+
+const mobileFlyBtn = document.getElementById('mobile-fly-btn');
+if (mobileFlyBtn) {
+  mobileFlyBtn.addEventListener('pointerdown', e => {
+    stopMobileControlEvent(e);
+    setCreativeFlight(!creativeFlight);
+  }, { passive: false });
+}
+
+function updateTouchControlsAvailability() {
+  const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
+  const touchCapable = coarsePointer || 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  document.body.classList.toggle('touch-controls-enabled', touchCapable);
+  if (mobileControls) mobileControls.style.display = touchCapable ? 'block' : '';
+}
+updateTouchControlsAvailability();
+window.addEventListener('resize', updateTouchControlsAvailability);
+window.addEventListener('orientationchange', () => setTimeout(updateTouchControlsAvailability, 150));
+setCreativeFlight(creativeFlight, true);
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  초기화 및 실행
