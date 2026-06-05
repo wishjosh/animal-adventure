@@ -109,7 +109,6 @@ class Level5Manager {
     if (block && block.startsWith('city_trash')) {
       if (toolMode === 'shovel' || toolMode === 'pickaxe') {
         _remove(x, y, z);
-        playBlockBreakEffect(x, y, z, 0x708090);
         
         // 남은 쓰레기 세기
         let trashCount = 0;

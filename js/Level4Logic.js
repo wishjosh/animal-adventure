@@ -28,6 +28,30 @@ const Level4Logic = {
         if (typeof toast === 'function') toast(`⚠️ ${msg}`);
     },
 
+    getInteractiveRoot(obj, flag) {
+        if (obj?.userData?.[flag]) return obj;
+        if (obj?.parent?.userData?.[flag]) return obj.parent;
+        return null;
+    },
+
+    countRemainingByFlag(flag) {
+        const keys = new Set();
+        scene.traverse(child => {
+            const data = child.userData || {};
+            const parentData = child.parent?.userData || {};
+            const source = data[flag] ? data : parentData[flag] ? parentData : null;
+            if (source?.gridKey) keys.add(source.gridKey);
+        });
+        return keys.size;
+    },
+
+    playRemovalEffect(key, color) {
+        const [x, y, z] = key.split(',').map(Number);
+        if (![x, y, z].every(Number.isFinite)) return;
+        if (typeof clearBlockCrackEffect === 'function') clearBlockCrackEffect(key);
+        if (typeof playBlockBreakEffect === 'function') playBlockBreakEffect(x, y, z, color);
+    },
+
     // ──────────────────────────────────────────────
     // A. 클릭 및 아이템 상호작용 처리
     // ──────────────────────────────────────────────
@@ -35,26 +59,23 @@ const Level4Logic = {
         const activeItem = hotbar[activeSlot];
 
         // 1. 쏘가리 구조 상호작용 (쓰레기 댐 제거)
-        if (obj.userData && obj.userData.isTrashDam) {
+        const trashDamObj = this.getInteractiveRoot(obj, 'isTrashDam');
+        if (trashDamObj) {
             if (level4_phase === 1 && !level4_conditions.soyaRescued) {
                 if (activeItem === 'shovel' || activeItem === 'pickaxe') {
                     // 생성 시 저장한 grid key를 사용해 정합성 보장 (position.y가 +0.5 오프셋이라 재계산 시 어긋남)
-                    const key = obj.userData.gridKey ||
-                        `${Math.round(obj.position.x)},${Math.round(obj.position.y)},${Math.round(obj.position.z)}`;
+                    const key = trashDamObj.userData.gridKey ||
+                        `${Math.round(trashDamObj.position.x)},${Math.round(trashDamObj.position.y)},${Math.round(trashDamObj.position.z)}`;
 
                     // 쓰레기 블록 파괴
-                    scene.remove(obj);
+                    this.playRemovalEffect(key, 0x708090);
+                    scene.remove(trashDamObj);
                     delete gridData[key];
                     delete meshByKey[key];
                     deletedBlocks.add(key);
                     
                     // 남은 쓰레기 댐 검사
-                    let remainingTrash = 0;
-                    scene.traverse(child => {
-                        if (child.userData && child.userData.isTrashDam) {
-                            remainingTrash++;
-                        }
-                    });
+                    const remainingTrash = this.countRemainingByFlag('isTrashDam');
 
                     if (remainingTrash === 0) {
                         level4_conditions.soyaRescued = true;
@@ -83,6 +104,7 @@ const Level4Logic = {
                     } else {
                         this.alert(`강둑의 쓰레기를 마저 파내어 물길을 열어주세요! (남은 쓰레기: ${remainingTrash}개)`);
                     }
+                    if (typeof invalidateRayCache === 'function') invalidateRayCache();
                     return true;
                 } else {
                     this.alert('삽(🪤) 또는 곡괭이(⛏️)를 장착하고 쓰레기 댐 블록을 파괴하세요!');
@@ -122,14 +144,16 @@ const Level4Logic = {
         }
 
         // 3. 시멘트 보 제거 상호작용
-        if (obj.userData && obj.userData.isCementDam) {
+        const cementDamObj = this.getInteractiveRoot(obj, 'isCementDam');
+        if (cementDamObj) {
             if (level4_phase === 2) {
                 if (activeItem === 'pickaxe') {
                     // 생성 시 저장한 grid key를 사용해 정합성 보장
-                    const key = obj.userData.gridKey ||
-                        `${Math.round(obj.position.x)},${Math.round(obj.position.y)},${Math.round(obj.position.z)}`;
+                    const key = cementDamObj.userData.gridKey ||
+                        `${Math.round(cementDamObj.position.x)},${Math.round(cementDamObj.position.y)},${Math.round(cementDamObj.position.z)}`;
 
-                    scene.remove(obj);
+                    this.playRemovalEffect(key, 0xa0a0a0);
+                    scene.remove(cementDamObj);
                     delete gridData[key];
                     delete meshByKey[key];
                     deletedBlocks.add(key);
@@ -145,6 +169,7 @@ const Level4Logic = {
                     if (removed >= 3) {
                         Level4Manager.check();
                     }
+                    if (typeof invalidateRayCache === 'function') invalidateRayCache();
                     return true;
                 } else {
                     this.alert('곡괭이(⛏️)를 장착해 연어의 길을 막는 단단한 시멘트 보를 철거하세요!');
@@ -378,6 +403,7 @@ const Level4Logic = {
             const k = `${target.x},${target.y},${target.z}`;
             const mesh = meshByKey[k];
             if (mesh) {
+                this.playRemovalEffect(k, 0x7a5c1e);
                 scene.remove(mesh);
                 delete gridData[k];
                 delete meshByKey[k];
@@ -589,13 +615,13 @@ const Level4Manager = {
         global_protectors.crane = false;
         global_protectors.salmon = false;
 
-        // 지형 데이터에 시멘트 보 배치 및 쓰레기 댐 배치
-        this.spawnLevel4WhiteBoxElements();
-
-        // 쏘가리, 펜션 주인, 들개, 여우 등 스폰
+        // 레벨 4 지역 청크와 동물을 먼저 로드한다. 이후 미션 오브젝트를 얹어야 지형 생성에 덮이지 않는다.
         if (typeof spawnLevel4Animals === 'function') {
             spawnLevel4Animals();
         }
+
+        // 지형 데이터에 시멘트 보 배치 및 쓰레기 댐 배치
+        this.spawnLevel4WhiteBoxElements();
 
         // 나침반 타이틀 업데이트 및 보이기
         const compass = document.getElementById('nav-compass');
@@ -630,38 +656,116 @@ const Level4Manager = {
         this.updateUI();
     },
 
-    spawnLevel4WhiteBoxElements() {
-        // 1. 강을 가로막는 시멘트 보 3개 배치 (X=50, Y=30, Z=0..-2)
-        level4_conditions.cementDamCells = [...this.DAM_COORDS];
-        this.DAM_COORDS.forEach(c => {
-            const key = `${c.x},${c.y},${c.z}`;
-            gridData[key] = 'cement_dam';
+    getVisibleMissionY(x, z) {
+        const waterY = typeof WATER_LEVEL !== 'undefined' ? WATER_LEVEL : 30;
+        return Math.max(getTopY(x, z), waterY);
+    },
 
-            // 3D 메시 생성 및 추가
-            const geom = new THREE.BoxGeometry(1, 1, 1);
-            const mat = new THREE.MeshLambertMaterial({ color: 0xa0a0a0 });
-            const mesh = new THREE.Mesh(geom, mat);
-            mesh.position.set(c.x, c.y + 0.5, c.z);
-            mesh.userData = { isCementDam: true, gridKey: key };
-            scene.add(mesh);
-            meshByKey[key] = mesh;
+    clearLevel4WhiteBoxElements() {
+        for (const [key, obj] of Object.entries(meshByKey)) {
+            if (obj?.userData?.isTrashDam || obj?.userData?.isCementDam) {
+                scene.remove(obj);
+                delete meshByKey[key];
+                delete gridData[key];
+            }
+        }
+
+        const foams = [];
+        scene.traverse(child => {
+            if (child.userData?.isFoam) foams.push(child);
+        });
+        foams.forEach(foam => scene.remove(foam));
+    },
+
+    createCementDamMesh(x, y, z, key) {
+        const geom = new THREE.BoxGeometry(1, 1, 1);
+        const mat = new THREE.MeshLambertMaterial({ color: 0xa0a0a0 });
+        const mesh = new THREE.Mesh(geom, mat);
+        mesh.position.set(x, y + 0.5, z);
+        mesh.castShadow = mesh.receiveShadow = true;
+        mesh.userData = { isBlock: true, bx: x, by: y, bz: z, isCementDam: true, gridKey: key };
+        mesh.add(new THREE.LineSegments(
+            new THREE.EdgesGeometry(geom),
+            new THREE.LineBasicMaterial({ color: 0x222222, transparent: true, opacity: 0.25 })
+        ));
+        return mesh;
+    },
+
+    createTrashDamMesh(x, y, z, key) {
+        const group = new THREE.Group();
+        group.position.set(x, y + 0.48, z);
+        group.userData = { isBlock: true, bx: x, by: y, bz: z, isTrashDam: true, gridKey: key };
+
+        const darkMat = new THREE.MeshLambertMaterial({ color: 0x4a3a2a });
+        const mudMat = new THREE.MeshLambertMaterial({ color: 0x6e5c45 });
+        const bagMat = new THREE.MeshLambertMaterial({ color: 0x708090 });
+        const bottleMat = new THREE.MeshLambertMaterial({ color: 0x2f7f9f });
+        const warningMat = new THREE.MeshBasicMaterial({ color: 0xffcc44 });
+        const edgeMat = new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.25 });
+
+        const base = new THREE.Mesh(new THREE.BoxGeometry(1.08, 0.5, 1.08), mudMat);
+        base.position.y = -0.12;
+        base.castShadow = base.receiveShadow = true;
+        base.add(new THREE.LineSegments(new THREE.EdgesGeometry(base.geometry), edgeMat.clone()));
+        group.add(base);
+
+        const chunks = [
+            { geo: new THREE.BoxGeometry(0.48, 0.42, 0.42), mat: bagMat, pos: [-0.22, 0.22, 0.12], rot: 0.25 },
+            { geo: new THREE.BoxGeometry(0.52, 0.28, 0.36), mat: darkMat, pos: [0.2, 0.18, -0.16], rot: -0.35 },
+            { geo: new THREE.CylinderGeometry(0.09, 0.09, 0.65, 8), mat: bottleMat, pos: [0.12, 0.38, 0.2], rot: 1.35 }
+        ];
+
+        chunks.forEach(({ geo, mat, pos, rot }) => {
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(...pos);
+            mesh.rotation.z = rot;
+            mesh.castShadow = mesh.receiveShadow = true;
+            mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat.clone()));
+            group.add(mesh);
         });
 
-        // 2. 쏘가리가 갇힌 쓰레기 댐(X=42, Y=30, Z=20 주위 3칸) 배치
+        const marker = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.35, 3), warningMat);
+        marker.position.set(0, 0.92, 0);
+        marker.rotation.x = Math.PI;
+        group.add(marker);
+
+        if (typeof createEmojiSprite === 'function') {
+            const label = createEmojiSprite('🗑️');
+            label.position.set(0, 1.28, 0);
+            label.scale.set(0.9, 0.9, 1);
+            group.add(label);
+        }
+
+        return group;
+    },
+
+    spawnLevel4WhiteBoxElements() {
+        this.clearLevel4WhiteBoxElements();
+
+        // 1. 강을 가로막는 시멘트 보 3개 배치
+        const placedCementCells = [];
+        this.DAM_COORDS.forEach(c => {
+            const y = this.getVisibleMissionY(c.x, c.z);
+            const key = `${c.x},${y},${c.z}`;
+            gridData[key] = 'cement_dam';
+            const mesh = this.createCementDamMesh(c.x, y, c.z, key);
+            scene.add(mesh);
+            meshByKey[key] = mesh;
+            placedCementCells.push({ x: c.x, y, z: c.z });
+        });
+        level4_conditions.cementDamCells = placedCementCells;
+
+        // 2. 쏘가리가 갇힌 쓰레기 댐(X=42, Z=20 주위 3칸) 배치
         const trashCoords = [
-            { x: 42, y: 30, z: 19 },
-            { x: 41, y: 30, z: 20 },
-            { x: 43, y: 30, z: 20 }
+            { x: 42, z: 19 },
+            { x: 41, z: 20 },
+            { x: 43, z: 20 }
         ];
         trashCoords.forEach(c => {
-            const key = `${c.x},${c.y},${c.z}`;
-            gridData[key] = 'toxic_plant'; // 임시로 독성 식물 비주얼로 표현하되 쓰레기로 지칭
-
-            const geom = new THREE.BoxGeometry(1, 1, 1);
-            const mat = new THREE.MeshLambertMaterial({ color: 0x6e5c45 });
-            const mesh = new THREE.Mesh(geom, mat);
-            mesh.position.set(c.x, c.y + 0.5, c.z);
-            mesh.userData = { isTrashDam: true, gridKey: key };
+            const y = this.getVisibleMissionY(c.x, c.z);
+            const key = `${c.x},${y},${c.z}`;
+            gridData[key] = 'city_trash';
+            const mesh = this.createTrashDamMesh(c.x, y, c.z, key);
             scene.add(mesh);
             meshByKey[key] = mesh;
         });
@@ -680,6 +784,8 @@ const Level4Manager = {
             foam.userData = { isFoam: true };
             scene.add(foam);
         });
+
+        if (typeof invalidateRayCache === 'function') invalidateRayCache();
     },
 
     check() {

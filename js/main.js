@@ -230,6 +230,9 @@ let isDragging = false, clickMoved = false, dragButton = 0;
 let mouseStart = { x: 0, y: 0 }, currentMouseX = 0, currentMouseY = 0;
 let digInterval = null, isHoldingPickaxe = false;
 let lastClickTime = 0;
+let digProgressKey = null;
+let digProgressHits = 0;
+let digProgressLast = 0;
 let lookPointerId = null;
 let lookMoved = false;
 let lookHoldTimer = null;
@@ -348,6 +351,39 @@ function handleJumpOrFlightTap() {
   lastUpTapTime = now;
 }
 
+function resetDigProgress(key = null) {
+  digProgressKey = null;
+  digProgressHits = 0;
+  digProgressLast = 0;
+  if (typeof clearBlockCrackEffect === 'function') clearBlockCrackEffect(key);
+}
+
+function advanceDigProgress(ud, options = {}) {
+  if (!ud) return true;
+  const progressive = options.progressive === true;
+  const requiredHits = progressive ? 4 : 1;
+  const key = bk(ud.bx, ud.by, ud.bz);
+  const now = Date.now();
+
+  if (digProgressKey !== key || now - digProgressLast > 900) {
+    if (digProgressKey && digProgressKey !== key && typeof clearBlockCrackEffect === 'function') {
+      clearBlockCrackEffect(digProgressKey);
+    }
+    digProgressKey = key;
+    digProgressHits = 0;
+  }
+
+  digProgressLast = now;
+  digProgressHits++;
+  const progress = requiredHits <= 1 ? 1 : (digProgressHits - 1) / (requiredHits - 1);
+  const stage = Math.min(5, Math.max(1, Math.round(progress * 4) + 1));
+  if (typeof showBlockCrackEffect === 'function') showBlockCrackEffect(ud.bx, ud.by, ud.bz, stage);
+
+  if (digProgressHits < requiredHits) return false;
+  resetDigProgress(key);
+  return true;
+}
+
 function isTouchLayout() {
   return typeof window.matchMedia === 'function' && window.matchMedia(TOUCH_LAYOUT_QUERY).matches;
 }
@@ -359,7 +395,7 @@ function mobileUseAt(clientX, clientY) {
 
 function mobileDigAt(clientX, clientY) {
   if (isUIBlocking()) return;
-  doDig(clientX, clientY, { allowNearby: false, purpose: 'dig' });
+  doDig(clientX, clientY, { allowNearby: false, purpose: 'dig', progressive: true });
 }
 
 document.addEventListener('pointerlockchange', updateFpHud);
@@ -554,6 +590,8 @@ function doDig(clientX, clientY, options = {}) {
   const ud = getBlockUserData(obj);
 
   if (obj.userData.isPreview) { activateChunk(obj.userData.cx, obj.userData.cz); toast('✨ 미지의 영역을 탐험했습니다!'); return; }
+  if (ud && !advanceDigProgress(ud, options)) return;
+  if (currentLevel === 4 && typeof Level4Logic !== 'undefined' && Level4Logic.handleClick(obj)) return;
   if (obj.userData.agr) { const a = animalData.find(a => a.group === obj.userData.agr); if (a) removeAnimalAt(a); }
   else if (ud) { removeBlock(ud.bx, ud.by, ud.bz); }
 }
@@ -573,7 +611,7 @@ canvas.addEventListener('mousedown', e => {
     mouseStart = { x: e.clientX, y: e.clientY }; currentMouseX = ic.x; currentMouseY = ic.y;
     if (e.button === 0 && toolMode === 'pickaxe') {
       const now = Date.now();
-      if (now - lastClickTime < 300) { isHoldingPickaxe = true; doDig(currentMouseX, currentMouseY, { allowNearby: firstPerson, purpose: 'dig' }); digInterval = setInterval(() => { if (isHoldingPickaxe) doDig(currentMouseX, currentMouseY, { allowNearby: firstPerson, purpose: 'dig' }); }, 150); }
+      if (now - lastClickTime < 300) { isHoldingPickaxe = true; doDig(currentMouseX, currentMouseY, { allowNearby: firstPerson, purpose: 'dig', progressive: true }); digInterval = setInterval(() => { if (isHoldingPickaxe) doDig(currentMouseX, currentMouseY, { allowNearby: firstPerson, purpose: 'dig', progressive: true }); }, 150); }
       else { doDig(currentMouseX, currentMouseY, { allowNearby: firstPerson, purpose: 'dig' }); }
       lastClickTime = now;
     }
@@ -604,6 +642,7 @@ canvas.addEventListener('mousemove', e => {
 
 canvas.addEventListener('mouseup', e => {
   clearInterval(digInterval); digInterval = null; isHoldingPickaxe = false;
+  resetDigProgress();
   if (isDragging && !clickMoved && e.button === 0) { if (toolMode !== 'pickaxe') { const ic = interactCoords(e); handleClick(ic.x, ic.y, { allowNearby: firstPerson, purpose: 'use' }); } }
   isDragging = false;
 });
@@ -621,6 +660,7 @@ function endLookPointer(e) {
   clearInterval(digInterval);
   digInterval = null;
   isHoldingPickaxe = false;
+  resetDigProgress();
 
   if (!lookMoved && !lookHoldTriggered) {
     mobileUseAt(e.clientX, e.clientY);
@@ -646,6 +686,7 @@ canvas.addEventListener('pointerdown', e => {
   isDragging = true;
   clickMoved = false;
   isHoldingPickaxe = false;
+  resetDigProgress();
   currentMouseX = e.clientX;
   currentMouseY = e.clientY;
   mouseStart = { x: currentMouseX, y: currentMouseY };
@@ -679,6 +720,7 @@ canvas.addEventListener('pointermove', e => {
     lookMoved = true;
     clickMoved = true;
     clearLookHold();
+    resetDigProgress();
     theta -= dx * LOOK_SENS_TOUCH;
     phi -= dy * LOOK_SENS_TOUCH;
     mouseStart = { x: currentMouseX, y: currentMouseY };
@@ -689,7 +731,13 @@ canvas.addEventListener('pointermove', e => {
 canvas.addEventListener('pointerup', endLookPointer, { passive: false });
 canvas.addEventListener('pointercancel', endLookPointer, { passive: false });
 
-canvas.addEventListener('mouseleave', () => { isDragging = false; clearInterval(digInterval); });
+canvas.addEventListener('mouseleave', () => {
+  isDragging = false;
+  clearInterval(digInterval);
+  digInterval = null;
+  isHoldingPickaxe = false;
+  resetDigProgress();
+});
 canvas.addEventListener('wheel', e => { radius += e.deltaY * .04; syncCam(); e.preventDefault(); }, { passive: false });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 

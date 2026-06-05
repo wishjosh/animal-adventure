@@ -727,6 +727,9 @@ function placeBlock(x, y, z, type) {
 function removeBlock(x, y, z) {
   const k = bk(x, y, z); if (!gridData[k]) return;
   const removedType = gridData[k]; // ← 추가: 제거 전 타입 저장
+  const effectColor = getBlockEffectColor(removedType);
+  if (typeof clearBlockCrackEffect === 'function') clearBlockCrackEffect(k);
+  playBlockBreakEffect(x, y, z, effectColor);
   if (meshByKey[k]) { scene.remove(meshByKey[k]); delete meshByKey[k]; }
   delete gridData[k];
   deletedBlocks.add(k);
@@ -754,19 +757,112 @@ function _remove(x, y, z) {
   removeBlock(x, y, z);
 }
 
+function getBlockEffectColor(rawType, fallback = 0xffffff) {
+  const def = getBlockData(rawType);
+  if (def?.hex !== undefined) return def.hex;
+  if (def?.color && typeof def.color === 'string' && def.color.startsWith('#')) {
+    const parsed = parseInt(def.color.slice(1), 16);
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+  return fallback;
+}
+
+let blockCrackEffect = null;
+
+function disposeEffectObject(obj) {
+  obj.traverse?.(child => {
+    if (child.geometry && typeof child.geometry.dispose === 'function') child.geometry.dispose();
+    if (child.material) {
+      const materials = Array.isArray(child.material) ? child.material : [child.material];
+      materials.forEach(mat => {
+        if (mat && typeof mat.dispose === 'function') mat.dispose();
+      });
+    }
+  });
+}
+
+function clearBlockCrackEffect(key = null) {
+  if (!blockCrackEffect) return;
+  if (key && blockCrackEffect.key !== key) return;
+  scene.remove(blockCrackEffect.group);
+  disposeEffectObject(blockCrackEffect.group);
+  blockCrackEffect = null;
+}
+
+function _crackRand(seed) {
+  let v = Math.sin(seed) * 10000;
+  return v - Math.floor(v);
+}
+
+function showBlockCrackEffect(x, y, z, stage = 1) {
+  if (typeof THREE === 'undefined' || typeof scene === 'undefined') return;
+  const key = bk(x, y, z);
+  clearBlockCrackEffect();
+
+  const clampedStage = Math.max(1, Math.min(5, stage));
+  const positions = [];
+  const lineCount = 7 + clampedStage * 5;
+  const faces = [
+    ['z', 1], ['z', -1],
+    ['x', 1], ['x', -1],
+    ['y', 1]
+  ];
+
+  for (let i = 0; i < lineCount; i++) {
+    const seed = (x * 197.1) + (y * 281.7) + (z * 311.3) + (i * 17.7) + clampedStage * 43.1;
+    const [axis, sign] = faces[Math.floor(_crackRand(seed) * faces.length)];
+    const a = (_crackRand(seed + 1) - 0.5) * 0.78;
+    const b = (_crackRand(seed + 2) - 0.5) * 0.78;
+    const angle = _crackRand(seed + 3) * Math.PI * 2;
+    const len = 0.12 + clampedStage * 0.035 + _crackRand(seed + 4) * 0.13;
+    const da = Math.cos(angle) * len;
+    const db = Math.sin(angle) * len;
+    const facePos = 0.512 * sign;
+
+    if (axis === 'z') {
+      positions.push(a, b, facePos, a + da, b + db, facePos);
+    } else if (axis === 'x') {
+      positions.push(facePos, a, b, facePos, a + da, b + db);
+    } else {
+      positions.push(a, facePos, b, a + da, facePos, b + db);
+    }
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  const material = new THREE.LineBasicMaterial({
+    color: 0x111111,
+    transparent: true,
+    opacity: 0.28 + clampedStage * 0.11,
+    depthTest: true
+  });
+  const lines = new THREE.LineSegments(geometry, material);
+  const group = new THREE.Group();
+  group.position.set(x, y + 0.5, z);
+  group.scale.setScalar(1.01 + clampedStage * 0.01);
+  group.add(lines);
+  scene.add(group);
+  blockCrackEffect = { key, group };
+}
+
 function playBlockBreakEffect(x, y, z, color = 0xffffff) {
   if (typeof THREE === 'undefined' || typeof scene === 'undefined') return;
 
   const particles = [];
-  const geo = new THREE.BoxGeometry(0.12, 0.12, 0.12);
-  for (let i = 0; i < 10; i++) {
+  const geo = new THREE.BoxGeometry(0.13, 0.13, 0.13);
+  for (let i = 0; i < 16; i++) {
     const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85 });
     const particle = new THREE.Mesh(geo, mat);
-    particle.position.set(x + (Math.random() - 0.5) * 0.6, y + 0.5 + Math.random() * 0.4, z + (Math.random() - 0.5) * 0.6);
+    const size = 0.65 + Math.random() * 0.8;
+    particle.scale.setScalar(size);
+    particle.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+    particle.position.set(x + (Math.random() - 0.5) * 0.72, y + 0.45 + Math.random() * 0.48, z + (Math.random() - 0.5) * 0.72);
     particle.userData.velocity = {
-      x: (Math.random() - 0.5) * 0.08,
-      y: 0.08 + Math.random() * 0.08,
-      z: (Math.random() - 0.5) * 0.08
+      x: (Math.random() - 0.5) * 0.1,
+      y: 0.09 + Math.random() * 0.1,
+      z: (Math.random() - 0.5) * 0.1,
+      rx: (Math.random() - 0.5) * 0.14,
+      ry: (Math.random() - 0.5) * 0.14
     };
     scene.add(particle);
     particles.push(particle);
@@ -779,6 +875,8 @@ function playBlockBreakEffect(x, y, z, color = 0xffffff) {
       particle.position.x += particle.userData.velocity.x;
       particle.position.y += particle.userData.velocity.y;
       particle.position.z += particle.userData.velocity.z;
+      particle.rotation.x += particle.userData.velocity.rx;
+      particle.rotation.y += particle.userData.velocity.ry;
       particle.userData.velocity.y -= 0.01;
       particle.material.opacity = Math.max(0, particle.material.opacity - 0.045);
     });

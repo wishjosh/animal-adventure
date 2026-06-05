@@ -329,7 +329,6 @@ class Level6Manager {
       if (bear.group) bear.group.position.set(bear.x, bear.y, bear.z);
 
       _remove(x, y, z);
-      playBlockBreakEffect(x, y, z, 0xa0522d); // 도토리 브레이크 파티클
       
       level6_conditions.bearAcornFedCount++;
       toast(`🐻 웅이가 도토리를 맛있게 먹었습니다! (신뢰도: ${level6_conditions.bearAcornFedCount} / 3)`);
