@@ -1350,10 +1350,24 @@ function updateFox(a, t) {
 }
 
 function updateWildDog(a, t) {
-  const cX = -70, cZ = -16;
+  const dogCenter = (typeof Level3Manager !== 'undefined' && Level3Manager.DOG_CENTER)
+    ? Level3Manager.DOG_CENTER
+    : { x: -70, z: -10 };
+  const cX = dogCenter.x, cZ = dogCenter.z;
+
+  if (typeof currentLevel !== 'undefined' && currentLevel === 3 &&
+      typeof level3_phase !== 'undefined' && level3_phase < 2 &&
+      !(typeof level3_conditions !== 'undefined' && level3_conditions.wildDogIsolated)) {
+    const aheadY = getVisualTopY(a.x, a.z);
+    a.y += (aheadY - a.y) * 0.25;
+    a.group.position.set(a.x, a.y + Math.abs(Math.sin(t * 5)) * 0.04, a.z);
+    a.group.rotation.y = a.angle + Math.sin(t * 1.4) * 0.18;
+    return;
+  }
+
   const distFromCenter = Math.hypot(a.x - cX, a.z - cZ);
 
-  if (distFromCenter > 7) {
+  if (distFromCenter > 5) {
     a.targetAngle = Math.atan2(cZ - a.z, a.x - cX);
   } else if (Math.random() < 0.02) {
     a.targetAngle = a.angle + (Math.random() - 0.5) * 2;
@@ -1364,7 +1378,7 @@ function updateWildDog(a, t) {
   while (diff < -Math.PI) diff += 2 * Math.PI;
   a.angle += diff * 0.08;
 
-  const spd = 0.015;
+  const spd = 0.012;
   const nx = a.x + Math.cos(a.angle) * spd;
   const nz = a.z - Math.sin(a.angle) * spd;
 

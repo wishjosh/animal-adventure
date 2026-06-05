@@ -270,6 +270,12 @@ const Level3Manager = {
     // 노루 이송 대상 풀밭 좌표
     DEER_TARGET: { x: -80, z: -8 },
     DEER_SPAWN:  { x: -76, z: 4 },
+    DOG_CENTER:  { x: -70, z: -10 },
+    DOG_SPAWNS: [
+        { x: -70, z: -9 },
+        { x: -68, z: -11 },
+        { x: -72, z: -10 }
+    ],
 
     _deerArrow: null,
     _deerTargetMarker: null,
@@ -319,10 +325,10 @@ const Level3Manager = {
         placeAnimal(this.DEER_SPAWN.x, getH(this.DEER_SPAWN.x, this.DEER_SPAWN.z) + 0.5, this.DEER_SPAWN.z, 'deer', true); // 다친 노루
         placeAnimal(-84, getH(-84, 10) + 0.5, 10, 'fox'); // 붉은여우
         
-        // 들개 3마리 배치
-        placeAnimal(-70, getH(-70, -15) + 0.5, -15, 'dog');
-        placeAnimal(-68, getH(-68, -18) + 0.5, -18, 'dog');
-        placeAnimal(-73, getH(-73, -14) + 0.5, -14, 'dog');
+        // 들개 3마리 배치: 노루 치료 구역에서 너무 멀지 않게 두어 phase 2 진입 시 바로 인지되도록 한다
+        for (const pos of this.DOG_SPAWNS) {
+            placeAnimal(pos.x, getH(pos.x, pos.z) + 0.5, pos.z, 'dog');
+        }
 
         // 사체 블록 3개 스폰
         const carcasses = [{x:-85, z:-5}, {x:-72, z:-12}, {x:-68, z:6}];
@@ -442,7 +448,11 @@ const Level3Manager = {
             scene.remove(this._deerTargetMarker);
             this._deerTargetMarker = null;
         }
-        if (this._dogArrow) { scene.remove(this._dogArrow); this._dogArrow = null; }
+        if (this._dogArrow) {
+            if (this._dogArrow._label) scene.remove(this._dogArrow._label);
+            scene.remove(this._dogArrow);
+            this._dogArrow = null;
+        }
         if (this._foxArrow) {
             if (this._foxArrow._label) scene.remove(this._foxArrow._label);
             scene.remove(this._foxArrow);
@@ -473,23 +483,43 @@ const Level3Manager = {
         // 들개 무리 및 여우 가이드 화살표 (Phase 2 시작 시)
         if (level3_phase === 2) {
             if (!this._dogArrow) {
-                // 들개 구역(X:-70, Z:-15) 위에 안내 화살표
+                // 들개 구역 위에 안내 화살표
                 const arr = new THREE.Mesh(
                     new THREE.ConeGeometry(0.4, 0.8, 4),
                     new THREE.MeshBasicMaterial({ color: 0xFF2222, depthTest: false })
                 );
                 arr.rotation.x = Math.PI;
-                arr.position.set(-70, getH(-70, -15) + 3.5, -15);
+                arr.position.set(this.DOG_CENTER.x, getH(this.DOG_CENTER.x, this.DOG_CENTER.z) + 3.5, this.DOG_CENTER.z);
                 arr.renderOrder = 110;
                 scene.add(arr);
                 this._dogArrow = arr;
+
+                if (typeof createEmojiSprite === 'function') {
+                    const label = createEmojiSprite('🐕');
+                    label.position.set(this.DOG_CENTER.x, getH(this.DOG_CENTER.x, this.DOG_CENTER.z) + 4.7, this.DOG_CENTER.z);
+                    label.scale.set(1.5, 1.5, 1);
+                    scene.add(label);
+                    arr._label = label;
+                }
             }
             if (this._dogArrow) {
                 if (level3_conditions.wildDogIsolated) {
+                    if (this._dogArrow._label) scene.remove(this._dogArrow._label);
                     scene.remove(this._dogArrow);
                     this._dogArrow = null;
                 } else {
-                    this._dogArrow.position.y = getH(-70, -15) + 3.5 + Math.sin(t * 3) * 0.2;
+                    this._dogArrow.position.set(
+                        this.DOG_CENTER.x,
+                        getH(this.DOG_CENTER.x, this.DOG_CENTER.z) + 3.5 + Math.sin(t * 3) * 0.2,
+                        this.DOG_CENTER.z
+                    );
+                    if (this._dogArrow._label) {
+                        this._dogArrow._label.position.set(
+                            this.DOG_CENTER.x,
+                            this._dogArrow.position.y + 1.2,
+                            this.DOG_CENTER.z
+                        );
+                    }
                 }
             }
 
