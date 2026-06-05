@@ -735,12 +735,108 @@ const Level3Manager = {
 
         document.body.appendChild(overlay);
 
-        // 드래그 앤 드롭 구현
+        // 드래그 앤 드롭 구현: HTML5 drag/drop + 모바일 PointerEvent + 탭 배치
         const cards = overlay.querySelectorAll('.f-card');
         const slots = overlay.querySelectorAll('.f-slot');
         let draggedCard = null;
+        let selectedCard = null;
+        let pointerDrag = null;
+        let activeSlot = null;
+
+        const getSlotPlaceholder = (slot) => {
+            return slot.dataset.slot === '1' ? '[1층] 생산자 슬롯'
+                : slot.dataset.slot === '2' ? '[2층] 1차 소비자 슬롯'
+                : slot.dataset.slot === '3' ? '[3층] 2차 소비자 슬롯'
+                : '[4층] 최상위 포식자 슬롯';
+        };
+
+        const clearActiveSlot = () => {
+            if (activeSlot && !activeSlot.querySelector('.f-card')) {
+                activeSlot.style.borderColor = 'rgba(255,255,255,0.15)';
+            }
+            activeSlot = null;
+        };
+
+        const setActiveSlot = (slot) => {
+            if (activeSlot === slot) return;
+            clearActiveSlot();
+            if (slot && !slot.querySelector('.f-card')) {
+                activeSlot = slot;
+                activeSlot.style.borderColor = '#ffcc44';
+            }
+        };
+
+        const clearSelectedCard = () => {
+            if (selectedCard) {
+                selectedCard.style.outline = '';
+                selectedCard.style.boxShadow = '';
+            }
+            selectedCard = null;
+        };
+
+        const selectCard = (card) => {
+            if (!card || card.style.display === 'none') return;
+            if (selectedCard === card) {
+                clearSelectedCard();
+                return;
+            }
+            clearSelectedCard();
+            selectedCard = card;
+            selectedCard.style.outline = '2px solid #ffcc44';
+            selectedCard.style.boxShadow = '0 0 12px rgba(255,204,68,0.65)';
+        };
+
+        const resetSlot = (slot, sourceCard) => {
+            slot.innerHTML = getSlotPlaceholder(slot);
+            slot.style.borderColor = 'rgba(255,255,255,0.15)';
+            if (sourceCard) sourceCard.style.display = 'flex';
+            clearSelectedCard();
+        };
+
+        const placeCardInSlot = (sourceCard, slot) => {
+            if (!sourceCard || !slot || slot.querySelector('.f-card')) return false;
+
+            const clone = sourceCard.cloneNode(true);
+            clone.draggable = false;
+            clone.removeAttribute('draggable');
+            clone.style.width = '90%';
+            clone.style.height = '80%';
+            clone.style.justifyContent = 'center';
+            clone.style.cursor = 'pointer';
+            clone.style.touchAction = 'manipulation';
+
+            clone.addEventListener('dblclick', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                resetSlot(slot, sourceCard);
+            });
+            clone.addEventListener('pointerup', (e) => {
+                if (e.pointerType === 'mouse') return;
+                e.preventDefault();
+                e.stopPropagation();
+                resetSlot(slot, sourceCard);
+            });
+
+            slot.innerHTML = '';
+            slot.appendChild(clone);
+            slot.style.borderColor = '#ffcc44';
+
+            sourceCard.style.display = 'none';
+            sourceCard.style.opacity = '1';
+            clearSelectedCard();
+            return true;
+        };
+
+        const getSlotAtPoint = (x, y) => {
+            const el = document.elementFromPoint(x, y);
+            return el ? el.closest('.f-slot') : null;
+        };
 
         cards.forEach(card => {
+            card.style.touchAction = 'none';
+            card.style.userSelect = 'none';
+            card.style.webkitUserSelect = 'none';
+
             card.addEventListener('dragstart', () => {
                 draggedCard = card;
                 card.style.opacity = '0.5';
@@ -749,42 +845,95 @@ const Level3Manager = {
                 card.style.opacity = '1';
                 draggedCard = null;
             });
+
+            card.addEventListener('pointerdown', (e) => {
+                if (card.style.display === 'none') return;
+                if (e.pointerType === 'mouse' && e.button !== 0) return;
+
+                e.preventDefault();
+                e.stopPropagation();
+
+                const rect = card.getBoundingClientRect();
+                const ghost = card.cloneNode(true);
+                ghost.style.position = 'fixed';
+                ghost.style.left = `${rect.left}px`;
+                ghost.style.top = `${rect.top}px`;
+                ghost.style.width = `${rect.width}px`;
+                ghost.style.height = `${rect.height}px`;
+                ghost.style.margin = '0';
+                ghost.style.pointerEvents = 'none';
+                ghost.style.opacity = '0.92';
+                ghost.style.transform = 'scale(1.03)';
+                ghost.style.zIndex = '1000';
+                ghost.style.boxShadow = '0 10px 24px rgba(0,0,0,0.45)';
+                document.body.appendChild(ghost);
+
+                pointerDrag = {
+                    pointerId: e.pointerId,
+                    card,
+                    ghost,
+                    startX: e.clientX,
+                    startY: e.clientY,
+                    offsetX: e.clientX - rect.left,
+                    offsetY: e.clientY - rect.top,
+                    moved: false
+                };
+
+                card.setPointerCapture?.(e.pointerId);
+                card.style.opacity = '0.55';
+            });
+
+            card.addEventListener('pointermove', (e) => {
+                if (!pointerDrag || pointerDrag.pointerId !== e.pointerId) return;
+                e.preventDefault();
+
+                const dx = e.clientX - pointerDrag.startX;
+                const dy = e.clientY - pointerDrag.startY;
+                if (!pointerDrag.moved && Math.hypot(dx, dy) > 6) pointerDrag.moved = true;
+
+                pointerDrag.ghost.style.left = `${e.clientX - pointerDrag.offsetX}px`;
+                pointerDrag.ghost.style.top = `${e.clientY - pointerDrag.offsetY}px`;
+
+                const slot = getSlotAtPoint(e.clientX, e.clientY);
+                setActiveSlot(slot);
+            });
+
+            const finishPointerDrag = (e) => {
+                if (!pointerDrag || pointerDrag.pointerId !== e.pointerId) return;
+                e.preventDefault();
+                e.stopPropagation();
+
+                const drag = pointerDrag;
+                pointerDrag = null;
+                drag.card.releasePointerCapture?.(e.pointerId);
+                drag.ghost.remove();
+                drag.card.style.opacity = '1';
+
+                const dropSlot = getSlotAtPoint(e.clientX, e.clientY);
+                clearActiveSlot();
+
+                if (drag.moved && dropSlot) {
+                    placeCardInSlot(drag.card, dropSlot);
+                } else if (!drag.moved) {
+                    selectCard(drag.card);
+                }
+            };
+
+            card.addEventListener('pointerup', finishPointerDrag);
+            card.addEventListener('pointercancel', finishPointerDrag);
         });
 
         slots.forEach(slot => {
             slot.addEventListener('dragover', (e) => e.preventDefault());
-            slot.addEventListener('drop', () => {
-                if (!draggedCard) return;
-
-                // 기존 슬롯에 내용이 있는지 확인
-                if (slot.children.length > 0) return;
-
-                // dragend에서 draggedCard가 null로 초기화되므로 원본 참조를 고정 보관
-                const sourceCard = draggedCard;
-
-                const clone = sourceCard.cloneNode(true);
-                clone.style.width = '90%';
-                clone.style.height = '80%';
-                clone.style.justifyContent = 'center';
-                clone.draggable = false;
-                clone.style.cursor = 'default';
-
-                // 슬롯 비우기 더블클릭 이벤트 추가
-                clone.addEventListener('dblclick', () => {
-                    slot.innerHTML = slot.dataset.slot === '1' ? '[1층] 생산자 슬롯'
-                        : slot.dataset.slot === '2' ? '[2층] 1차 소비자 슬롯'
-                        : slot.dataset.slot === '3' ? '[3층] 2차 소비자 슬롯'
-                        : '[4층] 최상위 포식자 슬롯';
-                    slot.style.borderColor = 'rgba(255,255,255,0.15)';
-                    sourceCard.style.display = 'flex';
-                });
-
-                slot.innerHTML = '';
-                slot.appendChild(clone);
-                slot.style.borderColor = '#ffcc44';
-
-                // 원본 카드 숨김
-                sourceCard.style.display = 'none';
+            slot.addEventListener('drop', (e) => {
+                e.preventDefault();
+                placeCardInSlot(draggedCard, slot);
+            });
+            slot.addEventListener('pointerdown', (e) => {
+                if (!selectedCard) return;
+                e.preventDefault();
+                e.stopPropagation();
+                placeCardInSlot(selectedCard, slot);
             });
         });
 
