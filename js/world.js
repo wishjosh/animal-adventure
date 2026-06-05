@@ -1072,6 +1072,40 @@ function isSolid(rawType) {
   return def && def.solid;
 }
 
+function isLevel3BarrierBlock(rawType) {
+  if (!rawType || isDecorativeType(rawType)) return false;
+  return !!isSolid(rawType);
+}
+
+function isLevel3BarrierAt(x, z) {
+  const ix = Math.round(x);
+  const iz = Math.round(z);
+  const surfaceY = getH(ix, iz);
+  const topY = getTopY(ix, iz) - 1;
+
+  for (let y = topY; y > surfaceY && y >= topY - 4; y--) {
+    if (isLevel3BarrierBlock(gridData[bk(ix, y, iz)])) return true;
+  }
+  return false;
+}
+
+function isLevel3BarrierNear(x, z, radius = 0.68) {
+  const side = radius;
+  const diag = radius * 0.7;
+  const samples = [
+    [0, 0],
+    [side, 0],
+    [-side, 0],
+    [0, side],
+    [0, -side],
+    [diag, diag],
+    [-diag, diag],
+    [diag, -diag],
+    [-diag, -diag]
+  ];
+  return samples.some(([dx, dz]) => isLevel3BarrierAt(x + dx, z + dz));
+}
+
 function analyzeHabitat(sx, sz) {
   const v = new Set(), q = [[sx, sz]]; v.add(`${sx},${sz}`);
   let count = 0, grassCount = 0;
@@ -1382,10 +1416,7 @@ function updateWildDog(a, t) {
   const nx = a.x + Math.cos(a.angle) * spd;
   const nz = a.z - Math.sin(a.angle) * spd;
 
-  // getTopY - 1 = 실제 최상단 블록(울타리/관목)이 있는 y
-  const topBlockY = getTopY(Math.round(nx), Math.round(nz)) - 1;
-  const block = gridData[bk(Math.round(nx), topBlockY, Math.round(nz))];
-  const isBlocked = block && (block.startsWith('fence') || block.startsWith('bush'));
+  const isBlocked = isLevel3BarrierNear(nx, nz, 0.72);
 
   if (!isBlocked) {
     a.x = nx; a.z = nz;

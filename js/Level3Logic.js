@@ -182,10 +182,8 @@ const Level3Logic = {
                     // 비활성 청크는 벽으로 취급 (BFS가 빠져나가지 못함)
                     if (!isActive(nx, nz)) continue;
 
-                    // 이웃 칸 '자체'의 지표면 기준으로 벽(솔리드: 울타리/관목/흙/돌) 검사
-                    const nTopY = getTopY(nx, nz) - 1;
-                    const blocked = isSolid(gridData[bk(nx, nTopY + 1, nz)]) ||
-                                    isSolid(gridData[bk(nx, nTopY + 2, nz)]);
+                    // 이웃 칸의 지면 위 설치 블록(관목/울타리/돌/흙 등)을 격리벽으로 검사
+                    const blocked = isLevel3BarrierAt(nx, nz);
 
                     if (!blocked) {
                         visited.add(nKey);

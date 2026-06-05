@@ -168,6 +168,19 @@
       gap: 5px;
     }
 
+    @media (pointer: coarse), (max-width: 760px), (max-height: 520px) {
+      #world-compass {
+        top: calc(max(6px, env(safe-area-inset-top, 0px)) + 46px);
+        right: auto;
+        left: max(10px, env(safe-area-inset-left, 0px));
+      }
+
+      #nav-compass {
+        width: 104px;
+        padding: 5px 7px;
+      }
+    }
+
     #compass-rose {
       width: 64px;
       height: 64px;
