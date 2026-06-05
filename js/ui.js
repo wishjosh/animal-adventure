@@ -366,6 +366,63 @@ function updateMapOverlay(){
 function openMap(){closeHudPopovers();updateMapOverlay();document.getElementById('map-overlay').style.display='flex';}
 function closeMap(){document.getElementById('map-overlay').style.display='none';}
 
+function getCameraHeadingDeg() {
+  if (typeof camera !== 'undefined' && typeof THREE !== 'undefined') {
+    const dir = new THREE.Vector3();
+    camera.getWorldDirection(dir);
+    dir.y = 0;
+    if (dir.lengthSq() > 0.0001) {
+      dir.normalize();
+      return Math.atan2(dir.x, -dir.z) * (180 / Math.PI);
+    }
+  }
+  if (typeof orbitTarget !== 'undefined' && typeof camera !== 'undefined') {
+    const dx = orbitTarget.x - camera.position.x;
+    const dz = orbitTarget.z - camera.position.z;
+    if (Math.hypot(dx, dz) > 0.0001) return Math.atan2(dx, -dz) * (180 / Math.PI);
+  }
+  return 0;
+}
+
+function hideDestinationCompass() {
+  const worldCompass = document.getElementById('world-compass');
+  const navCompass = document.getElementById('nav-compass');
+  const bearingEl = document.getElementById('destination-bearing');
+  if (worldCompass) worldCompass.classList.remove('has-destination', 'destination-nearby');
+  if (navCompass) {
+    navCompass.style.display = 'none';
+    navCompass.classList.remove('nc-nearby');
+  }
+  if (bearingEl) bearingEl.style.transform = 'rotate(0deg)';
+}
+
+function updateDestinationCompass({ x, z, title, hint, arrivedHint, arrivedText = '도착!', radius = 30 }) {
+  const worldCompass = document.getElementById('world-compass');
+  const navCompass = document.getElementById('nav-compass');
+  const bearingEl = document.getElementById('destination-bearing');
+  const arrowEl = document.getElementById('nav-arrow');
+  const titleEl = navCompass ? navCompass.querySelector('.nc-title') : null;
+  const distEl = document.getElementById('nav-dist');
+  const hintEl = document.getElementById('nav-hint');
+  if (!worldCompass || !navCompass || !bearingEl || !arrowEl || typeof orbitTarget === 'undefined') return;
+
+  const dx = x - orbitTarget.x;
+  const dz = z - orbitTarget.z;
+  const dist = Math.hypot(dx, dz);
+  const arrived = dist <= radius;
+  const bearing = dist > 0.001 ? Math.atan2(dx, -dz) * (180 / Math.PI) : 0;
+
+  worldCompass.classList.add('has-destination');
+  worldCompass.classList.toggle('destination-nearby', arrived);
+  navCompass.style.display = 'flex';
+  navCompass.classList.toggle('nc-nearby', arrived);
+  bearingEl.style.transform = `rotate(${bearing.toFixed(1)}deg)`;
+  arrowEl.textContent = arrived ? '✓' : '▲';
+  if (titleEl) titleEl.textContent = title || '목적지';
+  if (distEl) distEl.textContent = arrived ? arrivedText : `약 ${Math.round(dist)}칸`;
+  if (hintEl) hintEl.innerHTML = arrived ? (arrivedHint || hint || '도착했어요') : (hint || '이 방향으로<br>탐험하세요!');
+}
+
 const LEVEL_SELECT_META = [
   null,
   { level: 1, emoji: '🌳', name: '초록 마을', caption: '단서 찾기부터 시작' },
@@ -450,6 +507,7 @@ function hideTransientGameUi() {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
+  hideDestinationCompass();
   ['npc-dialogue-popup', 'encyclopedia-popup', 'officer-convince-popup', 'audit-dashboard-ui', 'heartbeat-dashboard-ui', 'world-map-popup'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.remove();

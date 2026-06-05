@@ -346,6 +346,17 @@ const Level3Manager = {
             if (titleEl) titleEl.textContent = '🌾 연결의 평원';
             compass.style.display = 'flex';
         }
+        if (typeof updateDestinationCompass === 'function') {
+            updateDestinationCompass({
+                x: -80,
+                z: 0,
+                title: '🌾 연결의 평원',
+                hint: '평원 방향으로<br>나아가세요!',
+                arrivedHint: '연결의 평원을<br>탐험하세요!',
+                arrivedText: '평원 도착!',
+                radius: 35
+            });
+        }
 
         // 가이드 마커 생성
         this.showDeerGuide();
@@ -541,45 +552,20 @@ const Level3Manager = {
     },
 
     updateNavCompass() {
-        const compass  = document.getElementById('nav-compass');
-        const arrowEl  = document.getElementById('nav-arrow');
-        const distEl   = document.getElementById('nav-dist');
-        const hintEl   = document.getElementById('nav-hint');
-        if (!compass || !arrowEl) return;
-
-        const ox = orbitTarget.x, oz = orbitTarget.z;
-        const TX = -80, TZ = 0;  // connection_plains 바이옴 중심
-
-        const dx = TX - ox, dz = TZ - oz;
-        const dist = Math.hypot(dx, dz);
-
-        if (dist < 35) {
-            compass.classList.add('nc-nearby');
-            arrowEl.textContent = '✅';
-            if (distEl) distEl.textContent = '평원 도착!';
-            if (hintEl) hintEl.innerHTML = '연결의 평원을<br>탐험하세요!';
-            arrowEl.style.transform = 'rotate(0deg)';
+        if (this.phaseComplete['level3'] || level3_phase >= 4) {
+            if (typeof hideDestinationCompass === 'function') hideDestinationCompass();
             return;
         }
-
-        compass.classList.remove('nc-nearby');
-        if (distEl) distEl.textContent = `약 ${Math.round(dist)}칸`;
-        if (hintEl) hintEl.innerHTML = '평원 방향으로<br>나아가세요!';
-
-        // 1인칭에서는 camera.position === orbitTarget 이라 (ox-cam) 가 0벡터가 되므로 시선 방향을 직접 사용
-        const camFwd = new THREE.Vector3();
-        camera.getWorldDirection(camFwd);
-        camFwd.y = 0; camFwd.normalize();
-        const camRgt = new THREE.Vector3().crossVectors(camFwd, new THREE.Vector3(0, 1, 0)).normalize();
-        const wDir = new THREE.Vector3(dx, 0, dz).normalize();
-
-        const screenX = wDir.dot(camRgt);
-        const screenY = wDir.dot(camFwd);
-        const angle = Math.atan2(screenX, screenY) * (180 / Math.PI);
-        
-        arrowEl.textContent = '⬆️';
-        arrowEl.style.transform = `rotate(${angle.toFixed(1)}deg)`;
-        compass.style.display = 'flex'; // 레벨 3 진입 시 항시 노출
+        if (typeof updateDestinationCompass !== 'function') return;
+        updateDestinationCompass({
+            x: -80,
+            z: 0,
+            title: '🌾 연결의 평원',
+            hint: '평원 방향으로<br>나아가세요!',
+            arrivedHint: '연결의 평원을<br>탐험하세요!',
+            arrivedText: '평원 도착!',
+            radius: 35
+        });
     },
 
     onAnimalDropped(x, z, entry) {
@@ -824,9 +810,8 @@ const Level3Manager = {
             }
         }
 
-        // 나침반 숨김
-        const compass = document.getElementById('nav-compass');
-        if (compass) compass.style.display = 'none';
+        // 방위표 목적지 표시 숨김
+        if (typeof hideDestinationCompass === 'function') hideDestinationCompass();
 
         // 클리어 토스트 및 할머니 대사
         setTimeout(() => {

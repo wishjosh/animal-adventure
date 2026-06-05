@@ -192,9 +192,17 @@ const Level2Manager = {
 
         DBG('[Level2Manager] init() — 레벨 2 시작');
 
-        // ── 나침반 표시 (diversity_forest 방향 안내) ─
-        const compass = document.getElementById('nav-compass');
-        if (compass) compass.style.display = 'flex';
+        // ── 방위표 안 목적지 표시 (diversity_forest 방향 안내) ─
+        if (typeof updateDestinationCompass === 'function') {
+            updateDestinationCompass({
+                x: 80,
+                z: 0,
+                title: '🌿 다양성의 숲',
+                hint: '이 방향으로<br>탐험하세요!',
+                arrivedHint: '가까이 가면<br>자동으로 탐험돼요!',
+                radius: 30
+            });
+        }
 
         // ── Phase 0: 도감 카드 팝업 ─────────────────
         toast('🌿 [다양성의 숲] 도감 카드를 확인하세요!');
@@ -319,56 +327,22 @@ const Level2Manager = {
     },
 
 
-    // ── 화면 우측 나침반 방향 계산 ─────────────────
+    // ── 방위표 목적지 방향 계산 ─────────────────
     // diversity_forest 바이옴 중심: X=80, Z=0 (data.js BIOME_CONFIG 기준)
     _updateNavCompass() {
-        const compass  = document.getElementById('nav-compass');
-        const arrowEl  = document.getElementById('nav-arrow');
-        const distEl   = document.getElementById('nav-dist');
-        const hintEl   = document.getElementById('nav-hint');
-        if (!compass || !arrowEl) return;
-
-        // 현재 카메라 주시점
-        const ox = orbitTarget.x, oz = orbitTarget.z;
-        const TX = 80, TZ = 0;  // diversity_forest centerX, centerZ
-
-        const dx = TX - ox, dz = TZ - oz;
-        const dist = Math.sqrt(dx * dx + dz * dz);
-        const distBlocks = Math.round(dist);
-
-        // diversity_forest radius=30 이내 → "도착" 상태
-        if (dist < 30) {
-            compass.classList.add('nc-nearby');
-            arrowEl.textContent = '✅';
-            if (distEl) distEl.textContent = '도착!';
-            if (hintEl) hintEl.innerHTML = '가까이 가면<br>자동으로 탐험돼요!';
-            arrowEl.style.transform = 'rotate(0deg)';
+        if (this.phaseComplete['level2']) {
+            if (typeof hideDestinationCompass === 'function') hideDestinationCompass();
             return;
         }
-
-        compass.classList.remove('nc-nearby');
-        if (distEl) distEl.textContent = `약 ${distBlocks}칸`;
-        if (hintEl) hintEl.innerHTML = '이 방향으로<br>탐험하세요!';
-
-        // 카메라 fwd / rgt 벡터 (main.js animate() 와 동일 계산)
-        const camFwd = new THREE.Vector3(
-            ox - camera.position.x, 0, oz - camera.position.z
-        ).normalize();
-        const camRgt = new THREE.Vector3()
-            .crossVectors(camFwd, new THREE.Vector3(0, 1, 0))
-            .normalize();
-
-        // 목표 방향 단위 벡터 (XZ 평면)
-        const wDir = new THREE.Vector3(dx, 0, dz).normalize();
-
-        // 스크린 공간 투영
-        const screenX = wDir.dot(camRgt);   // 오른쪽 → +
-        const screenY = wDir.dot(camFwd);   // 위(앞) → +
-
-        // 화살표 회전: atan2(x, y) → 0°=위, 시계방향 양수
-        const angle = Math.atan2(screenX, screenY) * (180 / Math.PI);
-        arrowEl.textContent = '⬆️';
-        arrowEl.style.transform = `rotate(${angle.toFixed(1)}deg)`;
+        if (typeof updateDestinationCompass !== 'function') return;
+        updateDestinationCompass({
+            x: 80,
+            z: 0,
+            title: '🌿 다양성의 숲',
+            hint: '이 방향으로<br>탐험하세요!',
+            arrivedHint: '가까이 가면<br>자동으로 탐험돼요!',
+            radius: 30
+        });
     },
 
     // ── 두꾸가 목표 위치에 내려졌을 때 호출 ─────────
@@ -542,9 +516,8 @@ const Level2Manager = {
         if (otterDone && batDone && frogDone) {
             this.phaseComplete['level2'] = true;
             DBG('[Level2Manager] 🎉 레벨 2 클리어!');
-            // 나침반 숨김
-            const compass = document.getElementById('nav-compass');
-            if (compass) compass.style.display = 'none';
+            // 방위표 목적지 표시 숨김
+            if (typeof hideDestinationCompass === 'function') hideDestinationCompass();
             // 모든 화살표 정리
             this._clearBullfrogZone();
             if (this._otterArrow) {

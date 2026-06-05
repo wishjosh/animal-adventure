@@ -604,6 +604,17 @@ const Level4Manager = {
             if (titleEl) titleEl.textContent = '💧 강의 근원지';
             compass.style.display = 'flex';
         }
+        if (typeof updateDestinationCompass === 'function') {
+            updateDestinationCompass({
+                x: this.SOYA_SPAWN.x,
+                z: this.SOYA_SPAWN.z,
+                title: '💧 강의 근원지',
+                hint: '쏘가리 쏘야<br>방향으로!',
+                arrivedHint: '쏘가리 쏘야<br>방향으로!',
+                arrivedText: '목표 도착!',
+                radius: 30
+            });
+        }
 
         // 인벤토리에 나무 묘목(willow) 및 삽, 곡괭이 등 지급
         hotbar = [null, 'pickaxe', 'watering_can', 'shovel', 'willow', 'stone', 'grass', null, null];
@@ -779,8 +790,7 @@ const Level4Manager = {
             }
         }
 
-        const compass = document.getElementById('nav-compass');
-        if (compass) compass.style.display = 'none';
+        if (typeof hideDestinationCompass === 'function') hideDestinationCompass();
 
         setTimeout(() => {
             toast('🎊 수호대들의 힘으로 100년 홍수를 물리쳤으며 강의 근원지가 영롱하게 되살아났습니다!');
@@ -890,12 +900,10 @@ const Level4Manager = {
     },
 
     updateNavCompass() {
-        const compass = document.getElementById('nav-compass');
-        const arrowEl  = document.getElementById('nav-arrow');
-        const distEl   = document.getElementById('nav-dist');
-        const hintEl   = document.getElementById('nav-hint');
-        if (!compass || !arrowEl) return;
-
+        if (this.phaseComplete.flood || level4_phase >= 4) {
+            if (typeof hideDestinationCompass === 'function') hideDestinationCompass();
+            return;
+        }
         // 현재 단계에 따라 목표 좌표 설정
         let TX, TZ, hintText;
         if (level4_phase === 1 || !level4_conditions.soyaRescued) {
@@ -907,38 +915,16 @@ const Level4Manager = {
             TZ = riverSource.centerZ;
             hintText = '강의 근원지<br>탐험하세요!';
         }
-
-        const ox = orbitTarget.x, oz = orbitTarget.z;
-        const dx = TX - ox, dz = TZ - oz;
-        const dist = Math.hypot(dx, dz);
-
-        if (dist < 30) {
-            compass.classList.add('nc-nearby');
-            arrowEl.textContent = '✅';
-            if (distEl) distEl.textContent = '목표 도착!';
-            if (hintEl) hintEl.innerHTML = hintText;
-            arrowEl.style.transform = 'rotate(0deg)';
-            return;
-        }
-
-        compass.classList.remove('nc-nearby');
-        if (distEl) distEl.textContent = `약 ${Math.round(dist)}칸`;
-        if (hintEl) hintEl.innerHTML = hintText;
-
-        // 1인칭에서는 camera.position === orbitTarget 이라 (ox-cam) 가 0벡터가 되므로 시선 방향을 직접 사용
-        const camFwd = new THREE.Vector3();
-        camera.getWorldDirection(camFwd);
-        camFwd.y = 0; camFwd.normalize();
-        const camRgt = new THREE.Vector3().crossVectors(camFwd, new THREE.Vector3(0, 1, 0)).normalize();
-        const wDir   = new THREE.Vector3(dx, 0, dz).normalize();
-
-        const screenX = wDir.dot(camRgt);
-        const screenY = wDir.dot(camFwd);
-        const angle = Math.atan2(screenX, screenY) * (180 / Math.PI);
-
-        arrowEl.textContent = '⬆️';
-        arrowEl.style.transform = `rotate(${angle.toFixed(1)}deg)`;
-        compass.style.display = 'flex';
+        if (typeof updateDestinationCompass !== 'function') return;
+        updateDestinationCompass({
+            x: TX,
+            z: TZ,
+            title: '💧 강의 근원지',
+            hint: hintText,
+            arrivedHint: hintText,
+            arrivedText: '목표 도착!',
+            radius: 30
+        });
     },
 
     advance() {

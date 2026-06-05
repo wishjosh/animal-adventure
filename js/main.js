@@ -1037,9 +1037,9 @@ function animate() {
   // 좌표계: +X=동(E), -X=서(W), -Z=북(N), +Z=남(S)
   // 카메라가 바라보는 방향의 방위각 계산
   //   atan2(dx, -dz) → 0°=북, 90°=동, 180°=남, -90°=서
-  const _camDx = orbitTarget.x - camera.position.x;
-  const _camDz = orbitTarget.z - camera.position.z;
-  const _azimuth = Math.atan2(_camDx, -_camDz) * (180 / Math.PI);
+  const _azimuth = typeof getCameraHeadingDeg === 'function'
+    ? getCameraHeadingDeg()
+    : Math.atan2(orbitTarget.x - camera.position.x, -(orbitTarget.z - camera.position.z)) * (180 / Math.PI);
   const _rose = document.getElementById('compass-rose');
   if (_rose) _rose.style.transform = `rotate(${(-_azimuth).toFixed(1)}deg)`;
 
