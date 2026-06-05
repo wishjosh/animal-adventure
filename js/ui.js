@@ -59,12 +59,12 @@ function toast(msg, opts = {}) {
 function closeHudPopovers(except = '') {
   const topbar = document.getElementById('topbar');
   const menu = document.getElementById('quick-menu-panel');
+  const levelPanel = document.getElementById('level-select-panel');
   if (except !== 'mission' && topbar) {
     topbar.classList.remove('open');
-    const missionBox = document.getElementById('mission-box');
-    if (missionBox) missionBox.classList.remove('open');
   }
   if (except !== 'menu' && menu) menu.classList.add('hidden');
+  if (except !== 'level' && levelPanel) levelPanel.classList.add('hidden');
   if (except !== 'next' && typeof NextActionGuide !== 'undefined' && NextActionGuide._visible) {
     NextActionGuide.hide();
   }
@@ -74,12 +74,10 @@ function closeHudPopovers(except = '') {
 function toggleMissionPanel(event) {
   if (event && event.stopPropagation) event.stopPropagation();
   const topbar = document.getElementById('topbar');
-  const box = document.getElementById('mission-box');
-  if (!topbar || !box) return;
+  if (!topbar) return;
   const opening = !topbar.classList.contains('open');
   closeHudPopovers('mission');
   topbar.classList.toggle('open', opening);
-  box.classList.toggle('open', opening);
 }
 
 function toggleGameMenu(event) {
@@ -89,6 +87,16 @@ function toggleGameMenu(event) {
   const opening = menu.classList.contains('hidden');
   closeHudPopovers('menu');
   menu.classList.toggle('hidden', !opening);
+}
+
+function toggleLevelSelect(event) {
+  if (event && event.stopPropagation) event.stopPropagation();
+  const panel = document.getElementById('level-select-panel');
+  if (!panel) return;
+  const opening = panel.classList.contains('hidden');
+  closeHudPopovers('level');
+  if (opening) renderLevelSelectPanel();
+  panel.classList.toggle('hidden', !opening);
 }
 
 function toggleMessageLog(event) {
@@ -358,6 +366,247 @@ function updateMapOverlay(){
 function openMap(){closeHudPopovers();updateMapOverlay();document.getElementById('map-overlay').style.display='flex';}
 function closeMap(){document.getElementById('map-overlay').style.display='none';}
 
+const LEVEL_SELECT_META = [
+  null,
+  { level: 1, emoji: '🌳', name: '초록 마을', caption: '단서 찾기부터 시작' },
+  { level: 2, emoji: '🌿', name: '다양성의 숲', caption: '두꾸 구출부터 시작' },
+  { level: 3, emoji: '🌾', name: '연결의 평원', caption: '노루 구조부터 시작' },
+  { level: 4, emoji: '💧', name: '강의 근원지', caption: '쏘야 구출부터 시작' },
+  { level: 5, emoji: '🏙️', name: '경계 도시', caption: '라쿤이 구출부터 시작' },
+  { level: 6, emoji: '💓', name: '초록별 심장부', caption: '세계 파견부터 시작' }
+];
+
+const LEVEL_PREREQ_PROTECTORS = {
+  1: [],
+  2: ['bee', 'swallow', 'sheep'],
+  3: ['bee', 'swallow', 'sheep', 'otter', 'bat'],
+  4: ['bee', 'swallow', 'sheep', 'otter', 'bat', 'fox', 'eagle'],
+  5: ['bee', 'swallow', 'sheep', 'otter', 'bat', 'fox', 'eagle', 'crane', 'salmon'],
+  6: ['bee', 'swallow', 'sheep', 'otter', 'bat', 'fox', 'eagle', 'crane', 'salmon', 'raccoon', 'kestrel']
+};
+
+function renderLevelSelectPanel() {
+  const list = document.getElementById('level-select-list');
+  if (!list) return;
+  list.innerHTML = '';
+  LEVEL_SELECT_META.slice(1).forEach(meta => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `level-select-btn${currentLevel === meta.level ? ' active' : ''}`;
+    btn.title = `레벨 ${meta.level}: ${meta.name}`;
+    btn.addEventListener('click', () => jumpToLevel(meta.level));
+
+    const label = document.createElement('strong');
+    label.textContent = `Lv.${meta.level} ${meta.emoji} ${meta.name}`;
+    const caption = document.createElement('span');
+    caption.textContent = meta.caption;
+    btn.appendChild(label);
+    btn.appendChild(caption);
+    list.appendChild(btn);
+  });
+}
+
+function removeLabeledSceneObject(obj) {
+  if (!obj || typeof scene === 'undefined') return;
+  if (obj._label) scene.remove(obj._label);
+  scene.remove(obj);
+}
+
+function cleanupLevelRuntimeObjects() {
+  if (typeof Level2Manager !== 'undefined') {
+    if (typeof Level2Manager._clearMarkers === 'function') Level2Manager._clearMarkers();
+    if (typeof Level2Manager._clearBullfrogZone === 'function') Level2Manager._clearBullfrogZone();
+    if (typeof Level2Manager._clearDamMarkers === 'function') Level2Manager._clearDamMarkers();
+    removeLabeledSceneObject(Level2Manager._otterArrow);
+    removeLabeledSceneObject(Level2Manager._batArrow);
+    Level2Manager._otterArrow = null;
+    Level2Manager._batArrow = null;
+  }
+  if (typeof Level3Manager !== 'undefined' && typeof Level3Manager.clearGuides === 'function') {
+    Level3Manager.clearGuides();
+  }
+  if (typeof Level4Logic !== 'undefined' && Level4Logic.rainParticles) {
+    scene.remove(Level4Logic.rainParticles);
+    Level4Logic.rainParticles = null;
+  }
+  if (typeof Level6Manager !== 'undefined' && Level6Manager._heartbeatInterval) {
+    clearInterval(Level6Manager._heartbeatInterval);
+    Level6Manager._heartbeatInterval = null;
+  }
+  if (typeof scene !== 'undefined') {
+    const removeList = scene.children.filter(child => child.userData && child.userData.isFoam);
+    removeList.forEach(child => scene.remove(child));
+  }
+}
+
+function hideTransientGameUi() {
+  closeHudPopovers();
+  [
+    'inventory-overlay', 'guardian-book-overlay', 'message-log-overlay', 'map-overlay',
+    'mission-clear', 'level2-clear', 'level3-clear', 'level4-clear',
+    'opening-overlay', 'grandma-popup', 'phase-transition', 'creature-report',
+    'protector-clear-banner', 'water-gauge', 'nav-compass'
+  ].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  ['npc-dialogue-popup', 'encyclopedia-popup', 'officer-convince-popup', 'audit-dashboard-ui', 'heartbeat-dashboard-ui', 'world-map-popup'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+  });
+  const eco = document.getElementById('eco-popup');
+  if (eco) eco.classList.remove('show');
+  isInventoryOpen = false;
+  isGuardianBookOpen = false;
+  isMessageLogOpen = false;
+  if (typeof pickedAnimal !== 'undefined') pickedAnimal = null;
+  if (typeof CenterUI !== 'undefined') {
+    CenterUI._queue.length = 0;
+    CenterUI._active = false;
+  }
+}
+
+function resetHotbarForLevelStart() {
+  hotbar = [null, 'pickaxe', 'watering_can', 'shovel', 'seed_tomato', 'seed_basil', 'fallen_leaf', 'grass', 'straw'];
+  activeSlot = 0;
+  currentRotation = 0;
+  toolMode = 'none';
+  selItem = null;
+}
+
+function seedPrerequisiteProgress(level) {
+  const completed = new Set(LEVEL_PREREQ_PROTECTORS[level] || []);
+  Object.keys(global_protectors).forEach(id => {
+    global_protectors[id] = completed.has(id);
+  });
+  Object.keys(guardianState).forEach(id => {
+    guardianState[id] = completed.has(id) ? 3 : 0;
+  });
+
+  if (level > 1) {
+    Level1Manager.currentPhase = 3;
+    Level1Manager.phaseComplete = { 1: true, 2: true, 3: true };
+    Level1Manager.phase1State = { toxicRemoved: true, tomatoFruited: true, wormDone: true, treeGrowing: true };
+    ClueSystem.clues.forEach(clue => {
+      clue.found = true;
+      if (clue.mesh) {
+        scene.remove(clue.mesh);
+        clue.mesh = null;
+      }
+    });
+    ClueSystem.meshes.forEach(mesh => scene.remove(mesh));
+    ClueSystem.meshes = [];
+    ClueSystem.foundCount = 4;
+    LeafSystem.meshes.forEach(mesh => scene.remove(mesh));
+    LeafSystem.meshes = [];
+    LeafSystem.collected = 5;
+    for (const [key, type] of Object.entries(gridData)) {
+      if (type === 'toxic_plant') {
+        if (meshByKey[key]) {
+          scene.remove(meshByKey[key]);
+          delete meshByKey[key];
+        }
+        delete gridData[key];
+      }
+    }
+    OldTree.state = 'bloomed';
+    Phase2System.conditions.treeBlooming = true;
+    OldTree.updateVisual();
+  }
+  if (level > 2 && typeof Level2Manager !== 'undefined') {
+    level2_phase = 3;
+    level2_conditions.toadRescued = true;
+    level2_conditions.bullfrogIsolated = true;
+    level2_conditions.waterDamPlaced = true;
+    Level2Manager.currentPhase = 3;
+    Level2Manager.phaseComplete = { level2: true };
+  }
+  if (level > 3 && typeof Level3Manager !== 'undefined') {
+    level3_phase = 4;
+    level3_conditions.deerRescued = true;
+    level3_conditions.wildDogIsolated = true;
+    level3_conditions.foxFedCount = 3;
+    level3_conditions.carcassRemovedCount = 3;
+    level3_conditions.foodChainPuzzleSolved = true;
+    Level3Manager.currentPhase = 4;
+    Level3Manager.phaseComplete = { level3: true };
+  }
+  if (level > 4 && typeof Level4Manager !== 'undefined') {
+    level4_phase = 4;
+    level4_conditions.soyaRescued = true;
+    level4_conditions.ownerConvinced = true;
+    level4_conditions.pollutionDeviceInstalled = true;
+    level4_conditions.cementDamRemovedCount = 3;
+    level4_conditions.willowPlantedCount = 8;
+    level4_conditions.floodDefenseScore = 100;
+    Level4Manager.currentPhase = 4;
+    Level4Manager.phaseComplete = { soya: true, salmon: true, crane: true, flood: true };
+  }
+  if (level > 5 && typeof Level5Manager !== 'undefined') {
+    level5_phase = 4;
+    level5_conditions.raccoonRescued = true;
+    level5_conditions.officerConvinced = true;
+    level5_conditions.viaductConnected = true;
+    level5_conditions.tunnelBuilt = true;
+    level5_conditions.biotopePlacedCount = 4;
+    level5_conditions.auditScore = 100;
+    Level5Manager.currentPhase = 4;
+  }
+}
+
+function focusLevelStart(x, z, eyeOffset = 3) {
+  if (typeof orbitTarget === 'undefined' || typeof syncCam !== 'function') return;
+  orbitTarget.set(x, getH(x, z) + eyeOffset, z);
+  syncCam();
+  if (typeof updateVisibleChunks === 'function') updateVisibleChunks(orbitTarget);
+}
+
+function jumpToLevel(level) {
+  const meta = LEVEL_SELECT_META[level];
+  if (!meta) return;
+
+  hideTransientGameUi();
+  cleanupLevelRuntimeObjects();
+  clearAll(true);
+  hideTransientGameUi();
+  resetHotbarForLevelStart();
+  isOpeningActive = false;
+  openingStep = openingScenes.length;
+  initWorld();
+  seedPrerequisiteProgress(level);
+  currentLevel = level;
+
+  if (level === 1) {
+    Level1Manager.currentPhase = 0;
+    Level1Manager.phaseComplete = {};
+    focusLevelStart(8, 8, 3);
+  } else if (level === 2) {
+    spawnLevel2WhiteBoxElements();
+    if (typeof Level2Manager !== 'undefined') Level2Manager.init();
+    focusLevelStart(88, -8, 4);
+  } else if (level === 3) {
+    if (typeof Level3Manager !== 'undefined') Level3Manager.init();
+  } else if (level === 4) {
+    if (typeof Level4Manager !== 'undefined') Level4Manager.init();
+    focusLevelStart(42, 20, 4);
+  } else if (level === 5) {
+    if (typeof Level5Manager !== 'undefined') Level5Manager.init();
+  } else if (level === 6) {
+    if (typeof Level6Manager !== 'undefined') Level6Manager.init();
+  }
+
+  if (typeof QuestManager !== 'undefined') {
+    QuestManager.updateUI();
+    QuestManager.check();
+  }
+  if (typeof updateProtectorSlots === 'function') updateProtectorSlots();
+  if (typeof NextActionGuide !== 'undefined') NextActionGuide.refresh();
+  renderLevelSelectPanel();
+  toast(`🧭 레벨 ${level}: ${meta.name} 바로 시작`, { important: true });
+}
+
+window.jumpToLevel = jumpToLevel;
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  저장 / 불러오기 / 초기화
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -585,6 +834,7 @@ function onFileSelected(e){
 }
 
 function clearAll(silent=false){
+  cleanupLevelRuntimeObjects();
   for(const m of Object.values(meshByKey))scene.remove(m);
   Object.keys(meshByKey).forEach(k=>delete meshByKey[k]); Object.keys(gridData).forEach(k=>delete gridData[k]);
   for(const g of Object.values(chunkGroups))scene.remove(g);
@@ -1211,7 +1461,6 @@ const CenterUI = {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const NextActionGuide = {
   _visible: false,
-  _collapsed: false,
 
   steps: {
     L1P0_clue: {
@@ -1642,23 +1891,6 @@ const NextActionGuide = {
     this._visible = opening;
     if (this._visible) this.refresh();
     else this.hide();
-  },
-
-  toggleMinimize(event) {
-    if (event && event.stopPropagation) event.stopPropagation();
-    this._collapsed = !this._collapsed;
-    const card = document.getElementById('next-action-card');
-    if (card) {
-      card.classList.toggle('collapsed', this._collapsed);
-      card.title = this._collapsed ? '클릭하면 펼칩니다' : '';
-    }
-  },
-
-  // 접힌 상태에서 카드 자체를 클릭하면 펼치기
-  onCardClick(event) {
-    if (!this._collapsed) return; // 펼쳐진 상태에선 동작 안 함 (─ 버튼이 처리)
-    if (event && event.stopPropagation) event.stopPropagation();
-    this.toggleMinimize();
   }
 };
 

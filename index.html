@@ -222,21 +222,7 @@
       line-height: 1.55;
       box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
       backdrop-filter: blur(6px);
-      transition: width 0.25s, padding 0.25s, top 0.25s;
-    }
-    #next-action-card.collapsed {
-      width: 56px;
-      padding: 8px;
-      cursor: pointer;
-    }
-    #next-action-card.collapsed .nac-body,
-    #next-action-card.collapsed .nac-progress,
-    #next-action-card.collapsed .nac-min {
-      display: none;
-    }
-    #next-action-card.collapsed .nac-title {
-      font-size: 22px;
-      justify-content: center;
+      transition: top 0.25s, opacity 0.2s;
     }
     #next-action-card.hidden {
       display: none;
@@ -266,22 +252,6 @@
       border-radius: 10px;
       white-space: nowrap;
     }
-    .nac-min {
-      background: rgba(255, 255, 255, 0.08);
-      border: none;
-      color: rgba(255, 255, 255, 0.65);
-      width: 22px;
-      height: 22px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 13px;
-      line-height: 1;
-      padding: 0;
-    }
-    .nac-min:hover {
-      background: rgba(255, 255, 255, 0.18);
-      color: #fff;
-    }
     .nac-step {
       font-weight: 700;
       font-size: 14px;
@@ -307,7 +277,7 @@
       0%, 100% { box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45); }
       50% { box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45), 0 0 18px rgba(255, 215, 0, 0.45); }
     }
-    #next-action-card:not(.collapsed):not(.hidden) {
+    #next-action-card:not(.hidden) {
       animation: nac-pulse 3s infinite;
     }
   </style>
@@ -319,8 +289,14 @@
   <div id="compact-top-controls" aria-label="게임 메뉴">
     <button class="top-icon-btn" onclick="toggleMissionPanel(event)" title="미션">🎯</button>
     <button class="top-icon-btn" onclick="NextActionGuide.toggleVisibility(event)" title="다음 할 일">💬</button>
+    <button class="top-icon-btn" onclick="toggleLevelSelect(event)" title="레벨 선택">🧭</button>
     <button class="top-icon-btn" id="message-log-action" onclick="toggleMessageLog(event)" title="중요 기록">📩</button>
     <button class="top-icon-btn" onclick="toggleGameMenu(event)" title="메뉴">☰</button>
+  </div>
+
+  <div id="level-select-panel" class="hud-popover hidden" aria-label="레벨 선택">
+    <div class="level-select-title">레벨 선택</div>
+    <div class="level-select-list" id="level-select-list"></div>
   </div>
 
   <div id="quick-menu-panel" class="hud-popover hidden">
@@ -332,12 +308,11 @@
     <button onclick="clearAll()">🗑️ 초기화</button>
   </div>
 
-  <!-- 다음 할 일 가이드 카드 (항상 표시, 우측) -->
-  <div id="next-action-card" class="hidden" onclick="NextActionGuide.onCardClick(event)" title="클릭하면 펼칩니다">
+  <!-- 다음 할 일 가이드 카드 (상단 아이콘으로 표시) -->
+  <div id="next-action-card" class="hidden">
     <div class="nac-header">
       <span class="nac-title" id="nac-title">🎯 다음 할 일</span>
       <span class="nac-progress" id="nac-progress">—</span>
-      <button class="nac-min" id="nac-min" title="접기" onclick="NextActionGuide.toggleMinimize(event)">─</button>
     </div>
     <div class="nac-body">
       <div class="nac-step" id="nac-step">로딩 중...</div>
@@ -375,10 +350,9 @@
 
   <div id="topbar">
     <div id="title-text">🐾 생태계 수호자</div>
-    <div id="mission-box" onclick="this.classList.toggle('open')">
+    <div id="mission-box">
       <div id="mission-header">
         <div id="mission-title">🎯 미션 로딩 중...</div>
-        <div id="mission-chevron">▼</div>
       </div>
       <div id="mission-detail">
         <div id="mission-desc"></div>
