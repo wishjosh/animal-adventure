@@ -161,11 +161,11 @@ const WormMinigame = {
     this.overlay = document.createElement('div');
     this.overlay.id = 'worm-minigame';
     this.overlay.innerHTML = `
-      <div style="position:fixed;top:0;left:0;right:0;bottom:0;background:linear-gradient(180deg,#3B2510,#1a0d00);z-index:80;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;">
-        <div style="color:#FFD700;font-size:22px;font-weight:900;">🐛 땅속 세계</div>
-        <div style="color:rgba(255,255,255,0.85);font-size:14px;text-align:center;line-height:1.6;">지렁이들이 낙엽을 먹으며 흙을 살려요!<br>각 칸을 클릭해서 지렁이를 안내하세요!</div>
-        <div id="worm-grid" style="display:grid;grid-template-columns:repeat(4,64px);gap:6px;margin:10px 0;"></div>
-        <div style="color:rgba(255,255,255,0.6);font-size:13px;">진행: <span id="worm-progress">0</span>/16 칸 완료</div>
+      <div class="worm-panel">
+        <div class="worm-title">땅속 세계</div>
+        <div class="worm-desc">지렁이들이 낙엽을 먹으며 흙을 살려요!<br>각 칸을 눌러서 지렁이를 안내하세요!</div>
+        <div id="worm-grid" class="worm-grid"></div>
+        <div class="worm-progress">진행: <span id="worm-progress">0</span>/16 칸 완료</div>
       </div>
     `;
     document.body.appendChild(this.overlay);
@@ -173,10 +173,14 @@ const WormMinigame = {
     const grid = document.getElementById('worm-grid');
     for (let i = 0; i < 16; i++) {
       const cell = document.createElement('div');
-      cell.style.cssText = 'width:64px;height:64px;background:#3B2510;border:2px solid #5C3D1A;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:26px;transition:background 0.3s;user-select:none;';
+      cell.className = 'worm-cell';
       cell.textContent = '🪱';
       cell.dataset.index = i;
       cell.dataset.done = 'false';
+      cell.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        this.activateCell(cell);
+      }, { passive: false });
       cell.addEventListener('click', () => this.activateCell(cell));
       grid.appendChild(cell);
     }
