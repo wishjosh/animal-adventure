@@ -478,7 +478,10 @@ function getRayTargets() {
       else if (m.isGroup) m.traverse(c => { if (c.isMesh || c.isSprite) p3m.push(c); });
     });
   }
-  _rtCache = [groundMesh, ...bm, ...am, ...pm, ...ot, ...cm, ...lm, ...p2m, ...p3m];
+  const l4m = (currentLevel === 4 && typeof Level4Manager !== 'undefined' && typeof Level4Manager.getInteractionMeshes === 'function')
+    ? Level4Manager.getInteractionMeshes()
+    : [];
+  _rtCache = [groundMesh, ...bm, ...am, ...pm, ...ot, ...cm, ...lm, ...p2m, ...p3m, ...l4m];
   return _rtCache;
 }
 function castRay(cx, cy) {
@@ -532,7 +535,7 @@ function isNearbyInteractionCandidate(obj, purpose) {
     'isFlowerZone', 'isBranch', 'isTrash', 'isNestZone',
     'isSheep', 'isShadeZone', 'isStrawZone', 'isHorse', 'isFence3',
     'isGoat', 'isEscapeSphere', 'isRock3',
-    'isTrashDam', 'isCementDam', 'isFoam'
+    'isTrashDam', 'isCementDam', 'isFoam', 'isPollutionOutlet', 'isLevel4Pension'
   ];
   return flags.some(flag => data[flag] || parentData[flag]);
 }

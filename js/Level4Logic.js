@@ -29,9 +29,18 @@ const Level4Logic = {
     },
 
     getInteractiveRoot(obj, flag) {
-        if (obj?.userData?.[flag]) return obj;
-        if (obj?.parent?.userData?.[flag]) return obj.parent;
+        let cur = obj;
+        while (cur) {
+            if (cur.userData?.[flag]) return cur;
+            cur = cur.parent;
+        }
         return null;
+    },
+
+    getPollutionInstallTarget(obj) {
+        return this.getInteractiveRoot(obj, 'isPollutionOutlet') ||
+            this.getInteractiveRoot(obj, 'isFoam') ||
+            this.getInteractiveRoot(obj, 'isLevel4Pension');
     },
 
     countRemainingByFlag(flag) {
@@ -50,6 +59,41 @@ const Level4Logic = {
         if (![x, y, z].every(Number.isFinite)) return;
         if (typeof clearBlockCrackEffect === 'function') clearBlockCrackEffect(key);
         if (typeof playBlockBreakEffect === 'function') playBlockBreakEffect(x, y, z, color);
+    },
+
+    installPollutionDevice() {
+        const activeItem = hotbar[activeSlot];
+        if (level4_conditions.pollutionDeviceInstalled) {
+            this.alert('이미 펜션 방류구에 오염 저감 장치를 설치했습니다.');
+            return true;
+        }
+        if (level4_phase < 2 || !level4_conditions.soyaRescued) {
+            this.alert('먼저 쓰레기 댐을 해체해 쏘가리 쏘야를 구출해 주세요!');
+            return true;
+        }
+        if (!level4_conditions.ownerConvinced) {
+            this.alert('먼저 펜션 주인 박씨를 설득해야 오염 저감 장치를 설치할 수 있습니다.');
+            return true;
+        }
+        if (activeItem !== 'low_pollution') {
+            this.alert('오염 저감 장치(⚙️)를 장착한 뒤 펜션 방류구나 거품을 눌러 설치하세요!');
+            return true;
+        }
+
+        hotbar[activeSlot] = null;
+        if (typeof initInventoryUI === 'function') initInventoryUI();
+        if (typeof applyCurrentTool === 'function') applyCurrentTool();
+
+        level4_conditions.pollutionDeviceInstalled = true;
+        this.enqueueEvent('⚙️ 펜션 방류구에 오염 저감 장치를 설치했습니다! 강물이 맑아지기 시작합니다.', 4000);
+        this.removePollutionFoams();
+        if (typeof Level4Manager !== 'undefined') {
+            Level4Manager.showInstalledPollutionDevice?.();
+            Level4Manager.updateUI?.();
+            Level4Manager.check?.();
+        }
+        if (typeof invalidateRayCache === 'function') invalidateRayCache();
+        return true;
     },
 
     // ──────────────────────────────────────────────
@@ -113,25 +157,19 @@ const Level4Logic = {
             }
         }
 
+        // 2. 펜션 방류구/거품/펜션 본체에 오염 저감 장치 설치
+        const pollutionTarget = this.getPollutionInstallTarget(obj);
+        if (pollutionTarget) {
+            return this.installPollutionDevice();
+        }
+
         // 2. 펜션 주인 박씨 설득 상호작용
         const ownerEntry = animalData.find(a => a.type === 'owner_park');
         if (ownerEntry && obj.userData.agr === ownerEntry.group) {
             if (level4_phase === 2) {
                 if (level4_conditions.ownerConvinced) {
                     if (activeItem === 'low_pollution') {
-                        // 오염 저감 장치 설치
-                        hotbar[activeSlot] = null;
-                        if (typeof initInventoryUI === 'function') initInventoryUI();
-                        if (typeof applyCurrentTool === 'function') applyCurrentTool();
-
-                        level4_conditions.pollutionDeviceInstalled = true;
-                        this.enqueueEvent('⚙️ 펜션 방류구에 오염 저감 장치를 설치했습니다! 강물이 맑아지기 시작합니다.', 4000);
-                        
-                        // 거품 파티클 제거
-                        this.removePollutionFoams();
-                        
-                        Level4Manager.check();
-                        return true;
+                        return this.installPollutionDevice();
                     } else {
                         this.alert('펜션 주인 박씨를 설득했습니다. 인벤토리에서 오염 저감 장치(⚙️)를 장착해 펜션 앞에 설치해 주세요!');
                         return true;
@@ -405,10 +443,11 @@ const Level4Logic = {
             if (mesh) {
                 this.playRemovalEffect(k, 0x7a5c1e);
                 scene.remove(mesh);
-                delete gridData[k];
                 delete meshByKey[k];
-                deletedBlocks.add(k);
             }
+            delete gridData[k];
+            deletedBlocks.add(k);
+            if (typeof invalidateRayCache === 'function') invalidateRayCache();
             this.alert(`🌊 폭우로 인해 강둑(${target.x}, ${target.z})의 흙이 유실되어 무너졌습니다! 신속히 보강해 주세요!`);
         }
     },
@@ -831,7 +870,7 @@ const Level4Manager = {
         const baseY = this.getPensionBaseY();
         const group = new THREE.Group();
         group.position.set(x, baseY, z);
-        group.userData = { isLevel4Pension: true };
+        group.userData = { isLevel4Pension: true, isPollutionOutlet: true };
 
         const mat = color => new THREE.MeshLambertMaterial({ color });
         const addBox = (w, h, d, color, px, py, pz) => {
@@ -861,6 +900,7 @@ const Level4Manager = {
         pipe.position.set(-3.45, 0.42, 0.9);
         pipe.rotation.z = Math.PI / 2;
         pipe.castShadow = pipe.receiveShadow = true;
+        pipe.userData = { isPollutionOutlet: true };
         group.add(pipe);
 
         const sign = this.createPensionLabel();
@@ -877,6 +917,42 @@ const Level4Manager = {
         scene.add(group);
         this.pensionGroup = group;
         return group;
+    },
+
+    showInstalledPollutionDevice() {
+        if (!this.pensionGroup || this.pensionGroup.userData.pollutionDeviceMesh) return;
+        const box = new THREE.Mesh(
+            new THREE.BoxGeometry(0.62, 0.42, 0.32),
+            new THREE.MeshLambertMaterial({ color: 0x56c7d8, emissive: 0x114455, emissiveIntensity: 0.2 })
+        );
+        box.position.set(-2.95, 0.78, 1.18);
+        box.castShadow = box.receiveShadow = true;
+        box.userData = { isPollutionDeviceInstalled: true };
+
+        const light = new THREE.Mesh(
+            new THREE.BoxGeometry(0.18, 0.18, 0.05),
+            new THREE.MeshBasicMaterial({ color: 0x66ff99 })
+        );
+        light.position.set(0.18, 0.06, 0.18);
+        box.add(light);
+
+        this.pensionGroup.add(box);
+        this.pensionGroup.userData.pollutionDeviceMesh = box;
+    },
+
+    getInteractionMeshes() {
+        const meshes = [];
+        if (this.pensionGroup && this.pensionGroup.parent) {
+            this.pensionGroup.traverse(child => {
+                if (child.isMesh || child.isSprite) meshes.push(child);
+            });
+        }
+        scene.traverse(child => {
+            if (child.userData?.isFoam || child.userData?.isPollutionOutlet) {
+                if (child.isMesh || child.isSprite) meshes.push(child);
+            }
+        });
+        return meshes;
     },
 
     needsLevel4LandmarkRepair() {
@@ -966,12 +1042,13 @@ const Level4Manager = {
             const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 });
             const foam = new THREE.Mesh(geom, mat);
             foam.position.set(c.x, y, c.z);
-            foam.userData = { isFoam: true };
+            foam.userData = { isFoam: true, isPollutionOutlet: true };
             scene.add(foam);
         });
 
         if (typeof invalidateRayCache === 'function') invalidateRayCache();
         this.ensurePensionAndOwnerVisible();
+        if (level4_conditions.pollutionDeviceInstalled) this.showInstalledPollutionDevice();
     },
 
     check() {
