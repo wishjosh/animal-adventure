@@ -582,6 +582,7 @@ const Level4Logic = {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const Level4Manager = {
     currentPhase: 1,
+    pensionGroup: null,
     phaseComplete: {
         soya: false,
         salmon: false,
@@ -591,7 +592,8 @@ const Level4Manager = {
 
     // 쏘가리, 펜션 주인, 시멘트 보 스폰 좌표 정의
     SOYA_SPAWN: { x: 42, y: 29.5, z: 20 },
-    OWNER_SPAWN: { x: 50, y: 34.5, z: 12 },
+    PENSION_SITE: { x: 50, z: 13 },
+    OWNER_SPAWN: { x: 52, z: 16 },
     DAM_COORDS: [
         { x: 50, y: 30, z: 0 },
         { x: 50, y: 30, z: -1 },
@@ -662,6 +664,11 @@ const Level4Manager = {
     },
 
     clearLevel4WhiteBoxElements() {
+        if (this.pensionGroup) {
+            scene.remove(this.pensionGroup);
+            this.pensionGroup = null;
+        }
+
         for (const [key, obj] of Object.entries(meshByKey)) {
             if (obj?.userData?.isTrashDam || obj?.userData?.isCementDam) {
                 scene.remove(obj);
@@ -739,8 +746,185 @@ const Level4Manager = {
         return group;
     },
 
+    clearPensionFootprint() {
+        const { x, z } = this.PENSION_SITE;
+        for (let dx = -4; dx <= 4; dx++) {
+            for (let dz = -3; dz <= 4; dz++) {
+                const wx = x + dx;
+                const wz = z + dz;
+                for (let y = 0; y <= GH; y++) {
+                    const key = bk(wx, y, wz);
+                    const type = gridData[key];
+                    const obj = meshByKey[key];
+                    if (!obj) continue;
+                    if (obj.userData?.isDecorative || (typeof isDecorativeType === 'function' && isDecorativeType(type))) {
+                        scene.remove(obj);
+                        delete meshByKey[key];
+                        delete gridData[key];
+                    }
+                }
+            }
+        }
+    },
+
+    getPensionBaseY() {
+        const { x, z } = this.PENSION_SITE;
+        let y = this.getVisibleMissionY(x, z);
+        for (let dx = -3; dx <= 3; dx++) {
+            for (let dz = -2; dz <= 3; dz++) {
+                y = Math.max(y, this.getVisibleMissionY(x + dx, z + dz));
+            }
+        }
+        return y + 0.08;
+    },
+
+    createPensionLabel() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = 'rgba(46, 34, 22, 0.92)';
+        ctx.fillRect(18, 32, 220, 64);
+        ctx.strokeStyle = '#f7d58a';
+        ctx.lineWidth = 5;
+        ctx.strokeRect(18, 32, 220, 64);
+        ctx.fillStyle = '#fff4c8';
+        ctx.font = 'bold 42px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('펜션', 128, 65);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.minFilter = THREE.LinearFilter;
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }));
+        sprite.scale.set(2.4, 1.2, 1);
+        sprite.userData = { isLevel4PensionLabel: true };
+        return sprite;
+    },
+
+    createLevel4TextSprite(text, width = 256, height = 128) {
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.72)';
+        ctx.fillRect(10, 28, width - 20, height - 56);
+        ctx.strokeStyle = '#ffd86b';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(10, 28, width - 20, height - 56);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 38px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, width / 2, height / 2);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.minFilter = THREE.LinearFilter;
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }));
+        sprite.scale.set(2.2, 1.1, 1);
+        return sprite;
+    },
+
+    createPensionSite() {
+        this.clearPensionFootprint();
+        const { x, z } = this.PENSION_SITE;
+        const baseY = this.getPensionBaseY();
+        const group = new THREE.Group();
+        group.position.set(x, baseY, z);
+        group.userData = { isLevel4Pension: true };
+
+        const mat = color => new THREE.MeshLambertMaterial({ color });
+        const addBox = (w, h, d, color, px, py, pz) => {
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color));
+            mesh.position.set(px, py, pz);
+            mesh.castShadow = mesh.receiveShadow = true;
+            group.add(mesh);
+            return mesh;
+        };
+
+        addBox(6.4, 0.22, 5.0, 0x6b4a2e, 0, 0.08, 0.25);
+        addBox(4.9, 2.2, 3.4, 0xf3d79c, 0, 1.28, 0);
+        addBox(1.0, 1.45, 0.12, 0x6e3f24, 0, 0.78, 1.76);
+        addBox(0.72, 0.52, 0.14, 0x86c5e8, -1.35, 1.45, 1.77);
+        addBox(0.72, 0.52, 0.14, 0x86c5e8, 1.35, 1.45, 1.77);
+        addBox(0.88, 0.62, 0.14, 0x86c5e8, -2.52, 1.42, -0.7);
+        addBox(0.88, 0.62, 0.14, 0x86c5e8, 2.52, 1.42, -0.7);
+        addBox(0.45, 1.05, 0.45, 0x5a3b2a, 1.65, 2.82, -0.75);
+
+        const roof = new THREE.Mesh(new THREE.ConeGeometry(3.9, 1.25, 4), mat(0x9f2f28));
+        roof.position.set(0, 2.72, 0);
+        roof.rotation.y = Math.PI / 4;
+        roof.castShadow = roof.receiveShadow = true;
+        group.add(roof);
+
+        const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 2.4, 12), mat(0x666666));
+        pipe.position.set(-3.45, 0.42, 0.9);
+        pipe.rotation.z = Math.PI / 2;
+        pipe.castShadow = pipe.receiveShadow = true;
+        group.add(pipe);
+
+        const sign = this.createPensionLabel();
+        sign.position.set(0, 2.35, 1.95);
+        group.add(sign);
+
+        if (typeof createEmojiSprite === 'function') {
+            const marker = createEmojiSprite('🏡');
+            marker.position.set(0, 4.2, 0.2);
+            marker.scale.set(2.3, 2.3, 1);
+            group.add(marker);
+        }
+
+        scene.add(group);
+        this.pensionGroup = group;
+        return group;
+    },
+
+    needsLevel4LandmarkRepair() {
+        const owner = animalData.find(a => a.type === 'owner_park');
+        const ownerMissing = !owner || !owner.group || !owner.group.parent;
+        const ownerMoved = owner && Math.hypot(owner.x - this.OWNER_SPAWN.x, owner.z - this.OWNER_SPAWN.z) > 0.5;
+        const ownerUnlabeled = owner && owner.group && !owner.group.userData?.level4OwnerLabel;
+        return !this.pensionGroup || !this.pensionGroup.parent || ownerMissing || ownerMoved || ownerUnlabeled;
+    },
+
+    ensurePensionAndOwnerVisible() {
+        if (!this.pensionGroup || !this.pensionGroup.parent) {
+            this.createPensionSite();
+        }
+
+        let owner = animalData.find(a => a.type === 'owner_park');
+        const spawn = this.OWNER_SPAWN;
+        const y = typeof getVisualTopY === 'function'
+            ? getVisualTopY(spawn.x, spawn.z)
+            : this.getVisibleMissionY(spawn.x, spawn.z) + 1;
+
+        if (!owner && typeof placeAnimal === 'function') {
+            placeAnimal(spawn.x, y, spawn.z, 'owner_park');
+            owner = animalData.find(a => a.type === 'owner_park');
+        }
+        if (!owner || !owner.group) return;
+
+        owner.x = spawn.x;
+        owner.y = y;
+        owner.z = spawn.z;
+        owner.angle = Math.PI * 1.35;
+        owner.targetAngle = owner.angle;
+        owner.group.position.set(owner.x, owner.y, owner.z);
+        owner.group.scale.set(1.45, 1.45, 1.45);
+        if (!owner.group.parent) scene.add(owner.group);
+
+        if (!owner.group.userData.level4OwnerLabel) {
+            const label = this.createLevel4TextSprite('박씨', 192, 112);
+            label.position.set(0, 2.25, 0);
+            label.userData = { isLevel4OwnerLabel: true };
+            owner.group.add(label);
+            owner.group.userData.level4OwnerLabel = true;
+        }
+    },
+
     spawnLevel4WhiteBoxElements() {
         this.clearLevel4WhiteBoxElements();
+        this.createPensionSite();
 
         // 1. 강을 가로막는 시멘트 보 3개 배치
         const placedCementCells = [];
@@ -772,20 +956,22 @@ const Level4Manager = {
 
         // 3. 펜션 앞 방류구 근처에 거품(foam) 블록 배치
         const foamCoords = [
-            { x: 49, y: 31, z: 12 },
-            { x: 48, y: 30.5, z: 13 },
-            { x: 51, y: 31, z: 13 }
+            { x: 49, z: 12 },
+            { x: 48, z: 13 },
+            { x: 51, z: 13 }
         ];
         foamCoords.forEach(c => {
+            const y = this.getVisibleMissionY(c.x, c.z) + 0.35;
             const geom = new THREE.SphereGeometry(0.3, 8, 8);
             const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 });
             const foam = new THREE.Mesh(geom, mat);
-            foam.position.set(c.x, c.y, c.z);
+            foam.position.set(c.x, y, c.z);
             foam.userData = { isFoam: true };
             scene.add(foam);
         });
 
         if (typeof invalidateRayCache === 'function') invalidateRayCache();
+        this.ensurePensionAndOwnerVisible();
     },
 
     check() {
@@ -1010,11 +1196,30 @@ const Level4Manager = {
             if (typeof hideDestinationCompass === 'function') hideDestinationCompass();
             return;
         }
+        if (this.needsLevel4LandmarkRepair()) {
+            this.ensurePensionAndOwnerVisible();
+        }
         // 현재 단계에 따라 목표 좌표 설정
-        let TX, TZ, hintText;
+        let TX, TZ, hintText, titleText = '💧 강의 근원지';
         if (level4_phase === 1 || !level4_conditions.soyaRescued) {
             TX = 42; TZ = 20;  // 쏘가리 위치
             hintText = '쏘가리 쏘야<br>방향으로!';
+        } else if (!level4_conditions.pollutionDeviceInstalled) {
+            TX = this.OWNER_SPAWN.x;
+            TZ = this.OWNER_SPAWN.z;
+            titleText = '🏡 펜션 오염원';
+            hintText = level4_conditions.ownerConvinced
+                ? '펜션 방류구에<br>장치 설치!'
+                : '펜션 주인 박씨<br>설득하기!';
+        } else if (level4_conditions.cementDamRemovedCount < 3) {
+            const nextDam = level4_conditions.cementDamCells?.[level4_conditions.cementDamRemovedCount] || this.DAM_COORDS[0];
+            TX = nextDam.x;
+            TZ = nextDam.z;
+            hintText = '시멘트 보<br>철거하기!';
+        } else if (!global_protectors.crane) {
+            TX = 40;
+            TZ = 24;
+            hintText = '산비탈에<br>버드나무 심기!';
         } else {
             const riverSource = BIOME_CONFIG.river_source;
             TX = riverSource.centerX;
@@ -1025,7 +1230,7 @@ const Level4Manager = {
         updateDestinationCompass({
             x: TX,
             z: TZ,
-            title: '💧 강의 근원지',
+            title: titleText,
             hint: hintText,
             arrivedHint: hintText,
             arrivedText: '목표 도착!',

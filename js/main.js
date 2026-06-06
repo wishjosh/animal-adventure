@@ -20,7 +20,7 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.setClearColor(0x87CEEB);
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0x87CEEB, 35, 65);
+scene.fog = new THREE.Fog(0x87CEEB, 70, 145);
 const camera = new THREE.PerspectiveCamera(62, initialViewport.width / initialViewport.height, 0.1, 500);
 
 const ambient = new THREE.AmbientLight(0xfff0dd, 0.52); scene.add(ambient);
@@ -102,10 +102,14 @@ let cameraBobOffset = 0;
 let walkBobPhase = 0;
 
 const WALK_SPEED = 4.3;
+const FLIGHT_WALK_SPEED = 4.8;
 const SPRINT_SPEED = 5.6;
-const FLY_VERTICAL_SPEED = 5.2;
+const FLY_VERTICAL_SPEED = FLIGHT_WALK_SPEED;
 const JUMP_SPEED = 5.1;
 const GRAVITY = 16.5;
+const FLIGHT_LAND_GAP = 1.4;
+const SKY_FOG_NEAR = 70;
+const SKY_FOG_FAR = 145;
 const PLAYER_RADIUS = 0.35;
 const PLAYER_EYE_HEIGHT = 1.62;
 const PLAYER_STEP_HEIGHT = 1.12;
@@ -114,7 +118,11 @@ const LOOK_SENS_DRAG = 0.0035;
 const LOOK_SENS_TOUCH = 0.0031;
 
 const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false, ' ': false, Shift: false, Control: false };
-window.addEventListener('keydown', e => { if (keys.hasOwnProperty(e.key)) keys[e.key] = true; if (e.key === ' ') keys[' '] = true; });
+window.addEventListener('keydown', e => {
+  if (keys.hasOwnProperty(e.key)) keys[e.key] = true;
+  if (e.key === ' ') keys[' '] = true;
+  if (e.key === 'Shift' && !e.repeat) handleDescendOrLandTap();
+});
 window.addEventListener('keyup', e => { if (keys.hasOwnProperty(e.key)) keys[e.key] = false; if (e.key === ' ') keys[' '] = false; });
 
 function syncCam() {
@@ -243,6 +251,7 @@ let lastTouchPointerTime = 0;
 let lastUpTapTime = 0;
 let creativeFlight = false;
 let mobileSprint = false;
+let lastDownTapTime = 0;
 const mobileMove = { x: 0, y: 0, active: false };
 const TOUCH_LAYOUT_QUERY = '(pointer: coarse), (max-width: 760px), (max-height: 520px)';
 
@@ -349,6 +358,32 @@ function handleJumpOrFlightTap() {
     triggerJump();
   }
   lastUpTapTime = now;
+}
+
+function getFlightGroundGap() {
+  return orbitTarget.y - getWalkingEyeY(orbitTarget.x, orbitTarget.z);
+}
+
+function landFromFlight() {
+  const groundEyeY = getWalkingEyeY(orbitTarget.x, orbitTarget.z);
+  orbitTarget.y = groundEyeY;
+  jumpVelocity = 0;
+  isGrounded = true;
+  camMoveDir = 0;
+  setCreativeFlight(false);
+  syncCam();
+}
+
+function handleDescendOrLandTap() {
+  const now = Date.now();
+  const canLand = creativeFlight && getFlightGroundGap() <= FLIGHT_LAND_GAP;
+  const isDoubleTap = now - lastDownTapTime < 380;
+  lastDownTapTime = now;
+  if (canLand && isDoubleTap) {
+    landFromFlight();
+    return true;
+  }
+  return false;
 }
 
 function resetDigProgress(key = null) {
@@ -1005,7 +1040,8 @@ function animate() {
   let camMoved = false;
   let horizontalMoved = false;
   const sprinting = keys.Control || mobileSprint;
-  const spd = (sprinting ? SPRINT_SPEED : WALK_SPEED) * dt;
+  const baseMoveSpeed = sprinting ? SPRINT_SPEED : (creativeFlight ? FLIGHT_WALK_SPEED : WALK_SPEED);
+  const spd = baseMoveSpeed * dt;
   const fwd = camForwardFlat();
   const rgt = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
   let moveForward = (keys.w || keys.ArrowUp ? 1 : 0) - (keys.s || keys.ArrowDown ? 1 : 0) + mobileMove.y;
@@ -1023,6 +1059,13 @@ function animate() {
   }
   if (creativeFlight && (keys[' '] || camMoveDir === 1)) { orbitTarget.y += FLY_VERTICAL_SPEED * dt; camMoved = true; }
   if (creativeFlight && (keys.Shift || camMoveDir === -1)) { orbitTarget.y -= FLY_VERTICAL_SPEED * dt; camMoved = true; }
+  if (creativeFlight) {
+    const groundEyeY = getWalkingEyeY(orbitTarget.x, orbitTarget.z);
+    if (orbitTarget.y < groundEyeY) {
+      orbitTarget.y = groundEyeY;
+      camMoved = true;
+    }
+  }
   if (!creativeFlight) {
     const groundEyeY = getWalkingEyeY(orbitTarget.x, orbitTarget.z);
     jumpVelocity -= GRAVITY * dt;
@@ -1047,8 +1090,8 @@ function animate() {
   if (camMoved || Math.abs(cameraBobOffset - prevBob) > 0.001) syncCam();
 
   const wL = typeof BiomeSystem !== 'undefined' ? BiomeSystem.getDominantBiome(orbitTarget.x, orbitTarget.z).waterLevel : 30;
-  if (camera.position.y < wL) { scene.fog.color.setHex(0x021b3a); scene.fog.near = 2; scene.fog.far = 12; renderer.setClearColor(0x021b3a); }
-  else { scene.fog.color.setHex(0x87CEEB); scene.fog.near = 35; scene.fog.far = 65; renderer.setClearColor(0x87CEEB); }
+  if (camera.position.y < wL) { scene.fog.color.setHex(0x021b3a); scene.fog.near = 2; scene.fog.far = 18; renderer.setClearColor(0x021b3a); }
+  else { scene.fog.color.setHex(0x87CEEB); scene.fog.near = SKY_FOG_NEAR; scene.fog.far = SKY_FOG_FAR; renderer.setClearColor(0x87CEEB); }
 
   waterVolume.position.y = wL + Math.sin(t * 1.5) * 0.04;
   waterDeep.position.y = wL - 0.5 + Math.sin(t * 1.5) * 0.02;
@@ -1163,7 +1206,8 @@ if(camUpBtn && camDownBtn) {
   };
   const startDown = (e) => {
     stopMobileControlEvent(e);
-    camMoveDir = creativeFlight ? -1 : 0;
+    const landed = handleDescendOrLandTap();
+    camMoveDir = creativeFlight && !landed ? -1 : 0;
   };
   const stopMove = (e) => { stopMobileControlEvent(e); camMoveDir = 0; };
   camUpBtn.addEventListener('pointerdown', startUp, { passive:false });

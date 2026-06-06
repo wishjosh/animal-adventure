@@ -314,10 +314,10 @@ function updateVisibleChunks(orbitTarget) {
   lastCenterCx = centerCx;
   lastCenterCz = centerCz;
 
-  const R_ACTIVE = 2;  // 플레이어 주변 청크는 마인크래프트처럼 자동으로 실제 탐험 영역이 된다
-  const R        = 5;  // 활성+프리뷰 표시 반경 (청크, fog near=35 ≈ 4.4청크)
-  const R_PREV   = 7;  // 프리뷰 자동 생성 반경
-  const R_UNLOAD = 10; // 이 거리 밖 프리뷰는 메모리 해제
+  const R_ACTIVE = 3;  // 플레이어 주변 청크는 마인크래프트처럼 자동으로 실제 탐험 영역이 된다
+  const R        = 8;  // 활성+프리뷰 표시 반경
+  const R_PREV   = 10; // 프리뷰 자동 생성 반경
+  const R_UNLOAD = 14; // 이 거리 밖 프리뷰는 메모리 해제
   let mapDirty = false;
 
   // ── 현재 위치 주변은 터치 없이 자동 활성화 ──
@@ -1927,6 +1927,14 @@ function spawnLevel2WhiteBoxElements() {
 function spawnLevel4Animals() {
   DBG('[Level4] spawnLevel4Animals() 실행 — 강의 근원지 청크 활성화 및 동물 배치');
 
+  const missionTypes = new Set(['mandarin_fish', 'owner_park', 'salmon', 'crane']);
+  for (let i = animalData.length - 1; i >= 0; i--) {
+    if (missionTypes.has(animalData[i].type)) {
+      scene.remove(animalData[i].group);
+      animalData.splice(i, 1);
+    }
+  }
+
   // 강 근원지 근방 청크들을 사전 로드
   for (let cx = 4; cx <= 7; cx++) {
     for (let cz = -4; cz <= 3; cz++) {
@@ -1942,9 +1950,18 @@ function spawnLevel4Animals() {
     soya.group.scale.set(0.6, 0.6, 0.6); // 처음엔 힘없이 작아져 있는 상태
   }
 
-  // 2. 펜션 주인 박씨 (owner_park) — X=50, Z=12
-  const owY = getH(50, 12);
-  placeAnimal(50, owY, 12, 'owner_park');
+  // 2. 펜션 주인 박씨 (owner_park) — 펜션 입구 앞 고정 배치
+  const ownerSpawn = (typeof Level4Manager !== 'undefined' && Level4Manager.OWNER_SPAWN)
+    ? Level4Manager.OWNER_SPAWN
+    : { x: 52, z: 16 };
+  const owY = getVisualTopY(ownerSpawn.x, ownerSpawn.z);
+  placeAnimal(ownerSpawn.x, owY, ownerSpawn.z, 'owner_park');
+  const owner = animalData.find(a => a.type === 'owner_park');
+  if (owner && owner.group) {
+    owner.group.scale.set(1.25, 1.25, 1.25);
+    owner.angle = Math.PI * 1.35;
+    owner.targetAngle = owner.angle;
+  }
 
   // 3. 연어 파닥이 (salmon) — X=45, Z=-15
   const saY = getH(45, -15) - 0.2;
@@ -1954,7 +1971,7 @@ function spawnLevel4Animals() {
   const crY = getH(38, 24);
   placeAnimal(38, crY, 24, 'crane');
 
-  DBG('[Level4] 스폰 완료 — 쏘야(42,20) 박씨(50,12) 연어(45,-15) 두루미(38,24)');
+  DBG(`[Level4] 스폰 완료 — 쏘야(42,20) 박씨(${ownerSpawn.x},${ownerSpawn.z}) 연어(45,-15) 두루미(38,24)`);
 }
 
 // ──────────────────────────────────────────────
