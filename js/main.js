@@ -101,10 +101,10 @@ let firstPerson = true; // 마인크래프트형 1인칭 시점 (V키로 3인칭
 let cameraBobOffset = 0;
 let walkBobPhase = 0;
 
-const WALK_SPEED = 5.2;
-const FLIGHT_WALK_SPEED = 9.6;
-const FLIGHT_SPRINT_SPEED = FLIGHT_WALK_SPEED * 1.35;
-const SPRINT_SPEED = 7.0;
+const WALK_SPEED = 5;
+const FLIGHT_WALK_SPEED = 7;
+const FLIGHT_SPRINT_SPEED = 7;
+const SPRINT_SPEED = 7;
 const FLY_VERTICAL_SPEED = FLIGHT_WALK_SPEED;
 const JUMP_SPEED = 5.1;
 const GRAVITY = 16.5;
