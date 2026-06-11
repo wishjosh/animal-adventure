@@ -291,7 +291,7 @@ function activateChunk(cx, cz, isInit = false, options = {}) {
   rmVisible(cx, cz); chunkState[ck(cx, cz)] = 'active'; bldActive(cx, cz);
   if (!isInit && options.spawn !== false) spawnAnimalsInChunk(cx, cz);
   if (options.expandPreview !== false) {
-    const viewRadius = 4;
+    const viewRadius = (typeof isTouchLayout === 'function' && isTouchLayout()) ? 3 : 4;
     for (let dx = -viewRadius; dx <= viewRadius; dx++) for (let dz = -viewRadius; dz <= viewRadius; dz++) {
       if (dx === 0 && dz === 0) continue;
       const nx = cx + dx, nz = cz + dz, nk = ck(nx, nz);
@@ -304,6 +304,29 @@ function activateChunk(cx, cz, isInit = false, options = {}) {
 
 let lastCenterCx = null;
 let lastCenterCz = null;
+const chunkOffsetCache = {};
+
+function getChunkLoadProfile() {
+  const touchLayout = typeof isTouchLayout === 'function' && isTouchLayout();
+  const flyingFast = typeof creativeFlight !== 'undefined' && creativeFlight;
+  if (touchLayout || flyingFast) {
+    return { active: 2, visible: 5, preview: 6, unload: 8, previewBudget: 28 };
+  }
+  return { active: 3, visible: 8, preview: 10, unload: 14, previewBudget: Number.POSITIVE_INFINITY };
+}
+
+function getChunkOffsets(radius) {
+  if (chunkOffsetCache[radius]) return chunkOffsetCache[radius];
+  const offsets = [];
+  for (let dx = -radius; dx <= radius; dx++) {
+    for (let dz = -radius; dz <= radius; dz++) {
+      offsets.push([dx, dz]);
+    }
+  }
+  offsets.sort((a, b) => (a[0] * a[0] + a[1] * a[1]) - (b[0] * b[0] + b[1] * b[1]));
+  chunkOffsetCache[radius] = offsets;
+  return offsets;
+}
 
 function updateVisibleChunks(orbitTarget) {
   if (!orbitTarget) return;
@@ -314,31 +337,31 @@ function updateVisibleChunks(orbitTarget) {
   lastCenterCx = centerCx;
   lastCenterCz = centerCz;
 
-  const R_ACTIVE = 3;  // 플레이어 주변 청크는 마인크래프트처럼 자동으로 실제 탐험 영역이 된다
-  const R        = 8;  // 활성+프리뷰 표시 반경
-  const R_PREV   = 10; // 프리뷰 자동 생성 반경
-  const R_UNLOAD = 14; // 이 거리 밖 프리뷰는 메모리 해제
+  const loadProfile = getChunkLoadProfile();
+  const R_ACTIVE = loadProfile.active;  // 플레이어 주변 청크는 자동으로 실제 탐험 영역이 된다
+  const R        = loadProfile.visible; // 활성+프리뷰 표시 반경
+  const R_PREV   = loadProfile.preview; // 프리뷰 자동 생성 반경
+  const R_UNLOAD = loadProfile.unload;  // 이 거리 밖 프리뷰는 메모리 해제
+  let previewBudget = loadProfile.previewBudget;
   let mapDirty = false;
 
   // ── 현재 위치 주변은 터치 없이 자동 활성화 ──
-  for (let dx = -R_ACTIVE; dx <= R_ACTIVE; dx++) {
-    for (let dz = -R_ACTIVE; dz <= R_ACTIVE; dz++) {
-      const nx = centerCx + dx, nz = centerCz + dz;
-      if (chunkState[ck(nx, nz)] !== 'active') {
-        if (activateChunk(nx, nz, false, { expandPreview: false, refreshMap: false })) mapDirty = true;
-      }
+  for (const [dx, dz] of getChunkOffsets(R_ACTIVE)) {
+    const nx = centerCx + dx, nz = centerCz + dz;
+    if (chunkState[ck(nx, nz)] !== 'active') {
+      if (activateChunk(nx, nz, false, { expandPreview: false, refreshMap: false })) mapDirty = true;
     }
   }
 
   // ── 미탐험 영역 자동 프리뷰 생성 ──
-  for (let dx = -R_PREV; dx <= R_PREV; dx++) {
-    for (let dz = -R_PREV; dz <= R_PREV; dz++) {
-      const nx = centerCx + dx, nz = centerCz + dz, nk = ck(nx, nz);
-      if (!chunkState[nk] || chunkState[nk] === 'hidden') {
-        chunkState[nk] = 'visible';
-        bldPreview(nx, nz);
-        mapDirty = true;
-      }
+  for (const [dx, dz] of getChunkOffsets(R_PREV)) {
+    const nx = centerCx + dx, nz = centerCz + dz, nk = ck(nx, nz);
+    if (!chunkState[nk] || chunkState[nk] === 'hidden') {
+      if (previewBudget <= 0) continue;
+      previewBudget--;
+      chunkState[nk] = 'visible';
+      bldPreview(nx, nz);
+      mapDirty = true;
     }
   }
 
