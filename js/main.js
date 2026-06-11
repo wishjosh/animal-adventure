@@ -101,9 +101,10 @@ let firstPerson = true; // 마인크래프트형 1인칭 시점 (V키로 3인칭
 let cameraBobOffset = 0;
 let walkBobPhase = 0;
 
-const WALK_SPEED = 4.3;
-const FLIGHT_WALK_SPEED = 4.8;
-const SPRINT_SPEED = 5.6;
+const WALK_SPEED = 5.2;
+const FLIGHT_WALK_SPEED = 9.6;
+const FLIGHT_SPRINT_SPEED = FLIGHT_WALK_SPEED * 1.35;
+const SPRINT_SPEED = 7.0;
 const FLY_VERTICAL_SPEED = FLIGHT_WALK_SPEED;
 const JUMP_SPEED = 5.1;
 const GRAVITY = 16.5;
@@ -690,27 +691,35 @@ function clearLookHold() {
   lookHoldTimer = null;
 }
 
-function endLookPointer(e) {
-  if (e.pointerType === 'mouse' || e.pointerId !== lookPointerId) return;
-  e.preventDefault();
-  lastTouchPointerTime = Date.now();
+function resetTouchLookState(pointerId = lookPointerId) {
   clearLookHold();
   clearInterval(digInterval);
   digInterval = null;
   isHoldingPickaxe = false;
   resetDigProgress();
 
-  if (!lookMoved && !lookHoldTriggered) {
-    mobileUseAt(e.clientX, e.clientY);
-  }
-
-  if (typeof canvas.releasePointerCapture === 'function') {
-    try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
-  }
+  const activePointerId = pointerId;
   lookPointerId = null;
   lookMoved = false;
   lookHoldTriggered = false;
   isDragging = false;
+  clickMoved = false;
+
+  if (activePointerId !== null && typeof canvas.releasePointerCapture === 'function') {
+    try { canvas.releasePointerCapture(activePointerId); } catch (_) {}
+  }
+}
+
+function endLookPointer(e) {
+  if (e.pointerType === 'mouse' || e.pointerId !== lookPointerId) return;
+  e.preventDefault();
+  lastTouchPointerTime = Date.now();
+
+  if (!lookMoved && !lookHoldTriggered) {
+    mobileUseAt(e.clientX, e.clientY);
+  }
+
+  resetTouchLookState(e.pointerId);
 }
 
 canvas.addEventListener('pointerdown', e => {
@@ -745,7 +754,10 @@ canvas.addEventListener('pointerdown', e => {
 
 canvas.addEventListener('pointermove', e => {
   if (e.pointerType === 'mouse' || e.pointerId !== lookPointerId) return;
-  if (isUIBlocking()) return;
+  if (isUIBlocking()) {
+    resetTouchLookState(e.pointerId);
+    return;
+  }
   e.preventDefault();
   currentMouseX = e.clientX;
   currentMouseY = e.clientY;
@@ -768,6 +780,9 @@ canvas.addEventListener('pointermove', e => {
 
 canvas.addEventListener('pointerup', endLookPointer, { passive: false });
 canvas.addEventListener('pointercancel', endLookPointer, { passive: false });
+canvas.addEventListener('lostpointercapture', e => {
+  if (e.pointerType !== 'mouse' && e.pointerId === lookPointerId) resetTouchLookState(e.pointerId);
+});
 
 canvas.addEventListener('mouseleave', () => {
   isDragging = false;
@@ -1031,19 +1046,24 @@ function animate() {
   lastFrameTime = now;
   t += dt;
 
+  const cursorNeeded = needsCursor();
+  if (lookPointerId !== null && cursorNeeded) resetTouchLookState();
+
   // 1인칭: 커서가 필요한 모달 UI가 뜨면 포인터 락을 풀어 버튼/대화를 조작할 수 있게 한다
-  if (firstPerson && document.pointerLockElement === canvas && needsCursor()) {
+  if (firstPerson && document.pointerLockElement === canvas && cursorNeeded) {
     document.exitPointerLock();
   }
   updateFpHud();
   if (typeof mobileControls !== 'undefined' && mobileControls) {
-    mobileControls.classList.toggle('controls-hidden', needsCursor());
+    mobileControls.classList.toggle('controls-hidden', cursorNeeded);
   }
 
   let camMoved = false;
   let horizontalMoved = false;
   const sprinting = keys.Control || mobileSprint;
-  const baseMoveSpeed = sprinting ? SPRINT_SPEED : (creativeFlight ? FLIGHT_WALK_SPEED : WALK_SPEED);
+  const baseMoveSpeed = creativeFlight
+    ? (sprinting ? FLIGHT_SPRINT_SPEED : FLIGHT_WALK_SPEED)
+    : (sprinting ? SPRINT_SPEED : WALK_SPEED);
   const spd = baseMoveSpeed * dt;
   const fwd = camForwardFlat();
   const rgt = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
@@ -1241,6 +1261,20 @@ if (mobileSprintBtn) {
   mobileSprintBtn.addEventListener('pointercancel', stopSprint, { passive: false });
   mobileSprintBtn.addEventListener('pointerleave', stopSprint, { passive: false });
 }
+
+function resetTransientTouchControls() {
+  resetTouchLookState();
+  resetMobileJoystick();
+  camMoveDir = 0;
+  mobileSprint = false;
+  if (mobileSprintBtn) mobileSprintBtn.classList.remove('active');
+}
+
+window.addEventListener('blur', resetTransientTouchControls);
+window.addEventListener('pagehide', resetTransientTouchControls);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) resetTransientTouchControls();
+});
 
 function updateTouchControlsAvailability() {
   const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
