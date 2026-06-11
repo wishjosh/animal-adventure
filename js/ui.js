@@ -1734,7 +1734,10 @@ const NextActionGuide = {
         if (typeof level4_conditions === 'undefined') return '';
         const p = level4_conditions.pollutionDeviceInstalled ? '✅' : '❌';
         const d = Math.min(level4_conditions.cementDamRemovedCount || 0, 3);
-        const w = Math.min(level4_conditions.willowPlantedCount || 0, 8);
+        const willowCount = typeof Level4Logic !== 'undefined' && typeof Level4Logic.refreshWillowProgress === 'function'
+          ? Level4Logic.refreshWillowProgress()
+          : level4_conditions.willowPlantedCount || 0;
+        const w = Math.min(willowCount, 8);
         return `오염저감:${p} / 보:${d}/3 / 나무:${w}/8`;
       }
     },

@@ -54,6 +54,22 @@ const Level4Logic = {
         return keys.size;
     },
 
+    countHillsideWillows() {
+        let count = 0;
+        for (const [k, v] of Object.entries(gridData)) {
+            if (v !== 'willow') continue;
+            const [, , z] = k.split(',').map(Number);
+            if (z > 20) count++;
+        }
+        return count;
+    },
+
+    refreshWillowProgress() {
+        const count = this.countHillsideWillows();
+        level4_conditions.willowPlantedCount = count;
+        return count;
+    },
+
     playRemovalEffect(key, color) {
         const [x, y, z] = key.split(',').map(Number);
         if (![x, y, z].every(Number.isFinite)) return;
@@ -550,15 +566,7 @@ const Level4Logic = {
         level4_conditions.isFlooding = false;
         
         // 1. 녹색 댐(심은 버드나무 개수) 체크
-        let willowCount = 0;
-        for (const [k, v] of Object.entries(gridData)) {
-            if (v === 'willow') {
-                const [x, , z] = k.split(',').map(Number);
-                // 산비탈 지역 (Z > 30 부근)
-                if (z > 20) willowCount++;
-            }
-        }
-        level4_conditions.willowPlantedCount = willowCount;
+        const willowCount = this.refreshWillowProgress();
 
         // 2. 강둑이 보수되었는지(약점 3곳이 비어있는지 물이 채워져 있는지) 검사
         const weakPoints = [
@@ -1053,6 +1061,7 @@ const Level4Manager = {
 
     check() {
         if (currentLevel !== 4) return;
+        const willowCount = Level4Logic.refreshWillowProgress();
 
         // 쏘가리 구조 단계 완료 여부 확인
         if (level4_phase === 1 && level4_conditions.soyaRescued) {
@@ -1082,16 +1091,6 @@ const Level4Manager = {
 
         // 두루미 영입 조건 체크
         if (level4_phase === 2 && !global_protectors.crane) {
-            // 심은 버드나무 개수 집계
-            let willowCount = 0;
-            for (const [k, v] of Object.entries(gridData)) {
-                if (v === 'willow') {
-                    const [x, , z] = k.split(',').map(Number);
-                    if (z > 20) willowCount++; // 산비탈 구역
-                }
-            }
-            level4_conditions.willowPlantedCount = willowCount;
-
             if (willowCount >= 8) {
                 global_protectors.crane = true;
                 if (typeof GuardianSystem !== 'undefined') GuardianSystem.updateState('crane', 3);
@@ -1191,7 +1190,7 @@ const Level4Manager = {
         const ownerConvinced = level4_conditions.ownerConvinced;
         const pollutionDevice = level4_conditions.pollutionDeviceInstalled;
         const damsRemoved = level4_conditions.cementDamRemovedCount;
-        const willowCount = level4_conditions.willowPlantedCount;
+        const willowCount = Level4Logic.refreshWillowProgress();
         const timer = level4_conditions.floodTimer;
 
         if (descEl) {
