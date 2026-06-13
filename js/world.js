@@ -1965,9 +1965,11 @@ function spawnLevel4Animals() {
     }
   }
 
-  // 1. 쏘가리 쏘야 (mandarin_fish) — X=42, Z=20, y=29.5 수면 아래 고정
-  // getH()가 지형에 따라 30 이상을 반환할 수 있으므로 y를 직접 지정
-  placeAnimal(42, 29.5, 20, 'mandarin_fish');
+  // 1. 쏘가리 쏘야 (mandarin_fish) — 쓰레기 댐 근처에 눈에 보이도록 배치
+  const soyaY = (typeof Level4Manager !== 'undefined' && typeof Level4Manager.getVisibleMissionY === 'function')
+    ? Level4Manager.getVisibleMissionY(42, 20) + 0.1
+    : getH(42, 20) + 1.1;
+  placeAnimal(42, soyaY, 20, 'mandarin_fish');
   const soya = animalData.find(a => a.type === 'mandarin_fish');
   if (soya && soya.group) {
     soya.group.scale.set(0.6, 0.6, 0.6); // 처음엔 힘없이 작아져 있는 상태
@@ -1987,7 +1989,9 @@ function spawnLevel4Animals() {
   }
 
   // 3. 연어 파닥이 (salmon) — X=45, Z=-15
-  const saY = getH(45, -15) - 0.2;
+  const saY = (typeof Level4Manager !== 'undefined' && typeof Level4Manager.getVisibleMissionY === 'function')
+    ? Level4Manager.getVisibleMissionY(45, -15) + 0.1
+    : getH(45, -15) + 1.1;
   placeAnimal(45, saY, -15, 'salmon');
 
   // 4. 두루미 뚜루 (crane) — X=38, Z=24

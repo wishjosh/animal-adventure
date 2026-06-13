@@ -31,11 +31,12 @@ const Level4Logic = {
 
     getInteractiveRoot(obj, flag) {
         let cur = obj;
+        let match = null;
         while (cur) {
-            if (cur.userData?.[flag]) return cur;
+            if (cur.userData?.[flag]) match = cur;
             cur = cur.parent;
         }
-        return null;
+        return match;
     },
 
     getPollutionInstallTarget(obj) {
@@ -72,11 +73,22 @@ const Level4Logic = {
     },
 
     getFloodWeakPoints() {
-        return [
-            {x:45, y:30, z:5},
-            {x:55, y:30, z:-10},
-            {x:48, y:30, z:-25}
+        const points = [
+            { x: 45, z: 5 },
+            { x: 55, z: -10 },
+            { x: 48, z: -25 }
         ];
+        return points.map(p => ({ ...p, y: this.getLeveeBlockY(p.x, p.z) }));
+    },
+
+    getLeveeBlockY(x, z) {
+        const gx = Math.round(x);
+        const gz = Math.round(z);
+        const terrainY = typeof getH === 'function' ? getH(gx, gz) : 30;
+        const loadedTopY = typeof getTopY === 'function' ? getTopY(gx, gz) : 0;
+        const loadedSurfaceY = loadedTopY > 0 ? loadedTopY - 1 : terrainY;
+        const waterY = typeof WATER_LEVEL !== 'undefined' ? WATER_LEVEL : 30;
+        return Math.max(loadedSurfaceY, terrainY, waterY);
     },
 
     isLeveeOpen(p) {
@@ -211,7 +223,11 @@ const Level4Logic = {
                         // 쏘가리 물속 탈출 연출
                         const soya = animalData.find(a => a.type === 'mandarin_fish');
                         if (soya) {
-                            soya.x = 42; soya.z = 20; soya.y = getH(soya.x, soya.z) - 0.5;
+                            soya.x = 42;
+                            soya.z = 20;
+                            soya.y = typeof Level4Manager !== 'undefined'
+                                ? Level4Manager.getVisibleMissionY(soya.x, soya.z) + 0.1
+                                : getH(soya.x, soya.z) + 1.1;
                             if (soya.group) {
                                 soya.group.position.set(soya.x, soya.y, soya.z);
                                 // 크기 회복 연출
@@ -617,11 +633,7 @@ const Level4Logic = {
         const willowCount = this.refreshWillowProgress();
 
         // 2. 강둑이 보수되었는지(약점 3곳이 비어있는지 물이 채워져 있는지) 검사
-        const weakPoints = [
-            {x:45, y:30, z:5},
-            {x:55, y:30, z:-10},
-            {x:48, y:30, z:-25}
-        ];
+        const weakPoints = this.getFloodWeakPoints();
         let brokenCount = 0;
         weakPoints.forEach(p => {
             const k = `${p.x},${p.y},${p.z}`;
