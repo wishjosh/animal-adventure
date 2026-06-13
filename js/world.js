@@ -1335,6 +1335,153 @@ function updateRaccoon(a, t) {
   a.group.rotation.z = 0;
 }
 
+let level5CityGroup = null;
+
+function createWorldTextSprite(text, width = 256, height = 128) {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = 'rgba(20, 25, 32, 0.84)';
+  ctx.fillRect(10, 30, width - 20, height - 60);
+  ctx.strokeStyle = '#f7d35c';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(10, 30, width - 20, height - 60);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 38px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, width / 2, height / 2);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.LinearFilter;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }));
+  sprite.scale.set(2.4, 1.15, 1);
+  return sprite;
+}
+
+function clearLevel5MissionScene() {
+  if (level5CityGroup) {
+    scene.remove(level5CityGroup);
+    level5CityGroup = null;
+  }
+
+  const missionTypes = new Set(['raccoon', 'kestrel', 'officer_city']);
+  for (let i = animalData.length - 1; i >= 0; i--) {
+    if (missionTypes.has(animalData[i].type)) {
+      scene.remove(animalData[i].group);
+      animalData.splice(i, 1);
+    }
+  }
+
+  for (const [key, type] of Object.entries(gridData)) {
+    if (type === 'city_trash' || type === 'viaduct' || type === 'biotope' || type === 'wildlife_tunnel') {
+      if (meshByKey[key]) scene.remove(meshByKey[key]);
+      delete meshByKey[key];
+      delete gridData[key];
+      deletedBlocks.delete(key);
+    }
+  }
+}
+
+function buildLevel5CityScene() {
+  if (level5CityGroup) scene.remove(level5CityGroup);
+  const group = new THREE.Group();
+  group.userData = { isLevel5CityScenery: true };
+
+  const mat = color => new THREE.MeshLambertMaterial({ color });
+  const basic = color => new THREE.MeshBasicMaterial({ color });
+  const addBox = (w, h, d, x, y, z, material) => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
+    mesh.position.set(x, y, z);
+    mesh.castShadow = mesh.receiveShadow = true;
+    group.add(mesh);
+    return mesh;
+  };
+
+  // 실제 미션 판정용 도로 바닥. Z=74~78은 생태 육교가 반드시 건너야 하는 핵심 도로 구간이다.
+  for (let x = -63; x <= -27; x++) {
+    for (let z = 72; z <= 81; z++) {
+      const y = Math.max(getTopY(x, z) - 1, getH(x, z));
+      _place(x, y, z, 'stone');
+      addBox(1.02, 0.08, 1.02, x, y + 0.55, z, mat(0x2f3338));
+    }
+  }
+
+  // 차선, 중앙선, 횡단보도. 도로가 도시로 읽히는 최소 시각 요소다.
+  for (let x = -62; x <= -28; x += 3) {
+    [74, 76, 78].forEach(z => {
+      const y = getTopY(x, z) - 0.38;
+      addBox(1.2, 0.04, 0.11, x, y, z, basic(0xf1f1d8));
+    });
+  }
+  for (let x = -54; x <= -50; x++) {
+    for (let z = 72; z <= 81; z += 2) {
+      const y = getTopY(x, z) - 0.34;
+      addBox(0.75, 0.05, 0.82, x, y, z, basic(0xffffff));
+    }
+  }
+
+  // 양쪽 인도와 가드레일.
+  for (let x = -63; x <= -27; x++) {
+    [71, 82].forEach(z => {
+      const y = Math.max(getTopY(x, z), getH(x, z) + 1);
+      addBox(1.0, 0.22, 1.0, x, y - 0.36, z, mat(0x8c8f94));
+      if (x % 3 === 0) addBox(0.12, 0.8, 0.12, x, y + 0.12, z, mat(0xd5d8dc));
+    });
+  }
+
+  // 시청 건물과 박 주임이 서 있는 앞마당.
+  for (let x = -53; x <= -47; x++) {
+    for (let z = 64; z <= 68; z++) {
+      const y = Math.max(getTopY(x, z) - 1, getH(x, z));
+      _place(x, y, z, 'stone');
+      addBox(1.04, 0.08, 1.04, x, y + 0.55, z, mat(0x6f7882));
+    }
+  }
+  const hallBaseY = Math.max(getTopY(-50, 63), getH(-50, 63) + 1);
+  addBox(7.4, 0.26, 3.8, -50, hallBaseY - 0.2, 62.7, mat(0x58616a));
+  addBox(6.2, 4.2, 3.0, -50, hallBaseY + 1.9, 62.2, mat(0x9fb0bd));
+  addBox(6.8, 0.35, 3.4, -50, hallBaseY + 4.2, 62.2, mat(0x45505a));
+  for (let dx = -2; dx <= 2; dx += 2) {
+    for (let floor = 0; floor < 3; floor++) {
+      addBox(0.72, 0.48, 0.08, -50 + dx, hallBaseY + 1.05 + floor * 1.05, 63.74, basic(0x88d8ff));
+    }
+  }
+  const cityHallLabel = createWorldTextSprite('시청', 192, 104);
+  cityHallLabel.position.set(-50, hallBaseY + 5.0, 64.1);
+  group.add(cityHallLabel);
+
+  // 옥상 비오톱 미션이 이해되도록 고층 빌딩을 더 분명히 만든다.
+  const towerBaseY = Math.max(getTopY(-40, 80), getH(-40, 80) + 1);
+  const roofY = Math.max(40, towerBaseY + 8);
+  for (let y = towerBaseY; y <= roofY; y++) {
+    for (let x = -42; x <= -38; x++) {
+      for (let z = 78; z <= 82; z++) {
+        const isWall = x === -42 || x === -38 || z === 78 || z === 82;
+        const isRoof = y === roofY;
+        const isCore = Math.abs(x + 40) <= 1 && Math.abs(z - 80) <= 1;
+        if (isWall || isRoof || isCore) _place(x, y, z, 'stone');
+      }
+    }
+  }
+  addBox(5.2, 0.24, 5.2, -40, towerBaseY - 0.12, 80, mat(0x4e565f));
+  addBox(4.4, Math.max(7.2, roofY - towerBaseY), 4.4, -40, towerBaseY + (roofY - towerBaseY) / 2, 80, mat(0x6e7d8a));
+  addBox(4.8, 0.24, 4.8, -40, roofY + 0.22, 80, mat(0x3f474f));
+  for (let floor = 0; floor < 7; floor++) {
+    [-41.25, -40, -38.75].forEach(x => {
+      addBox(0.42, 0.34, 0.07, x, towerBaseY + 1.0 + floor * 1.05, 82.24, basic(0x9ad7ff));
+    });
+  }
+  const roofLabel = createWorldTextSprite('옥상 비오톱', 256, 112);
+  roofLabel.position.set(-40, roofY + 1.5, 80);
+  group.add(roofLabel);
+
+  scene.add(group);
+  level5CityGroup = group;
+  if (typeof invalidateRayCache === 'function') invalidateRayCache();
+}
+
 function updateKestrel(a, t) {
   // 공중 선회: 빌딩 옥상정원(X: -40, Z: 80) 주변을 높이 43 부근에서 궤도 회전
   const cX = -40, cZ = 80;
@@ -2007,6 +2154,7 @@ function spawnLevel4Animals() {
 // ──────────────────────────────────────────────
 function spawnLevel5Animals() {
   DBG('[Level5] spawnLevel5Animals() 실행 — 경계 도시 청크 활성화, 빌딩/도로 지형 도색 및 동물 배치');
+  clearLevel5MissionScene();
 
   // 경계 도시 근방 청크들을 사전 로드
   for (let cx = -9; cx <= -4; cx++) {
@@ -2015,8 +2163,10 @@ function spawnLevel5Animals() {
     }
   }
 
+  buildLevel5CityScene();
+
   // 1. 너구리 라쿤이 (raccoon) — X=-60, Z=68
-  const rcY = getH(-60, 68);
+  const rcY = getVisualTopY(-60, 68);
   placeAnimal(-60, rcY, 68, 'raccoon');
   const raccoon = animalData.find(a => a.type === 'raccoon');
   if (raccoon && raccoon.group) {
@@ -2024,33 +2174,24 @@ function spawnLevel5Animals() {
   }
 
   // 2. 황조롱이 삐루 (kestrel) — X=-40, Y=43, Z=80
-  placeAnimal(-40, 43, 80, 'kestrel');
+  const kestrelY = Math.max(getTopY(-40, 80), 43);
+  placeAnimal(-40, kestrelY, 80, 'kestrel');
 
-  // 3. 시청 공무원 박 주임 (officer_city) — X=-50, Z=65
-  const ofY = getH(-50, 65);
-  placeAnimal(-50, ofY, 65, 'officer_city');
-
-  DBG('[Level5] 스폰 완료 — 라쿤이(-60,68) 삐루(-40,43,80) 박 주임(-50,65)');
-
-  // ── 8차선 아스팔트 도로 도색 & 빌딩 건설 ──────────
-  // 도로: X=-60~-30, Z=74~78
-  for (let x = -60; x <= -30; x++) {
-    for (let z = 74; z <= 78; z++) {
-      const dy = getTopY(x, z) - 1;
-      _place(x, dy, z, 'stone'); // 아스팔트 대용 돌 블록
-    }
+  // 3. 시청 공무원 박 주임 — 시청 앞마당에 크게 배치하고 이름표를 붙인다.
+  const ofY = getVisualTopY(-50, 68);
+  placeAnimal(-50, ofY, 68, 'officer_city');
+  const officer = animalData.find(a => a.type === 'officer_city');
+  if (officer && officer.group) {
+    officer.group.scale.set(1.55, 1.55, 1.55);
+    officer.angle = -Math.PI / 2;
+    officer.targetAngle = officer.angle;
+    const label = createWorldTextSprite('박 주임', 192, 104);
+    label.position.set(0, 2.25, 0);
+    label.userData = { isLevel5OfficerLabel: true };
+    officer.group.add(label);
   }
 
-  // 빌딩: X=-40, Z=80에 높이 Y=40까지 돌 기둥 건설
-  const buildY = getTopY(-40, 80);
-  for (let y = buildY; y <= 40; y++) {
-    _place(-40, y, 80, 'stone');
-    // 빌딩 외벽 느낌을 위해 주변을 돌러쌈
-    _place(-41, y, 80, 'stone');
-    _place(-39, y, 80, 'stone');
-    _place(-40, y, 81, 'stone');
-    _place(-40, y, 79, 'stone');
-  }
+  DBG('[Level5] 스폰 완료 — 라쿤이(-60,68) 삐루(-40,80) 박 주임(-50,68)');
 
   // ── 너구리 발을 묶고 있는 도심 쓰레기 블록 3개 생성 ──────────
   const trashXZ = [{x:-60,z:67},{x:-59,z:68},{x:-61,z:69}];

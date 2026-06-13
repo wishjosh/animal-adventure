@@ -82,10 +82,10 @@ class Level5Manager {
     title.textContent = 'Level 5. 경계 도시';
 
     if (Level5Manager.currentPhase === 1) {
-      desc.textContent = '회색 도시의 쓰레기를 치워 라쿤이를 구출하세요.';
+      desc.textContent = '8차선 도로와 빌딩 사이에 갇힌 라쿤이를 구출하세요. 먼저 주변 도심 쓰레기를 치워야 합니다.';
       status.innerHTML = `<div class="mc">도심 쓰레기: ${trashCount}개 남음</div><div class="mc">라쿤이 구조: ${level5_conditions.raccoonRescued ? '완료' : '진행 중'}</div>`;
     } else if (Level5Manager.currentPhase === 2) {
-      desc.textContent = '생태 육교, 동물 터널, 옥상 비오톱으로 도시와 숲을 연결하세요.';
+      desc.textContent = '시청 앞 박 주임을 설득한 뒤, 도로 위 생태 육교와 도로 아래 동물 터널, 빌딩 옥상 비오톱으로 도시와 숲을 연결하세요.';
       status.innerHTML = `
         <div class="mc">공무원 설득: ${level5_conditions.officerConvinced ? '완료' : '필요'}</div>
         <div class="mc">생태 육교: ${level5_conditions.viaductConnected ? '연결됨' : '미완성'}</div>
