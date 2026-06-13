@@ -8,6 +8,7 @@ const Level4Logic = {
     rainParticles: null,
     riverCells: [], // 강줄기 타겟 경로 셀 목록
     _floodInterval: null, // 100년 홍수 카운트다운 타이머 핸들
+    _leveeGuideGroup: null,
 
     enqueueEvent(eventMsg, duration = 3000) {
         this.eventQueue.push({ msg: eventMsg, duration });
@@ -68,6 +69,73 @@ const Level4Logic = {
         const count = this.countHillsideWillows();
         level4_conditions.willowPlantedCount = count;
         return count;
+    },
+
+    getFloodWeakPoints() {
+        return [
+            {x:45, y:30, z:5},
+            {x:55, y:30, z:-10},
+            {x:48, y:30, z:-25}
+        ];
+    },
+
+    isLeveeOpen(p) {
+        const block = gridData[`${p.x},${p.y},${p.z}`];
+        return !block || block === 'water';
+    },
+
+    clearLeveeGuides() {
+        if (!this._leveeGuideGroup) return;
+        scene.remove(this._leveeGuideGroup);
+        this._leveeGuideGroup = null;
+    },
+
+    showLeveeGuides(points, urgent = false) {
+        this.clearLeveeGuides();
+        const group = new THREE.Group();
+        const color = urgent ? 0xffd34d : 0x00aaff;
+        points.forEach((p, idx) => {
+            const column = new THREE.Mesh(
+                new THREE.BoxGeometry(1.25, 4.8, 1.25),
+                new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.46 })
+            );
+            column.position.set(p.x, p.y + 2.4, p.z);
+            column.userData = { isLeveeGuide: true };
+            group.add(column);
+
+            const ring = new THREE.Mesh(
+                new THREE.BoxGeometry(2.2, 0.18, 2.2),
+                new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.72 })
+            );
+            ring.position.set(p.x, p.y + 0.12, p.z);
+            ring.userData = { isLeveeGuide: true };
+            group.add(ring);
+
+            if (typeof createEmojiSprite === 'function') {
+                const marker = createEmojiSprite(urgent ? '⚠️' : '🦦');
+                marker.position.set(p.x, p.y + 5.4, p.z);
+                marker.scale.set(1.25, 1.25, 1);
+                marker.userData = { isLeveeGuide: true };
+                group.add(marker);
+            }
+
+            if (idx === 0 && typeof updateDestinationCompass === 'function') {
+                updateDestinationCompass({
+                    x: p.x,
+                    z: p.z,
+                    title: '🦦 둑 보강 위치',
+                    hint: `X:${p.x}<br>Z:${p.z} 막기!`,
+                    arrivedHint: '이 위치에<br>돌/흙 배치!',
+                    arrivedText: '보강 위치 도착!',
+                    radius: 5
+                });
+            }
+        });
+        scene.add(group);
+        this._leveeGuideGroup = group;
+        setTimeout(() => {
+            if (this._leveeGuideGroup === group) this.clearLeveeGuides();
+        }, 18000);
     },
 
     playRemovalEffect(key, color) {
@@ -438,11 +506,7 @@ const Level4Logic = {
     // 15초마다 강둑 붕괴 이벤트 (둑 위치의 흙 블록 제거 및 경고)
     damageLevees() {
         // S자 강줄기 양측 둑 좌표 후보
-        const leveeCandidates = [
-            {x:45, y:30, z:5},
-            {x:55, y:30, z:-10},
-            {x:48, y:30, z:-25}
-        ];
+        const leveeCandidates = this.getFloodWeakPoints();
 
         let target = null;
         for (const c of leveeCandidates) {
@@ -464,6 +528,7 @@ const Level4Logic = {
             delete gridData[k];
             deletedBlocks.add(k);
             if (typeof invalidateRayCache === 'function') invalidateRayCache();
+            this.showLeveeGuides([target], true);
             this.alert(`🌊 폭우로 인해 강둑(${target.x}, ${target.z})의 흙이 유실되어 무너졌습니다! 신속히 보강해 주세요!`);
         }
     },
@@ -473,42 +538,25 @@ const Level4Logic = {
     // ──────────────────────────────────────────────
     castOtterSkill() {
         if (!global_protectors.otter) {
-            this.alert('🦦 수달 보글이가 아직 합류하지 않아 도움을 받을 수 없습니다!');
-            return;
+            if (currentLevel !== 4) {
+                this.alert('🦦 수달 보글이가 아직 합류하지 않아 도움을 받을 수 없습니다!');
+                return;
+            }
+            global_protectors.otter = true;
+            if (typeof GuardianSystem !== 'undefined') GuardianSystem.updateState('otter', 3);
+            if (typeof updateProtectorSlots === 'function') updateProtectorSlots();
         }
 
-        // 둑의 취약 부위(Y=30의 강둑 중 비어 있는 물길 둑)를 하이라이트
-        const weakPoints = [
-            {x:45, y:30, z:5},
-            {x:55, y:30, z:-10},
-            {x:48, y:30, z:-25}
-        ];
+        const weakPoints = this.getFloodWeakPoints();
+        const brokenPoints = weakPoints.filter(p => this.isLeveeOpen(p));
+        const guidePoints = brokenPoints.length ? brokenPoints : weakPoints;
+        this.showLeveeGuides(guidePoints, brokenPoints.length > 0);
 
-        let highlighted = false;
-        weakPoints.forEach(p => {
-            const k = `${p.x},${p.y},${p.z}`;
-            if (!gridData[k]) {
-                highlighted = true;
-                // 파란색 투명 가이드 큐브 소환
-                const geom = new THREE.BoxGeometry(1.05, 1.05, 1.05);
-                const mat = new THREE.MeshBasicMaterial({
-                    color: 0x00aaff,
-                    transparent: true,
-                    opacity: 0.5,
-                    wireframe: false
-                });
-                const helper = new THREE.Mesh(geom, mat);
-                helper.position.set(p.x, p.y + 0.5, p.z);
-                scene.add(helper);
-
-                setTimeout(() => scene.remove(helper), 8000);
-            }
-        });
-
-        if (highlighted) {
-            this.enqueueEvent('🦦 수달 수리가 무너진 강둑의 물줄기 취약 지점을 파랗게 하이라이트했습니다. 돌이나 흙으로 메워주세요!', 4000);
+        const pointText = guidePoints.map(p => `X:${p.x} Z:${p.z}`).join(' / ');
+        if (brokenPoints.length) {
+            this.enqueueEvent(`🦦 수달 수리가 막아야 할 둑을 표시했습니다: ${pointText}`, 5000);
         } else {
-            this.enqueueEvent('🦦 수달 수리가 강둑을 점검했으나 모두 안전하게 보강되어 있습니다!', 3000);
+            this.enqueueEvent(`🦦 아직 무너지진 않았지만 취약 둑 3곳을 미리 표시했습니다: ${pointText}`, 5000);
         }
     },
 
@@ -605,6 +653,7 @@ const Level4Logic = {
 
         // 결과 다이얼로그 연출
         if (score >= 80) {
+            this.clearLeveeGuides();
             level4_phase = 4;
             Level4Manager.currentPhase = 4;
             Level4Manager.clearLevel4();
@@ -707,7 +756,11 @@ const Level4Manager = {
 
     getVisibleMissionY(x, z) {
         const waterY = typeof WATER_LEVEL !== 'undefined' ? WATER_LEVEL : 30;
-        return Math.max(getTopY(x, z), waterY);
+        const gx = Math.round(x);
+        const gz = Math.round(z);
+        const loadedTopY = typeof getTopY === 'function' ? getTopY(gx, gz) : 0;
+        const terrainTopY = typeof getH === 'function' ? getH(gx, gz) + 1 : 0;
+        return Math.max(loadedTopY, terrainTopY, waterY);
     },
 
     clearLevel4WhiteBoxElements() {
@@ -732,17 +785,57 @@ const Level4Manager = {
     },
 
     createCementDamMesh(x, y, z, key) {
-        const geom = new THREE.BoxGeometry(1, 1, 1);
-        const mat = new THREE.MeshLambertMaterial({ color: 0xa0a0a0 });
-        const mesh = new THREE.Mesh(geom, mat);
-        mesh.position.set(x, y + 0.5, z);
-        mesh.castShadow = mesh.receiveShadow = true;
-        mesh.userData = { isBlock: true, bx: x, by: y, bz: z, isCementDam: true, gridKey: key };
-        mesh.add(new THREE.LineSegments(
-            new THREE.EdgesGeometry(geom),
-            new THREE.LineBasicMaterial({ color: 0x222222, transparent: true, opacity: 0.25 })
-        ));
-        return mesh;
+        const group = new THREE.Group();
+        group.position.set(x, y, z);
+        group.userData = { isBlock: true, bx: x, by: y, bz: z, isCementDam: true, gridKey: key };
+
+        const edgeMat = new THREE.LineBasicMaterial({ color: 0x111111, transparent: true, opacity: 0.32 });
+        const makeMat = color => new THREE.MeshLambertMaterial({ color });
+        const addBox = (w, h, d, px, py, pz, color) => {
+            const geo = new THREE.BoxGeometry(w, h, d);
+            const mesh = new THREE.Mesh(geo, makeMat(color));
+            mesh.position.set(px, py, pz);
+            mesh.castShadow = mesh.receiveShadow = true;
+            mesh.userData = { isBlock: true, bx: x, by: y, bz: z, isCementDam: true, gridKey: key };
+            mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat.clone()));
+            group.add(mesh);
+            return mesh;
+        };
+
+        addBox(1.18, 1.05, 1.18, 0, 0.52, 0, 0xa8a8a8);
+        addBox(1.42, 0.24, 1.42, 0, 1.18, 0, 0xc7c7c7);
+        addBox(0.18, 1.45, 0.18, -0.54, 0.8, -0.54, 0x6b6b6b);
+        addBox(0.18, 1.45, 0.18, 0.54, 0.8, 0.54, 0x6b6b6b);
+        addBox(1.12, 0.14, 0.08, 0, 1.42, 0.58, 0xffd34d);
+        addBox(1.12, 0.14, 0.08, 0, 1.62, 0.58, 0x3c3c3c);
+
+        if (typeof createEmojiSprite === 'function') {
+            const marker = createEmojiSprite('🧱');
+            marker.position.set(0, 2.05, 0);
+            marker.scale.set(1.05, 1.05, 1);
+            group.add(marker);
+        }
+
+        if (typeof this.createLevel4TextSprite === 'function') {
+            const label = this.createLevel4TextSprite('보', 128, 96);
+            label.position.set(0, 2.85, 0);
+            label.scale.set(1.15, 0.75, 1);
+            label.userData = { isCementDam: true, gridKey: key };
+            group.add(label);
+        }
+
+        return group;
+    },
+
+    placeLevel4MissionMesh(key, type, mesh) {
+        if (meshByKey[key]) {
+            scene.remove(meshByKey[key]);
+            delete meshByKey[key];
+        }
+        gridData[key] = type;
+        deletedBlocks.delete(key);
+        scene.add(mesh);
+        meshByKey[key] = mesh;
     },
 
     createTrashDamMesh(x, y, z, key) {
@@ -1015,10 +1108,8 @@ const Level4Manager = {
         this.DAM_COORDS.forEach(c => {
             const y = this.getVisibleMissionY(c.x, c.z);
             const key = `${c.x},${y},${c.z}`;
-            gridData[key] = 'cement_dam';
             const mesh = this.createCementDamMesh(c.x, y, c.z, key);
-            scene.add(mesh);
-            meshByKey[key] = mesh;
+            this.placeLevel4MissionMesh(key, 'cement_dam', mesh);
             placedCementCells.push({ x: c.x, y, z: c.z });
         });
         level4_conditions.cementDamCells = placedCementCells;
@@ -1032,10 +1123,8 @@ const Level4Manager = {
         trashCoords.forEach(c => {
             const y = this.getVisibleMissionY(c.x, c.z);
             const key = `${c.x},${y},${c.z}`;
-            gridData[key] = 'city_trash';
             const mesh = this.createTrashDamMesh(c.x, y, c.z, key);
-            scene.add(mesh);
-            meshByKey[key] = mesh;
+            this.placeLevel4MissionMesh(key, 'city_trash', mesh);
         });
 
         // 3. 펜션 앞 방류구 근처에 거품(foam) 블록 배치
